@@ -1,1 +1,59 @@
 /* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-canvas: #faf8f5;
+  --color-surface: #ffffff;
+
+  --color-ink: #242321;
+  --color-muted: #77736e;
+
+  --color-border: #e8e3dd;
+
+  --color-sage: #6f8f7a;
+  --color-sage-hover: #607d6a;
+  --color-sage-soft: #e7eee9;
+
+  --font-family:
+    'Outfit',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--color-canvas);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+
+  background: var(--color-canvas);
+  color: var(--color-ink);
+
+  font-family: var(--font-family);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
