@@ -7,7 +7,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { OnboardingService } from '../../../core/services/onboarding';
 
@@ -19,6 +19,7 @@ import { OnboardingService } from '../../../core/services/onboarding';
 })
 export class AboutBaby {
   private readonly onboarding = inject(OnboardingService);
+  private readonly router = inject(Router);
 
   readonly today = this.getToday();
 
@@ -56,11 +57,7 @@ export class AboutBaby {
       this.birthDate.value,
     );
 
-    console.log('Onboarding concluído:', {
-      caregiverName: this.onboarding.caregiverName(),
-      babyName: this.onboarding.babyName(),
-      babyBirthDate: this.onboarding.babyBirthDate(),
-    });
+    this.router.navigate(['/home']);
   }
 
   babyAge(): string {
