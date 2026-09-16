@@ -184,7 +184,7 @@
   .welcome__button {
     width: auto;
     min-width: 200px;
-
+    text-decoration: none;
     align-self: flex-start;
 
     padding: 0 36px;
