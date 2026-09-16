@@ -3,7 +3,22 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./features/welcome/welcome').then((m) => m.Welcome),
+    loadComponent: () =>
+      import('./features/welcome/welcome').then((m) => m.Welcome),
+  },
+  {
+    path: 'onboarding/about-you',
+    loadComponent: () =>
+      import('./features/onboarding/about-you/about-you').then(
+        (m) => m.AboutYou
+      ),
+  },
+  {
+    path: 'onboarding/about-baby',
+    loadComponent: () =>
+      import('./features/onboarding/about-baby/about-baby').then(
+        (m) => m.AboutBaby
+      ),
   },
   {
     path: '**',
