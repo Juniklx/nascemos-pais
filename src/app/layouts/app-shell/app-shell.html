@@ -12,20 +12,17 @@
     </div>
 
     <nav class="sidebar__nav" aria-label="Navegação principal">
-      <a
-        class="nav-item"
-        routerLink="/home"
-        routerLinkActive="nav-item--active"
-        [routerLinkActiveOptions]="{ exact: true }"
-      >
+      <a class="nav-item" routerLink="/home" routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: true }">
         <span aria-hidden="true">⌂</span>
         Início
       </a>
 
-      <button class="nav-item nav-item--disabled" type="button" disabled>
+      <a class="nav-item" routerLink="/routine" routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: true }">
         <span aria-hidden="true">◷</span>
         Rotina
-      </button>
+      </a>
 
       <button class="nav-item nav-item--disabled" type="button" disabled>
         <span aria-hidden="true">♩</span>
@@ -57,20 +54,17 @@
   </main>
 
   <nav class="bottom-nav" aria-label="Navegação inferior">
-    <a
-      class="bottom-nav__item"
-      routerLink="/home"
-      routerLinkActive="bottom-nav__item--active"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
+    <a class="bottom-nav__item" routerLink="/home" routerLinkActive="bottom-nav__item--active"
+      [routerLinkActiveOptions]="{ exact: true }">
       <span aria-hidden="true">⌂</span>
       <small>Início</small>
     </a>
 
-    <button class="bottom-nav__item" type="button" disabled>
+    <a class="bottom-nav__item" routerLink="/routine" routerLinkActive="bottom-nav__item--active"
+      [routerLinkActiveOptions]="{ exact: true }">
       <span aria-hidden="true">◷</span>
       <small>Rotina</small>
-    </button>
+    </a>
 
     <button class="bottom-nav__item bottom-nav__item--voice" type="button" disabled>
       <span aria-hidden="true">♩</span>
