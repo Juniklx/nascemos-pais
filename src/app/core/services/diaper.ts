@@ -46,12 +46,28 @@ export class DiaperService {
     }
   }
 
-  private updateDiapers(
+    private updateDiapers(
     update: (current: readonly Diaper[]) => readonly Diaper[],
   ): void {
-    const next = update(this.diapersState());
+    const requested = update(this.diapersState());
+    const stored = this.readStoredDiapers();
 
-    this.diapersState.set(next);
+    const storedIds = new Set(
+      stored.map((diaper) => diaper.id),
+    );
+
+    const newDiapers = requested.filter(
+      (diaper) => !storedIds.has(diaper.id),
+    );
+
+    const merged = [
+      ...stored,
+      ...newDiapers,
+    ].sort(
+      (a, b) => b.recordedAt - a.recordedAt,
+    );
+
+    this.diapersState.set(merged);
 
     if (!this.canWriteToStorage) {
       return;
@@ -60,7 +76,7 @@ export class DiaperService {
     try {
       localStorage.setItem(
         this.storageKey,
-        JSON.stringify(next),
+        JSON.stringify(merged),
       );
 
       this.storageErrorState.set(null);
@@ -68,6 +84,30 @@ export class DiaperService {
       this.storageErrorState.set(
         'Não foi possível salvar. O registro está apenas nesta sessão.',
       );
+    }
+  }
+
+    private readStoredDiapers(): Diaper[] {
+    try {
+      const saved = localStorage.getItem(
+        this.storageKey,
+      );
+
+      if (saved === null) {
+        return [...this.diapersState()];
+      }
+
+      const parsed: unknown = JSON.parse(saved);
+
+      if (!Array.isArray(parsed)) {
+        return [...this.diapersState()];
+      }
+
+      return parsed.map((item: unknown) =>
+        this.parseDiaper(item),
+      );
+    } catch {
+      return [...this.diapersState()];
     }
   }
 
