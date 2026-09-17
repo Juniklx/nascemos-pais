@@ -144,12 +144,18 @@
           </span>
         </button>
 
-        <button type="button" class="quick-action">
-          <span class="quick-action__icon">◔</span>
+        <button type="button" class="quick-action" (click)="openSleep()">
+          <span class="quick-action__icon" aria-hidden="true">
+            ◔
+          </span>
 
-          <strong>Sono</strong>
+          <strong>
+            {{ activeSleep() ? 'Acompanhar sono' : 'Sono' }}
+          </strong>
 
-          <span class="quick-action__plus">+</span>
+          <span class="quick-action__plus" aria-hidden="true">
+            {{ activeSleep() ? '›' : '+' }}
+          </span>
         </button>
 
         <button type="button" class="quick-action">

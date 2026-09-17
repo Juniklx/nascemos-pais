@@ -1,0 +1,91 @@
+<main class="sleep">
+  <header class="sleep__header">
+    <a routerLink="/home" class="back-link">
+      <span aria-hidden="true">←</span>
+      Início
+    </a>
+
+    <span class="baby-chip">{{ babyName() }}</span>
+  </header>
+
+  <section class="sleep-card" aria-labelledby="sleep-title">
+    <span class="eyebrow">REGISTRO DE SONO</span>
+
+    @if (storageError(); as error) {
+      <p class="storage-warning" role="alert">
+        {{ error }}
+      </p>
+    }
+
+    @if (displayedSleep(); as sleep) {
+      <h1 id="sleep-title">
+        {{
+          sleep.endedAt === null
+            ? 'Sono em andamento'
+            : 'Sono finalizado'
+        }}
+      </h1>
+
+      @if (sleep.endedAt === null) {
+        <p>
+          Um momento de descanso para {{ babyName() }}.
+        </p>
+      } @else {
+        <p role="status">
+          O registro de sono foi salvo neste navegador.
+        </p>
+      }
+
+      <div class="timer-block">
+        <span>
+          {{
+            sleep.endedAt === null
+              ? 'Tempo dormindo'
+              : 'Duração total'
+          }}
+        </span>
+
+        <strong class="timer" role="timer" aria-live="off">
+          {{ elapsedTime() }}
+        </strong>
+
+        <span>
+          Iniciado às {{ sleep.startedAt | date: 'HH:mm' }}
+        </span>
+      </div>
+
+      @if (sleep.endedAt === null) {
+        <button
+          type="button"
+          class="primary-button"
+          (click)="finish()"
+        >
+          Finalizar sono
+        </button>
+
+        <p class="hint">
+          Você pode voltar ao início.
+          O sono continuará em andamento.
+        </p>
+      } @else {
+        <a routerLink="/home" class="primary-button">
+          Voltar ao início
+        </a>
+      }
+    } @else {
+      <h1 id="sleep-title">Registrar sono</h1>
+
+      <p>
+        Comece o registro quando o bebê adormecer.
+      </p>
+
+      <button
+        type="button"
+        class="primary-button"
+        (click)="start()"
+      >
+        Iniciar sono
+      </button>
+    }
+  </section>
+</main>

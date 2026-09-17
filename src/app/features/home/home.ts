@@ -6,7 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
-
+import { SleepService } from '../../core/services/sleep';
 import type { Feeding } from '../../core/models/feeding';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
@@ -41,7 +41,15 @@ export class Home {
       minute: '2-digit',
     },
   );
+  private readonly sleepService = inject(SleepService);
 
+  readonly activeSleep = this.sleepService.activeSleep;
+
+  openSleep(): void {
+    this.sleepService.start();
+    void this.router.navigate(['/sleep']);
+  }
+  
   readonly caregiverName = this.onboarding.caregiverName;
   readonly babyName = this.onboarding.babyName;
   readonly babyBirthDate = this.onboarding.babyBirthDate;

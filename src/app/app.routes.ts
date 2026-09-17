@@ -39,6 +39,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'sleep',
+        title: 'Sono | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/sleep/sleep').then(
+            (m) => m.SleepPage,
+          ),
+      },
+      {
         path: 'feeding',
         title: 'Mamada | Nascemos Pais',
         loadComponent: () =>
