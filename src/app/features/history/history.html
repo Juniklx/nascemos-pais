@@ -1,1 +1,155 @@
-<p>history works!</p>
+<section class="history" aria-labelledby="history-title">
+  <header class="history__header">
+    <div>
+      <a routerLink="/home" class="back-link">
+        <span aria-hidden="true">←</span>
+        Início
+      </a>
+
+      <span class="eyebrow">HISTÓRICO</span>
+
+      <h1 id="history-title">Histórico</h1>
+
+      <p>
+        Consulte os registros da rotina de
+        {{ babyName() }}.
+      </p>
+    </div>
+
+    <span class="baby-chip">
+      {{ babyName() }}
+    </span>
+  </header>
+
+  @if (storageError(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+  }
+
+  <section class="history-card">
+    <div class="history-filters">
+      <label class="date-field">
+        <span>Data</span>
+
+        <input
+          type="date"
+          [value]="selectedDate()"
+          (change)="onDateChange($event)"
+        />
+      </label>
+
+      <div
+        class="type-filter"
+        role="group"
+        aria-label="Filtrar por tipo"
+      >
+        <span>Tipo de atividade</span>
+
+        <div class="filter-options">
+          @for (
+            option of filterOptions;
+            track option.value
+          ) {
+            <button
+              type="button"
+              [class.is-selected]="
+                selectedType() === option.value
+              "
+              [attr.aria-pressed]="
+                selectedType() === option.value
+              "
+              (click)="selectType(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="history-heading">
+      <div>
+        <span class="section-kicker">
+          {{ selectedDateLabel() }}
+        </span>
+
+        <h2>Atividades</h2>
+      </div>
+
+      <span>
+        {{ events().length }}
+        {{ events().length === 1 ? 'evento' : 'eventos' }}
+      </span>
+    </div>
+
+    <div class="history-list">
+      @for (
+        event of events();
+        track event.id;
+        let isFirst = $first
+      ) {
+        <article class="history-event">
+          <span
+            class="history-event__dot"
+            [class.history-event__dot--active]="isFirst"
+            aria-hidden="true"
+          ></span>
+
+          <div class="history-event__content">
+            <div class="history-event__title">
+              <strong>{{ event.title }}</strong>
+
+              <time [attr.datetime]="event.dateTime">
+                {{ event.time }}
+              </time>
+            </div>
+
+            <p>{{ event.description }}</p>
+          </div>
+
+          <span
+            class="history-event__icon"
+            aria-hidden="true"
+          >
+            @switch (event.kind) {
+              @case ('feeding') {
+                ♢
+              }
+
+              @case ('sleep') {
+                ◔
+              }
+
+              @case ('diaper') {
+                ▱
+              }
+            }
+          </span>
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <span
+            class="empty-state__icon"
+            aria-hidden="true"
+          >
+            ◷
+          </span>
+
+          <strong>Nenhuma atividade encontrada</strong>
+
+          <p>
+            Não existem registros para essa data e filtro.
+          </p>
+
+          <button
+            type="button"
+            (click)="clearFilters()"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      }
+    </div>
+  </section>
+</section>
