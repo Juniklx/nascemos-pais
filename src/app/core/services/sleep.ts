@@ -72,6 +72,54 @@ export class SleepService {
     return finished;
   }
 
+  updateCompleted(record: Sleep): boolean {
+    const current = this.sleepsState().find(
+      (sleep) => sleep.id === record.id,
+    );
+
+    if (!current || current.endedAt === null) {
+      return false;
+    }
+
+    let validated: Sleep;
+
+    try {
+      validated = this.parseSleep(record);
+    } catch {
+      return false;
+    }
+
+    if (validated.endedAt === null) {
+      return false;
+    }
+
+    this.updateSleeps((sleeps) =>
+      sleeps.map((sleep) =>
+        sleep.id === validated.id
+          ? validated
+          : sleep,
+      ),
+    );
+
+    return true;
+  }
+
+  removeCompleted(id: string): boolean {
+    const record = this.sleepsState().find(
+      (sleep) => sleep.id === id,
+    );
+
+    if (!record || record.endedAt === null) {
+      return false;
+    }
+
+    this.updateSleeps((sleeps) =>
+      sleeps.filter((sleep) => sleep.id !== id),
+    );
+
+    return true;
+  }
+
   duration(
     sleep: Sleep,
     now = Date.now(),
@@ -91,6 +139,17 @@ export class SleepService {
 
     const changedIds = new Set<string>();
 
+    const removedIds = new Set(
+      previous
+        .filter(
+          (previousSleep) =>
+            !requested.some(
+              (sleep) => sleep.id === previousSleep.id,
+            ),
+        )
+        .map((sleep) => sleep.id),
+    );
+
     for (const sleep of requested) {
       const previousSleep = previous.find(
         (item) => item.id === sleep.id,
@@ -99,14 +158,16 @@ export class SleepService {
       if (
         previousSleep === undefined ||
         JSON.stringify(previousSleep) !==
-          JSON.stringify(sleep)
+        JSON.stringify(sleep)
       ) {
         changedIds.add(sleep.id);
       }
     }
 
     const merged = stored.filter(
-      (sleep) => !changedIds.has(sleep.id),
+      (sleep) =>
+        !changedIds.has(sleep.id) &&
+        !removedIds.has(sleep.id),
     );
 
     for (const sleep of requested) {
