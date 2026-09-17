@@ -25,6 +25,7 @@ export const routes: Routes = [
   },
   {
     path: 'home',
+    title: 'Início | Nascemos Pais',
     loadComponent: () =>
       import('./features/home/home').then(
         (m) => m.Home,

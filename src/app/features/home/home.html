@@ -78,58 +78,80 @@
           <div class="last-activity__top">
             <span class="activity-status">
               <span></span>
-              AGORA
+              RESUMO
             </span>
 
             <span class="last-activity__label">
-              Última mamada
+              Última mamada concluída
             </span>
           </div>
 
+          @if (lastCompletedFeeding(); as feeding) {
           <strong class="last-activity__time">
-            há 1h 24min
+            {{ lastFeedingElapsed() }}
           </strong>
 
           <div class="last-activity__detail">
-            <span class="activity-icon">
-              ♢
-            </span>
+            <span class="activity-icon" aria-hidden="true">♢</span>
 
             <span>
-              18 minutos · lado esquerdo
+              {{ feedingDescription(feeding) }}
             </span>
           </div>
+          } @else {
+          <strong class="last-activity__time">
+            {{ activeFeeding() ? 'Primeira mamada em andamento' : 'Tudo pronto' }}
+          </strong>
+
+          <p>
+            Nenhuma mamada concluída ainda.
+          </p>
+          }
+
+          @if (activeFeeding()) {
+          <button type="button" class="history-link" (click)="openFeeding()">
+            Acompanhar mamada
+            <span aria-hidden="true">›</span>
+          </button>
+          }
         </section>
+
+        @if (storageError(); as error) {
+        <p role="alert">
+          {{ error }}
+        </p>
+        }
 
         <section class="today">
           <div class="section-heading">
             <h2>Hoje</h2>
 
             <span>
-              {{ events.length }} eventos
+              {{ events().length }}
+              {{ events().length === 1 ? 'evento' : 'eventos' }}
             </span>
           </div>
 
           <div class="timeline">
-            @for (event of events; track event.time) {
+            @for (event of events(); track event.id) {
             <article class="timeline-item">
-              <span class="timeline-item__dot" [class.timeline-item__dot--active]="
-                    $first
-                  "></span>
+              <span class="timeline-item__dot" [class.timeline-item__dot--active]="$first" aria-hidden="true"></span>
 
               <div class="timeline-item__content">
                 <div class="timeline-item__title">
                   <strong>{{ event.title }}</strong>
 
-                  <span>·</span>
+                  <span aria-hidden="true">·</span>
 
-                  <time>{{ event.time }}</time>
+                  <time [attr.datetime]="event.dateTime">
+                    {{ event.time }}
+                  </time>
                 </div>
 
                 <p>{{ event.description }}</p>
               </div>
 
-              <div class="timeline-item__icon">
+              <div class="timeline-item__icon" aria-hidden="true">
                 @switch (event.type) {
                 @case ('feeding') {
                 ♢
@@ -145,13 +167,13 @@
                 }
               </div>
             </article>
+            } @empty {
+            <p>
+              Nenhuma mamada iniciada hoje.
+              Use o botão Mamada para começar um registro.
+            </p>
             }
           </div>
-
-          <button class="history-link" type="button">
-            Ver histórico completo
-            <span>›</span>
-          </button>
         </section>
       </div>
 
