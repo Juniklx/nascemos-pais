@@ -37,7 +37,15 @@ export const routes: Routes = [
           import('./features/home/home').then(
             (m) => m.Home,
           ),
-      }, 
+      },
+      {
+        path: 'routine',
+        title: 'Rotina | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/routine/routine').then(
+            (m) => m.Routine,
+          ),
+      },
       {
         path: 'diaper',
         title: 'Fralda | Nascemos Pais',
