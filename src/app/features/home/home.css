@@ -830,6 +830,42 @@ a {
     padding: 86px 42px 64px;
   }
 
+  .home__grid {
+    height: calc(100dvh - 220px);
+    min-height: 0;
+  }
+
+  .home__main-column {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .today {
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .today .timeline {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .today .timeline::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .today .timeline::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
   .home__intro {
     margin-bottom: 48px;
   }
