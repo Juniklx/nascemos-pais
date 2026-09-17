@@ -89,7 +89,20 @@
         track event.id;
         let isFirst = $first
       ) {
-        <article class="history-event">
+        <a
+          class="history-event"
+          [routerLink]="[
+            '/history',
+            event.kind,
+            event.id
+          ]"
+          [attr.aria-label]="
+            'Abrir detalhes de ' +
+            event.title +
+            ' às ' +
+            event.time
+          "
+        >
           <span
             class="history-event__dot"
             [class.history-event__dot--active]="isFirst"
@@ -126,7 +139,7 @@
               }
             }
           </span>
-        </article>
+        </a>
       } @empty {
         <div class="empty-state">
           <span

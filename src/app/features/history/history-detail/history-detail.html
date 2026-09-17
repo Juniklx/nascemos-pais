@@ -1,0 +1,196 @@
+<section class="history-detail">
+  <a class="back-link" routerLink="/history">
+    <span aria-hidden="true">←</span>
+    Voltar ao histórico
+  </a>
+
+  @if (activity(); as activity) {
+    <article class="detail-card">
+      <header class="detail-card__header">
+        <span class="detail-card__icon" aria-hidden="true">
+          @switch (activity.kind) {
+            @case ('feeding') {
+              ♢
+            }
+
+            @case ('sleep') {
+              ◔
+            }
+
+            @case ('diaper') {
+              ▱
+            }
+          }
+        </span>
+
+        <div>
+          <span class="eyebrow">DETALHES DO REGISTRO</span>
+
+          <h1>
+            @switch (activity.kind) {
+              @case ('feeding') {
+                Mamada
+              }
+
+              @case ('sleep') {
+                Sono
+              }
+
+              @case ('diaper') {
+                Fralda
+              }
+            }
+          </h1>
+        </div>
+      </header>
+
+      @switch (activity.kind) {
+        @case ('feeding') {
+          <dl class="detail-list">
+            <div>
+              <dt>Início</dt>
+              <dd>
+                {{ formatDateTime(activity.record.startedAt) }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Fim</dt>
+              <dd>
+                @if (activity.record.endedAt !== null) {
+                  {{
+                    formatDateTime(
+                      activity.record.endedAt
+                    )
+                  }}
+                } @else {
+                  Em andamento
+                }
+              </dd>
+            </div>
+
+            <div>
+              <dt>Duração total</dt>
+              <dd>
+                {{
+                  formatDuration(
+                    feedingDuration(activity.record)
+                  )
+                }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Lado esquerdo</dt>
+              <dd>
+                {{
+                  formatDuration(
+                    feedingLeftDuration(activity.record)
+                  )
+                }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Lado direito</dt>
+              <dd>
+                {{
+                  formatDuration(
+                    feedingRightDuration(activity.record)
+                  )
+                }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Sem lado informado</dt>
+              <dd>
+                {{
+                  formatDuration(
+                    feedingUnspecifiedDuration(
+                      activity.record
+                    )
+                  )
+                }}
+              </dd>
+            </div>
+          </dl>
+        }
+
+        @case ('sleep') {
+          <dl class="detail-list">
+            <div>
+              <dt>Início</dt>
+              <dd>
+                {{ formatDateTime(activity.record.startedAt) }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Fim</dt>
+              <dd>
+                @if (activity.record.endedAt !== null) {
+                  {{
+                    formatDateTime(
+                      activity.record.endedAt
+                    )
+                  }}
+                } @else {
+                  Em andamento
+                }
+              </dd>
+            </div>
+
+            <div>
+              <dt>Duração</dt>
+              <dd>
+                {{
+                  formatDuration(
+                    sleepDuration(activity.record)
+                  )
+                }}
+              </dd>
+            </div>
+          </dl>
+        }
+
+        @case ('diaper') {
+          <dl class="detail-list">
+            <div>
+              <dt>Horário do registro</dt>
+              <dd>
+                {{
+                  formatDateTime(
+                    activity.record.recordedAt
+                  )
+                }}
+              </dd>
+            </div>
+
+            <div>
+              <dt>Tipo</dt>
+              <dd>
+                {{ diaperLabel(activity.record) }}
+              </dd>
+            </div>
+          </dl>
+        }
+      }
+    </article>
+  } @else {
+    <section class="not-found">
+      <span aria-hidden="true">?</span>
+
+      <h1>Registro não encontrado</h1>
+
+      <p>
+        O registro pode ter sido removido ou o endereço
+        informado é inválido.
+      </p>
+
+      <a routerLink="/history">
+        Voltar ao histórico
+      </a>
+    </section>
+  }
+</section>

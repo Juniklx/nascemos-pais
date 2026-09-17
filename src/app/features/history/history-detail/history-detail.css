@@ -1,0 +1,147 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.history-detail {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-sage);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detail-card,
+.not-found {
+  margin-top: 28px;
+  padding: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: var(--color-surface);
+}
+
+.detail-card__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-card__icon {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-sage-soft);
+  color: var(--color-sage);
+  font-size: 24px;
+}
+
+.eyebrow {
+  color: var(--color-sage);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.detail-card h1,
+.not-found h1 {
+  margin: 6px 0 0;
+  color: var(--color-ink);
+  font-size: 30px;
+}
+
+.detail-list {
+  margin: 0;
+}
+
+.detail-list > div {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 2fr;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-list > div:last-child {
+  border-bottom: 0;
+}
+
+.detail-list dt {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.detail-list dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-block: 64px;
+  text-align: center;
+}
+
+.not-found > span {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-sage-soft);
+  color: var(--color-sage);
+  font-size: 24px;
+}
+
+.not-found p {
+  max-width: 380px;
+  margin: 12px 0 22px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.not-found a {
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: var(--color-sage);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (max-width: 620px) {
+  .detail-card,
+  .not-found {
+    padding: 24px 18px;
+    border-radius: 18px;
+  }
+
+  .detail-list > div {
+    display: block;
+  }
+
+  .detail-list dd {
+    margin-top: 6px;
+    text-align: left;
+  }
+}

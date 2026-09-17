@@ -193,6 +193,19 @@
   gap: 8px;
   min-height: 72px;
   padding-bottom: 18px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.history-event:hover {
+  background: var(--color-canvas);
+}
+
+.history-event:focus-visible {
+  outline: 3px solid rgb(111 143 122 / 30%);
+  outline-offset: 3px;
 }
 
 .history-event:last-child {
