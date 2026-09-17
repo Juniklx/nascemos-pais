@@ -178,3 +178,40 @@ a:focus-visible {
     flex: 1 1 120px;
   }
 }
+
+.side-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.side-times__item {
+  padding: 16px 12px;
+  border-radius: 16px;
+  background: #f9f3ec;
+}
+
+.side-times dt {
+  color: #424843;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.side-times dd {
+  margin: 8px 0 0;
+  color: #2f4d3b;
+  font-size: clamp(18px, 4vw, 24px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-times + .hint {
+  margin: 0 0 24px;
+}
+
+@media (max-width: 360px) {
+  .side-times {
+    grid-template-columns: 1fr;
+  }
+}

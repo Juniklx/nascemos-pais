@@ -17,18 +17,40 @@
       </p>
     }
 
-    @if (activeFeeding(); as feeding) {
-      <h1 id="feeding-title">Mamada em andamento</h1>
+    @if (displayedFeeding(); as feeding) {
+      <h1 id="feeding-title">
+        {{
+          feeding.endedAt === null
+            ? 'Mamada em andamento'
+            : 'Mamada finalizada'
+        }}
+      </h1>
 
-      <p>Um momento de conexão com {{ babyName() }}.</p>
+      @if (feeding.endedAt === null) {
+        <p>Um momento de conexão com {{ babyName() }}.</p>
+      } @else {
+        <p role="status">
+          @if (storageError()) {
+            O registro está apenas nesta sessão.
+          } @else {
+            O registro foi salvo neste navegador.
+          }
+        </p>
+      }
 
       <div class="timer-block">
-        <span>Tempo decorrido</span>
+        <span>
+          {{
+            feeding.endedAt === null
+              ? 'Tempo decorrido'
+              : 'Duração total'
+          }}
+        </span>
 
         <strong
           class="timer"
           role="timer"
-          aria-label="Tempo decorrido da mamada"
+          aria-label="Duração da mamada"
           aria-live="off"
         >
           {{ elapsedTime() }}
@@ -39,88 +61,114 @@
         </span>
       </div>
 
-      <fieldset class="side-selector">
-        <legend>Lado da mamada · opcional</legend>
+      @if (durations(); as times) {
+        <dl class="side-times" aria-label="Tempo por lado">
+          <div class="side-times__item">
+            <dt>Esquerdo</dt>
+            <dd>{{ formatDuration(times.left) }}</dd>
+          </div>
 
-        <div class="side-options">
-          <button
-            type="button"
-            [class.is-selected]="feeding.side === null"
-            [attr.aria-pressed]="feeding.side === null"
-            (click)="setSide(null)"
-          >
-            Não informar
-          </button>
+          <div class="side-times__item">
+            <dt>Direito</dt>
+            <dd>{{ formatDuration(times.right) }}</dd>
+          </div>
 
-          <button
-            type="button"
-            [class.is-selected]="feeding.side === 'left'"
-            [attr.aria-pressed]="feeding.side === 'left'"
-            (click)="setSide('left')"
-          >
-            Esquerdo
-          </button>
+          <div class="side-times__item">
+            <dt>Sem lado informado</dt>
+            <dd>{{ formatDuration(times.unspecified) }}</dd>
+          </div>
 
-          <button
-            type="button"
-            [class.is-selected]="feeding.side === 'right'"
-            [attr.aria-pressed]="feeding.side === 'right'"
-            (click)="setSide('right')"
-          >
-            Direito
-          </button>
-        </div>
-      </fieldset>
-
-      <button
-        type="button"
-        class="primary-button"
-        (click)="finish()"
-      >
-        Finalizar mamada
-      </button>
-
-      <p class="hint">
-        Você pode voltar ao início. A mamada continuará em andamento.
-      </p>
-    } @else if (finishedFeeding(); as finished) {
-      <h1 id="feeding-title">Mamada finalizada</h1>
-
-      <p role="status">
-        @if (storageError()) {
-          O registro está apenas nesta sessão.
-        } @else {
-          O registro foi salvo neste navegador.
-        }
-      </p>
-
-      <div class="timer-block">
-        <span>Duração total</span>
-        <strong class="timer">{{ elapsedTime() }}</strong>
-
-        <span>
-          @switch (finished.side) {
-            @case ('left') {
-              Lado esquerdo
-            }
-            @case ('right') {
-              Lado direito
-            }
-            @default {
-              Lado não informado
-            }
+          @if (times.untracked > 0 || feeding.periods === null) {
+            <div class="side-times__item">
+              <dt>Sem divisão registrada</dt>
+              <dd>{{ formatDuration(times.untracked) }}</dd>
+            </div>
           }
-        </span>
-      </div>
+        </dl>
 
-      <a routerLink="/home" class="primary-button">
-        Voltar ao início
-      </a>
+        @if (times.untracked > 0 || feeding.periods === null) {
+          <p class="hint">
+            Parte desta mamada foi registrada antes do
+            acompanhamento por lado. Não sabemos como esse
+            tempo foi dividido.
+          </p>
+
+          @if (feeding.periods === null && feeding.side !== null) {
+            <p class="hint">
+              Lado informado no registro antigo:
+              {{ feeding.side === 'left' ? 'esquerdo' : 'direito' }}.
+            </p>
+          }
+        }
+      }
+
+      @if (feeding.endedAt === null) {
+        <fieldset class="side-selector">
+          <legend>Lado atual · opcional</legend>
+
+          <div class="side-options">
+            <button
+              type="button"
+              [class.is-selected]="feeding.side === null"
+              [attr.aria-pressed]="feeding.side === null"
+              (click)="setSide(null)"
+            >
+              Não informar
+            </button>
+
+            <button
+              type="button"
+              [class.is-selected]="feeding.side === 'left'"
+              [attr.aria-pressed]="feeding.side === 'left'"
+              (click)="setSide('left')"
+            >
+              Esquerdo
+            </button>
+
+            <button
+              type="button"
+              [class.is-selected]="feeding.side === 'right'"
+              [attr.aria-pressed]="feeding.side === 'right'"
+              (click)="setSide('right')"
+            >
+              Direito
+            </button>
+          </div>
+
+          <p class="hint">
+            @if (feeding.periods === null) {
+              Selecione um lado para começar a acompanhar
+              os próximos períodos.
+            } @else {
+              Quando o bebê trocar de lado, selecione o outro.
+              O tempo anterior será mantido.
+            }
+          </p>
+        </fieldset>
+
+        <button
+          type="button"
+          class="primary-button"
+          (click)="finish()"
+        >
+          Finalizar mamada
+        </button>
+
+        <p class="hint">
+          Você pode voltar ao início.
+          A mamada continuará em andamento.
+        </p>
+      } @else {
+        <a routerLink="/home" class="primary-button">
+          Voltar ao início
+        </a>
+      }
     } @else {
       <h1 id="feeding-title">Registrar mamada</h1>
 
       <p>
-        Comece quando quiser. Você pode informar o lado depois.
+        Comece quando quiser.
+        Você pode informar o lado depois.
       </p>
 
       <button

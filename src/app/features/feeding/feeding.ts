@@ -34,29 +34,21 @@ export class FeedingPage {
 
   readonly finishedFeeding = signal<Feeding | null>(null);
 
-  readonly elapsedTime = computed(() => {
-    const feeding =
-      this.activeFeeding() ?? this.finishedFeeding();
+  readonly displayedFeeding = computed(
+    () => this.activeFeeding() ?? this.finishedFeeding(),
+  );
 
-    if (!feeding) {
-      return '00:00:00';
-    }
+  readonly durations = computed(() => {
+    const feeding = this.displayedFeeding();
 
-    const end = feeding.endedAt ?? this.now();
-
-    const totalSeconds = Math.max(
-      0,
-      Math.floor((end - feeding.startedAt) / 1000),
-    );
-
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    return [hours, minutes, seconds]
-      .map((value) => String(value).padStart(2, '0'))
-      .join(':');
+    return feeding
+      ? this.feedingService.durations(feeding, this.now())
+      : null;
   });
+
+  readonly elapsedTime = computed(() =>
+    this.formatDuration(this.durations()?.total ?? 0),
+  );
 
   constructor() {
     const intervalId = setInterval(() => {
@@ -69,13 +61,14 @@ export class FeedingPage {
   }
 
   start(): void {
-    this.now.set(Date.now());
     this.finishedFeeding.set(null);
     this.feedingService.start();
+    this.now.set(Date.now());
   }
 
   setSide(side: FeedingSide | null): void {
     this.feedingService.setSide(side);
+    this.now.set(Date.now());
   }
 
   finish(): void {
@@ -83,6 +76,22 @@ export class FeedingPage {
 
     if (finished) {
       this.finishedFeeding.set(finished);
+      this.now.set(Date.now());
     }
+  }
+
+  formatDuration(milliseconds: number): string {
+    const totalSeconds = Math.max(
+      0,
+      Math.floor(milliseconds / 1000),
+    );
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return [hours, minutes, seconds]
+      .map((value) => String(value).padStart(2, '0'))
+      .join(':');
   }
 }

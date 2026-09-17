@@ -142,40 +142,79 @@ export class Home {
   }
 
   feedingDescription(feeding: Feeding): string {
-    const side =
-      feeding.side === 'left'
-        ? 'lado esquerdo'
-        : feeding.side === 'right'
-          ? 'lado direito'
-          : 'lado não informado';
+    const times = this.feedingService.durations(
+      feeding,
+      this.now(),
+    );
 
-    if (feeding.endedAt === null) {
-      return `Em andamento · ${side}`;
+    const status =
+      feeding.endedAt === null
+        ? 'Em andamento'
+        : this.formatFeedingDuration(times.total);
+
+    if (feeding.periods === null) {
+      const side =
+        feeding.side === 'left'
+          ? 'lado esquerdo informado'
+          : feeding.side === 'right'
+            ? 'lado direito informado'
+            : 'lado não informado';
+
+      return `${status} · ${side} · sem divisão de tempo`;
     }
 
-    const seconds = Math.floor(
-      Math.max(0, feeding.endedAt - feeding.startedAt) / 1000,
+    const details: string[] = [];
+
+    if (times.left > 0) {
+      details.push(
+        `Esq. ${this.formatFeedingDuration(times.left)}`,
+      );
+    }
+
+    if (times.right > 0) {
+      details.push(
+        `Dir. ${this.formatFeedingDuration(times.right)}`,
+      );
+    }
+
+    if (times.unspecified > 0) {
+      details.push(
+        `Sem lado ${this.formatFeedingDuration(times.unspecified)}`,
+      );
+    }
+
+    if (times.untracked > 0) {
+      details.push(
+        `Sem divisão ${this.formatFeedingDuration(times.untracked)}`,
+      );
+    }
+
+    return [status, ...details].join(' · ');
+  }
+
+  private formatFeedingDuration(milliseconds: number): string {
+    const seconds = Math.max(
+      0,
+      Math.floor(milliseconds / 1000),
     );
 
     if (seconds < 60) {
-      return `${seconds} s · ${side}`;
+      return `${seconds} s`;
     }
 
     const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
 
     if (minutes < 60) {
-      return `${minutes} min · ${side}`;
+      return remainingSeconds === 0
+        ? `${minutes} min`
+        : `${minutes} min ${remainingSeconds} s`;
     }
 
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
 
-    const duration =
-      remainingMinutes === 0
-        ? `${hours}h`
-        : `${hours}h ${remainingMinutes}min`;
-
-    return `${duration} · ${side}`;
+    return `${hours}h ${remainingMinutes}min ${remainingSeconds}s`;
   }
 
   greeting(): string {
