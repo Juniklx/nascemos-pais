@@ -39,6 +39,22 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'history',
+        title: 'Histórico | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/history/history').then(
+            (m) => m.History,
+          ),
+      },
+      {
+        path: 'history/:type/:id',
+        title: 'Detalhes do registro | Nascemos Pais',
+        loadComponent: () =>
+          import(
+            './features/history/history-detail/history-detail'
+          ).then((m) => m.HistoryDetail),
+      },
+      {
         path: 'routine',
         title: 'Rotina | Nascemos Pais',
         loadComponent: () =>

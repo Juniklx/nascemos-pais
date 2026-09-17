@@ -151,6 +151,54 @@ export class FeedingService {
     return finished;
   }
 
+  updateCompleted(record: Feeding): boolean {
+    const current = this.feedingsState().find(
+      (feeding) => feeding.id === record.id,
+    );
+
+    if (!current || current.endedAt === null) {
+      return false;
+    }
+
+    let validated: Feeding;
+
+    try {
+      validated = this.parseFeeding(record, false);
+    } catch {
+      return false;
+    }
+
+    if (validated.endedAt === null) {
+      return false;
+    }
+
+    this.updateFeedings((feedings) =>
+      feedings.map((feeding) =>
+        feeding.id === validated.id
+          ? validated
+          : feeding,
+      ),
+    );
+
+    return true;
+  }
+
+  removeCompleted(id: string): boolean {
+    const record = this.feedingsState().find(
+      (feeding) => feeding.id === id,
+    );
+
+    if (!record || record.endedAt === null) {
+      return false;
+    }
+
+    this.updateFeedings((feedings) =>
+      feedings.filter((feeding) => feeding.id !== id),
+    );
+
+    return true;
+  }
+
   durations(
     feeding: Feeding,
     now = Date.now(),
@@ -198,7 +246,7 @@ export class FeedingService {
     };
   }
 
-    private readStoredFeedings(): Feeding[] {
+  private readStoredFeedings(): Feeding[] {
     try {
       const saved = localStorage.getItem(
         this.storageKey,
@@ -233,6 +281,17 @@ export class FeedingService {
 
     const stored = this.readStoredFeedings();
     const changedIds = new Set<string>();
+    const removedIds = new Set(
+      previous
+        .filter(
+          (previousFeeding) =>
+            !requested.some(
+              (feeding) =>
+                feeding.id === previousFeeding.id,
+            ),
+        )
+        .map((feeding) => feeding.id),
+    );
 
     for (const feeding of requested) {
       const previousFeeding = previous.find(
@@ -248,11 +307,11 @@ export class FeedingService {
       }
     }
 
-    const merged = stored.filter((feeding) => {
-      // Mantém registros de outras abas.
-      // Registros removidos ainda não são suportados nesta etapa.
-      return !changedIds.has(feeding.id);
-    });
+    const merged = stored.filter(
+      (feeding) =>
+        !changedIds.has(feeding.id) &&
+        !removedIds.has(feeding.id),
+    );
 
     for (const feeding of requested) {
       if (changedIds.has(feeding.id)) {

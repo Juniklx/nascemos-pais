@@ -46,24 +46,100 @@ export class DiaperService {
     }
   }
 
-    private updateDiapers(
-    update: (current: readonly Diaper[]) => readonly Diaper[],
+  update(record: Diaper): boolean {
+    const current = this.diapersState().find(
+      (diaper) => diaper.id === record.id,
+    );
+
+    if (!current) {
+      return false;
+    }
+
+    let validated: Diaper;
+
+    try {
+      validated = this.parseDiaper(record);
+    } catch {
+      return false;
+    }
+
+    this.updateDiapers((diapers) =>
+      diapers.map((diaper) =>
+        diaper.id === validated.id
+          ? validated
+          : diaper,
+      ),
+    );
+
+    return true;
+  }
+
+  remove(id: string): boolean {
+    const exists = this.diapersState().some(
+      (diaper) => diaper.id === id,
+    );
+
+    if (!exists) {
+      return false;
+    }
+
+    this.updateDiapers((diapers) =>
+      diapers.filter((diaper) => diaper.id !== id),
+    );
+
+    return true;
+  }
+
+  private updateDiapers(
+    update: (
+      current: readonly Diaper[],
+    ) => readonly Diaper[],
   ): void {
-    const requested = update(this.diapersState());
+    const previous = this.diapersState();
+    const requested = update(previous);
     const stored = this.readStoredDiapers();
 
-    const storedIds = new Set(
-      stored.map((diaper) => diaper.id),
+    const changedIds = new Set<string>();
+
+    const removedIds = new Set(
+      previous
+        .filter(
+          (previousDiaper) =>
+            !requested.some(
+              (diaper) =>
+                diaper.id === previousDiaper.id,
+            ),
+        )
+        .map((diaper) => diaper.id),
     );
 
-    const newDiapers = requested.filter(
-      (diaper) => !storedIds.has(diaper.id),
+    for (const diaper of requested) {
+      const previousDiaper = previous.find(
+        (item) => item.id === diaper.id,
+      );
+
+      if (
+        previousDiaper === undefined ||
+        JSON.stringify(previousDiaper) !==
+        JSON.stringify(diaper)
+      ) {
+        changedIds.add(diaper.id);
+      }
+    }
+
+    const merged = stored.filter(
+      (diaper) =>
+        !changedIds.has(diaper.id) &&
+        !removedIds.has(diaper.id),
     );
 
-    const merged = [
-      ...stored,
-      ...newDiapers,
-    ].sort(
+    for (const diaper of requested) {
+      if (changedIds.has(diaper.id)) {
+        merged.push(diaper);
+      }
+    }
+
+    merged.sort(
       (a, b) => b.recordedAt - a.recordedAt,
     );
 
@@ -87,7 +163,7 @@ export class DiaperService {
     }
   }
 
-    private readStoredDiapers(): Diaper[] {
+  private readStoredDiapers(): Diaper[] {
     try {
       const saved = localStorage.getItem(
         this.storageKey,
