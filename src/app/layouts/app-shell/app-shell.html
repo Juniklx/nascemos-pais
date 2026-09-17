@@ -29,10 +29,11 @@
         Voz
       </button>
 
-      <button class="nav-item nav-item--disabled" type="button" disabled>
+      <a class="nav-item" routerLink="/history" routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: true }">
         <span aria-hidden="true">□</span>
         Histórico
-      </button>
+      </a>
 
       <button class="nav-item nav-item--disabled" type="button" disabled>
         <span aria-hidden="true">♙</span>
@@ -71,10 +72,11 @@
       <small>Voz</small>
     </button>
 
-    <button class="bottom-nav__item" type="button" disabled>
+    <a class="bottom-nav__item" routerLink="/history" routerLinkActive="bottom-nav__item--active"
+      [routerLinkActiveOptions]="{ exact: true }">
       <span aria-hidden="true">↶</span>
       <small>Histórico</small>
-    </button>
+    </a>
 
     <button class="bottom-nav__item" type="button" disabled>
       <span aria-hidden="true">♙</span>
