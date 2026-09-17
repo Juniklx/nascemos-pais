@@ -1,265 +1,186 @@
-<div class="app-shell">
-  <aside class="sidebar">
-    <div class="sidebar__brand">
-      <div class="sidebar__brand-icon">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M12 21C12 21 5 17 5 10C5 6 8 3 12 3C16 3 19 6 19 10C19 17 12 21 12 21Z"></path>
-          <path d="M12 3V21"></path>
-        </svg>
+<header class="mobile-header">
+  <strong>Início</strong>
+
+  <button type="button" aria-label="Abrir perfil">
+    ♙
+  </button>
+</header>
+
+<section class="home__intro">
+  <div class="baby-chip">
+    <span class="baby-chip__dot"></span>
+
+    {{ babyName() }} · {{ babyAge() }}
+  </div>
+
+  <h1>
+    {{ greeting() }}, {{ caregiverName() }}
+  </h1>
+
+  <p>
+    Como está o {{ babyName() }}?
+  </p>
+</section>
+
+<div class="home__grid">
+  <div class="home__main-column">
+    <section class="last-activity">
+      <div class="last-activity__top">
+        <span class="activity-status">
+          <span></span>
+          RESUMO
+        </span>
+
+        <span class="last-activity__label">
+          Última mamada concluída
+        </span>
       </div>
 
-      <strong>Nascemos Pais</strong>
-    </div>
+      @if (lastCompletedFeeding(); as feeding) {
+      <strong class="last-activity__time">
+        {{ lastFeedingElapsed() }}
+      </strong>
 
-    <nav class="sidebar__nav">
-      <a class="nav-item nav-item--active">
-        <span>⌂</span>
-        Início
-      </a>
+      <div class="last-activity__detail">
+        <span class="activity-icon" aria-hidden="true">♢</span>
 
-      <a class="nav-item">
-        <span>◷</span>
-        Rotina
-      </a>
-
-      <a class="nav-item">
-        <span>♩</span>
-        Voz
-      </a>
-
-      <a class="nav-item">
-        <span>□</span>
-        Histórico
-      </a>
-
-      <a class="nav-item">
-        <span>♙</span>
-        Perfil
-      </a>
-    </nav>
-
-    <div class="sidebar__baby">
-      <div class="avatar">
-        {{ babyName().charAt(0).toUpperCase() }}
+        <span>
+          {{ feedingDescription(feeding) }}
+        </span>
       </div>
-
-      <span>{{ babyName() }}</span>
-    </div>
-  </aside>
-
-  <main class="home">
-    <header class="mobile-header">
-      <strong>Início</strong>
-
-      <button type="button" aria-label="Abrir perfil">
-        ♙
-      </button>
-    </header>
-
-    <section class="home__intro">
-      <div class="baby-chip">
-        <span class="baby-chip__dot"></span>
-
-        {{ babyName() }} · {{ babyAge() }}
-      </div>
-
-      <h1>
-        {{ greeting() }}, {{ caregiverName() }}
-      </h1>
+      } @else {
+      <strong class="last-activity__time">
+        {{ activeFeeding() ? 'Primeira mamada em andamento' : 'Tudo pronto' }}
+      </strong>
 
       <p>
-        Como está o {{ babyName() }}?
+        Nenhuma mamada concluída ainda.
       </p>
+      }
+
+      @if (activeFeeding()) {
+      <button type="button" class="history-link" (click)="openFeeding()">
+        Acompanhar mamada
+        <span aria-hidden="true">›</span>
+      </button>
+      }
     </section>
 
-    <div class="home__grid">
-      <div class="home__main-column">
-        <section class="last-activity">
-          <div class="last-activity__top">
-            <span class="activity-status">
-              <span></span>
-              RESUMO
-            </span>
+    @if (storageError(); as error) {
+    <p role="alert">
+      {{ error }}
+    </p>
+    }
 
-            <span class="last-activity__label">
-              Última mamada concluída
-            </span>
-          </div>
+    <section class="today">
+      <div class="section-heading">
+        <h2>Hoje</h2>
 
-          @if (lastCompletedFeeding(); as feeding) {
-          <strong class="last-activity__time">
-            {{ lastFeedingElapsed() }}
-          </strong>
-
-          <div class="last-activity__detail">
-            <span class="activity-icon" aria-hidden="true">♢</span>
-
-            <span>
-              {{ feedingDescription(feeding) }}
-            </span>
-          </div>
-          } @else {
-          <strong class="last-activity__time">
-            {{ activeFeeding() ? 'Primeira mamada em andamento' : 'Tudo pronto' }}
-          </strong>
-
-          <p>
-            Nenhuma mamada concluída ainda.
-          </p>
-          }
-
-          @if (activeFeeding()) {
-          <button type="button" class="history-link" (click)="openFeeding()">
-            Acompanhar mamada
-            <span aria-hidden="true">›</span>
-          </button>
-          }
-        </section>
-
-        @if (storageError(); as error) {
-        <p role="alert">
-          {{ error }}
-        </p>
-        }
-
-        <section class="today">
-          <div class="section-heading">
-            <h2>Hoje</h2>
-
-            <span>
-              {{ events().length }}
-              {{ events().length === 1 ? 'evento' : 'eventos' }}
-            </span>
-          </div>
-
-          <div class="timeline">
-            @for (event of events(); track event.id) {
-            <article class="timeline-item">
-              <span class="timeline-item__dot" [class.timeline-item__dot--active]="$first" aria-hidden="true"></span>
-
-              <div class="timeline-item__content">
-                <div class="timeline-item__title">
-                  <strong>{{ event.title }}</strong>
-
-                  <span aria-hidden="true">·</span>
-
-                  <time [attr.datetime]="event.dateTime">
-                    {{ event.time }}
-                  </time>
-                </div>
-
-                <p>{{ event.description }}</p>
-              </div>
-
-              <div class="timeline-item__icon" aria-hidden="true">
-                @switch (event.type) {
-                @case ('feeding') {
-                ♢
-                }
-
-                @case ('sleep') {
-                ◔
-                }
-
-                @case ('diaper') {
-                ▱
-                }
-                }
-              </div>
-            </article>
-            } @empty {
-            <p>
-              Nenhuma mamada iniciada hoje.
-              Use o botão Mamada para começar um registro.
-            </p>
-            }
-          </div>
-        </section>
+        <span>
+          {{ events().length }}
+          {{ events().length === 1 ? 'evento' : 'eventos' }}
+        </span>
       </div>
 
-      <aside class="home__actions-column">
-        <section class="quick-actions">
-          <h2>Registrar</h2>
+      <div class="timeline">
+        @for (event of events(); track event.id) {
+        <article class="timeline-item">
+          <span class="timeline-item__dot" [class.timeline-item__dot--active]="$first" aria-hidden="true"></span>
 
-          <div class="quick-actions__list">
-            <button type="button" class="quick-action" (click)="openFeeding()">
-              <span class="quick-action__icon" aria-hidden="true">♢</span>
+          <div class="timeline-item__content">
+            <div class="timeline-item__title">
+              <strong>{{ event.title }}</strong>
 
-              <strong>
-                {{ activeFeeding() ? 'Acompanhar mamada' : 'Mamada' }}
-              </strong>
+              <span aria-hidden="true">·</span>
 
-              <span class="quick-action__plus" aria-hidden="true">
-                {{ activeFeeding() ? '›' : '+' }}
-              </span>
-            </button>
-
-            <button type="button" class="quick-action">
-              <span class="quick-action__icon">◔</span>
-
-              <strong>Sono</strong>
-
-              <span class="quick-action__plus">+</span>
-            </button>
-
-            <button type="button" class="quick-action">
-              <span class="quick-action__icon">▱</span>
-
-              <strong>Fralda</strong>
-
-              <span class="quick-action__plus">+</span>
-            </button>
-          </div>
-        </section>
-
-        <section class="voice-card">
-          <div class="voice-card__content">
-            <div class="voice-card__icon">
-              ♩
+              <time [attr.datetime]="event.dateTime">
+                {{ event.time }}
+              </time>
             </div>
 
-            <div>
-              <strong>Sem as mãos livres?</strong>
-
-              <p>
-                Diga:
-                <b>"Registrar mamada"</b>
-              </p>
-            </div>
+            <p>{{ event.description }}</p>
           </div>
 
-          <button type="button">
-            Usar voz
-          </button>
-        </section>
-      </aside>
-    </div>
-  </main>
+          <div class="timeline-item__icon" aria-hidden="true">
+            @switch (event.type) {
+            @case ('feeding') {
+            ♢
+            }
 
-  <nav class="bottom-nav">
-    <button class="bottom-nav__item bottom-nav__item--active">
-      <span>⌂</span>
-      <small>Início</small>
-    </button>
+            @case ('sleep') {
+            ◔
+            }
 
-    <button class="bottom-nav__item">
-      <span>◷</span>
-      <small>Rotina</small>
-    </button>
+            @case ('diaper') {
+            ▱
+            }
+            }
+          </div>
+        </article>
+        } @empty {
+        <p>
+          Nenhuma mamada iniciada hoje.
+          Use o botão Mamada para começar um registro.
+        </p>
+        }
+      </div>
+    </section>
+  </div>
 
-    <button class="bottom-nav__item bottom-nav__item--voice">
-      <span>♩</span>
-      <small>Voz</small>
-    </button>
+  <aside class="home__actions-column">
+    <section class="quick-actions">
+      <h2>Registrar</h2>
 
-    <button class="bottom-nav__item">
-      <span>↶</span>
-      <small>Histórico</small>
-    </button>
+      <div class="quick-actions__list">
+        <button type="button" class="quick-action" (click)="openFeeding()">
+          <span class="quick-action__icon" aria-hidden="true">♢</span>
 
-    <button class="bottom-nav__item">
-      <span>♙</span>
-      <small>Perfil</small>
-    </button>
-  </nav>
+          <strong>
+            {{ activeFeeding() ? 'Acompanhar mamada' : 'Mamada' }}
+          </strong>
+
+          <span class="quick-action__plus" aria-hidden="true">
+            {{ activeFeeding() ? '›' : '+' }}
+          </span>
+        </button>
+
+        <button type="button" class="quick-action">
+          <span class="quick-action__icon">◔</span>
+
+          <strong>Sono</strong>
+
+          <span class="quick-action__plus">+</span>
+        </button>
+
+        <button type="button" class="quick-action">
+          <span class="quick-action__icon">▱</span>
+
+          <strong>Fralda</strong>
+
+          <span class="quick-action__plus">+</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="voice-card">
+      <div class="voice-card__content">
+        <div class="voice-card__icon">
+          ♩
+        </div>
+
+        <div>
+          <strong>Sem as mãos livres?</strong>
+
+          <p>
+            Diga:
+            <b>"Registrar mamada"</b>
+          </p>
+        </div>
+      </div>
+
+      <button type="button">
+        Usar voz
+      </button>
+    </section>
+  </aside>
 </div>
