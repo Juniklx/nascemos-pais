@@ -37,58 +37,76 @@
       </div>
 
       @if (lastCompletedActivity(); as activity) {
-      <strong class="last-activity__time">
-        {{ lastActivityElapsed() }}
-      </strong>
+        <strong class="last-activity__time">
+          {{ lastActivityElapsed() }}
+        </strong>
 
-      <div class="last-activity__detail">
-        <span class="activity-icon" aria-hidden="true">
-          @switch (activity.kind) {
-          @case ('feeding') {
-          ♢
-          }
-          @case ('sleep') {
-          ◔
-          }
-          }
-        </span>
+        <div class="last-activity__detail">
+          <span class="activity-icon" aria-hidden="true">
+            @switch (activity.kind) {
+              @case ('feeding') {
+                ♢
+              }
 
-        <span>
-          @switch (activity.kind) {
-          @case ('feeding') {
-          {{ feedingDescription(activity.record) }}
-          }
-          @case ('sleep') {
-          Sono · {{ sleepDescription(activity.record) }}
-          }
-          }
-        </span>
-      </div>
+              @case ('sleep') {
+                ◔
+              }
+
+              @case ('diaper') {
+                ▱
+              }
+            }
+          </span>
+
+          <span>
+            @switch (activity.kind) {
+              @case ('feeding') {
+                {{ feedingDescription(activity.record) }}
+              }
+
+              @case ('sleep') {
+                Sono · {{ sleepDescription(activity.record) }}
+              }
+
+              @case ('diaper') {
+                {{ diaperDescription(activity.record) }}
+              }
+            }
+          </span>
+        </div>
       } @else {
-      <strong class="last-activity__time">
-        {{ activeSleep() ? 'Sono em andamento' : 'Tudo pronto' }}
-      </strong>
+        <strong class="last-activity__time">
+          {{ activeSleep() ? 'Sono em andamento' : 'Tudo pronto' }}
+        </strong>
 
-      <p>Nenhuma atividade concluída ainda.</p>
+        <p>Nenhuma atividade concluída ainda.</p>
       }
 
       @if (activeFeeding()) {
-      <button type="button" class="history-link" (click)="openFeeding()">
-        Acompanhar mamada
-        <span aria-hidden="true">›</span>
-      </button>
+        <button
+          type="button"
+          class="history-link"
+          (click)="openFeeding()"
+        >
+          Acompanhar mamada
+          <span aria-hidden="true">›</span>
+        </button>
       } @else if (activeSleep()) {
-      <button type="button" class="history-link" (click)="openSleep()">
-        Acompanhar sono
-        <span aria-hidden="true">›</span>
-      </button>
+        <button
+          type="button"
+          class="history-link"
+          (click)="openSleep()"
+        >
+          Acompanhar sono
+          <span aria-hidden="true">›</span>
+        </button>
       }
     </section>
 
     @if (storageError(); as error) {
-    <p role="alert">
-      {{ error }}
-    </p>
+      <p role="alert">
+        {{ error }}
+      </p>
     }
 
     <section class="today">
@@ -103,44 +121,51 @@
 
       <div class="timeline">
         @for (event of events(); track event.id) {
-        <article class="timeline-item">
-          <span class="timeline-item__dot" [class.timeline-item__dot--active]="$first" aria-hidden="true"></span>
+          <article class="timeline-item">
+            <span
+              class="timeline-item__dot"
+              [class.timeline-item__dot--active]="$first"
+              aria-hidden="true"
+            ></span>
 
-          <div class="timeline-item__content">
-            <div class="timeline-item__title">
-              <strong>{{ event.title }}</strong>
+            <div class="timeline-item__content">
+              <div class="timeline-item__title">
+                <strong>{{ event.title }}</strong>
 
-              <span aria-hidden="true">·</span>
+                <span aria-hidden="true">·</span>
 
-              <time [attr.datetime]="event.dateTime">
-                {{ event.time }}
-              </time>
+                <time [attr.datetime]="event.dateTime">
+                  {{ event.time }}
+                </time>
+              </div>
+
+              <p>{{ event.description }}</p>
             </div>
 
-            <p>{{ event.description }}</p>
-          </div>
+            <div
+              class="timeline-item__icon"
+              aria-hidden="true"
+            >
+              @switch (event.type) {
+                @case ('feeding') {
+                  ♢
+                }
 
-          <div class="timeline-item__icon" aria-hidden="true">
-            @switch (event.type) {
-            @case ('feeding') {
-            ♢
-            }
+                @case ('sleep') {
+                  ◔
+                }
 
-            @case ('sleep') {
-            ◔
-            }
-
-            @case ('diaper') {
-            ▱
-            }
-            }
-          </div>
-        </article>
+                @case ('diaper') {
+                  ▱
+                }
+              }
+            </div>
+          </article>
         } @empty {
-        <p>
-          Nenhuma mamada iniciada hoje.
-          Use o botão Mamada para começar um registro.
-        </p>
+          <p>
+            Nenhuma atividade iniciada hoje.
+            Use um dos botões para fazer o registro.
+          </p>
         }
       </div>
     </section>
@@ -151,20 +176,39 @@
       <h2>Registrar</h2>
 
       <div class="quick-actions__list">
-        <button type="button" class="quick-action" (click)="openFeeding()">
-          <span class="quick-action__icon" aria-hidden="true">♢</span>
+        <button
+          type="button"
+          class="quick-action"
+          (click)="openFeeding()"
+        >
+          <span
+            class="quick-action__icon"
+            aria-hidden="true"
+          >
+            ♢
+          </span>
 
           <strong>
             {{ activeFeeding() ? 'Acompanhar mamada' : 'Mamada' }}
           </strong>
 
-          <span class="quick-action__plus" aria-hidden="true">
+          <span
+            class="quick-action__plus"
+            aria-hidden="true"
+          >
             {{ activeFeeding() ? '›' : '+' }}
           </span>
         </button>
 
-        <button type="button" class="quick-action" (click)="openSleep()">
-          <span class="quick-action__icon" aria-hidden="true">
+        <button
+          type="button"
+          class="quick-action"
+          (click)="openSleep()"
+        >
+          <span
+            class="quick-action__icon"
+            aria-hidden="true"
+          >
             ◔
           </span>
 
@@ -172,19 +216,32 @@
             {{ activeSleep() ? 'Acompanhar sono' : 'Sono' }}
           </strong>
 
-          <span class="quick-action__plus" aria-hidden="true">
+          <span
+            class="quick-action__plus"
+            aria-hidden="true"
+          >
             {{ activeSleep() ? '›' : '+' }}
           </span>
         </button>
 
-        <button type="button" class="quick-action" (click)="openDiaper()">
-          <span class="quick-action__icon" aria-hidden="true">
+        <button
+          type="button"
+          class="quick-action"
+          (click)="openDiaper()"
+        >
+          <span
+            class="quick-action__icon"
+            aria-hidden="true"
+          >
             ▱
           </span>
 
           <strong>Fralda</strong>
 
-          <span class="quick-action__plus" aria-hidden="true">
+          <span
+            class="quick-action__plus"
+            aria-hidden="true"
+          >
             +
           </span>
         </button>
