@@ -1,1 +1,103 @@
-<p>routine works!</p>
+<section class="routine" aria-labelledby="routine-title">
+  <header class="routine__header">
+    <div>
+      <a routerLink="/home" class="back-link">
+        <span aria-hidden="true">←</span>
+        Início
+      </a>
+
+      <span class="eyebrow">ROTINA</span>
+
+      <h1 id="routine-title">Rotina de {{ babyName() }}</h1>
+
+      <p>
+        Acompanhe os registros feitos hoje.
+      </p>
+    </div>
+
+    <span class="baby-chip">
+      {{ babyName() }}
+    </span>
+  </header>
+
+  @if (storageError(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+  }
+
+  <section class="routine-card" aria-labelledby="today-title">
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">HOJE</span>
+        <h2 id="today-title">Atividades do dia</h2>
+      </div>
+
+      <span>
+        {{ events().length }}
+        {{ events().length === 1 ? 'evento' : 'eventos' }}
+      </span>
+    </div>
+
+    <div class="routine__timeline">
+      @for (
+        event of events();
+        track event.id;
+        let isFirst = $first
+      ) {
+        <article class="routine-event">
+          <span
+            class="routine-event__dot"
+            [class.routine-event__dot--active]="isFirst"
+            aria-hidden="true"
+          ></span>
+
+          <div class="routine-event__content">
+            <div class="routine-event__title">
+              <strong>{{ event.title }}</strong>
+
+              <time [attr.datetime]="event.dateTime">
+                {{ event.time }}
+              </time>
+            </div>
+
+            <p>{{ event.description }}</p>
+          </div>
+
+          <span
+            class="routine-event__icon"
+            aria-hidden="true"
+          >
+            @switch (event.kind) {
+              @case ('feeding') {
+                ♢
+              }
+
+              @case ('sleep') {
+                ◔
+              }
+
+              @case ('diaper') {
+                ▱
+              }
+            }
+          </span>
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">
+            ◷
+          </span>
+
+          <strong>Nenhuma atividade hoje</strong>
+
+          <p>
+            Os registros de mamada, sono e fralda aparecerão aqui.
+          </p>
+
+          <a routerLink="/home">Voltar para o início</a>
+        </div>
+      }
+    </div>
+  </section>
+</section>
