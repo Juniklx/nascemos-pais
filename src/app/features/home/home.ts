@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
-
+import { Router } from '@angular/router';
+import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
 
 interface RoutineEvent {
@@ -17,7 +18,16 @@ interface RoutineEvent {
 })
 export class Home {
   private readonly onboarding = inject(OnboardingService);
+    private readonly router = inject(Router);
+  private readonly feedingService = inject(FeedingService);
 
+  readonly activeFeeding = this.feedingService.activeFeeding;
+
+  openFeeding(): void {
+    this.feedingService.start();
+    void this.router.navigate(['/feeding']);
+  }
+  
   readonly caregiverName = this.onboarding.caregiverName;
   readonly babyName = this.onboarding.babyName;
   readonly babyBirthDate = this.onboarding.babyBirthDate;

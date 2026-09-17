@@ -112,49 +112,43 @@
 
           <div class="timeline">
             @for (event of events; track event.time) {
-              <article class="timeline-item">
-                <span
-                  class="timeline-item__dot"
-                  [class.timeline-item__dot--active]="
+            <article class="timeline-item">
+              <span class="timeline-item__dot" [class.timeline-item__dot--active]="
                     $first
-                  "
-                ></span>
+                  "></span>
 
-                <div class="timeline-item__content">
-                  <div class="timeline-item__title">
-                    <strong>{{ event.title }}</strong>
+              <div class="timeline-item__content">
+                <div class="timeline-item__title">
+                  <strong>{{ event.title }}</strong>
 
-                    <span>·</span>
+                  <span>·</span>
 
-                    <time>{{ event.time }}</time>
-                  </div>
-
-                  <p>{{ event.description }}</p>
+                  <time>{{ event.time }}</time>
                 </div>
 
-                <div class="timeline-item__icon">
-                  @switch (event.type) {
-                    @case ('feeding') {
-                      ♢
-                    }
+                <p>{{ event.description }}</p>
+              </div>
 
-                    @case ('sleep') {
-                      ◔
-                    }
+              <div class="timeline-item__icon">
+                @switch (event.type) {
+                @case ('feeding') {
+                ♢
+                }
 
-                    @case ('diaper') {
-                      ▱
-                    }
-                  }
-                </div>
-              </article>
+                @case ('sleep') {
+                ◔
+                }
+
+                @case ('diaper') {
+                ▱
+                }
+                }
+              </div>
+            </article>
             }
           </div>
 
-          <button
-            class="history-link"
-            type="button"
-          >
+          <button class="history-link" type="button">
             Ver histórico completo
             <span>›</span>
           </button>
@@ -166,12 +160,16 @@
           <h2>Registrar</h2>
 
           <div class="quick-actions__list">
-            <button type="button" class="quick-action">
-              <span class="quick-action__icon">♢</span>
+            <button type="button" class="quick-action" (click)="openFeeding()">
+              <span class="quick-action__icon" aria-hidden="true">♢</span>
 
-              <strong>Mamada</strong>
+              <strong>
+                {{ activeFeeding() ? 'Acompanhar mamada' : 'Mamada' }}
+              </strong>
 
-              <span class="quick-action__plus">+</span>
+              <span class="quick-action__plus" aria-hidden="true">
+                {{ activeFeeding() ? '›' : '+' }}
+              </span>
             </button>
 
             <button type="button" class="quick-action">
