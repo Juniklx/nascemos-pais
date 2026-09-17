@@ -24,20 +24,29 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'home',
-    title: 'Início | Nascemos Pais',
+    path: '',
     loadComponent: () =>
-      import('./features/home/home').then(
-        (m) => m.Home,
+      import('./layouts/app-shell/app-shell').then(
+        (m) => m.AppShell,
       ),
-  },
-  {
-    path: 'feeding',
-    title: 'Mamada | Nascemos Pais',
-    loadComponent: () =>
-      import('./features/feeding/feeding').then(
-        (m) => m.FeedingPage,
-      ),
+    children: [
+      {
+        path: 'home',
+        title: 'Início | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/home/home').then(
+            (m) => m.Home,
+          ),
+      },
+      {
+        path: 'feeding',
+        title: 'Mamada | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/feeding/feeding').then(
+            (m) => m.FeedingPage,
+          ),
+      },
+    ],
   },
   {
     path: '**',

@@ -1,0 +1,90 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <div class="sidebar__brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 21C12 21 5 17 5 10C5 6 8 3 12 3C16 3 19 6 19 10C19 17 12 21 12 21Z"></path>
+          <path d="M12 3V21"></path>
+        </svg>
+      </div>
+
+      <strong>Nascemos Pais</strong>
+    </div>
+
+    <nav class="sidebar__nav" aria-label="Navegação principal">
+      <a
+        class="nav-item"
+        routerLink="/home"
+        routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <span aria-hidden="true">⌂</span>
+        Início
+      </a>
+
+      <button class="nav-item nav-item--disabled" type="button" disabled>
+        <span aria-hidden="true">◷</span>
+        Rotina
+      </button>
+
+      <button class="nav-item nav-item--disabled" type="button" disabled>
+        <span aria-hidden="true">♩</span>
+        Voz
+      </button>
+
+      <button class="nav-item nav-item--disabled" type="button" disabled>
+        <span aria-hidden="true">□</span>
+        Histórico
+      </button>
+
+      <button class="nav-item nav-item--disabled" type="button" disabled>
+        <span aria-hidden="true">♙</span>
+        Perfil
+      </button>
+    </nav>
+
+    <div class="sidebar__baby">
+      <div class="avatar">
+        {{ babyName().charAt(0).toUpperCase() }}
+      </div>
+
+      <span>{{ babyName() }}</span>
+    </div>
+  </aside>
+
+  <main class="home">
+    <router-outlet />
+  </main>
+
+  <nav class="bottom-nav" aria-label="Navegação inferior">
+    <a
+      class="bottom-nav__item"
+      routerLink="/home"
+      routerLinkActive="bottom-nav__item--active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      <span aria-hidden="true">⌂</span>
+      <small>Início</small>
+    </a>
+
+    <button class="bottom-nav__item" type="button" disabled>
+      <span aria-hidden="true">◷</span>
+      <small>Rotina</small>
+    </button>
+
+    <button class="bottom-nav__item bottom-nav__item--voice" type="button" disabled>
+      <span aria-hidden="true">♩</span>
+      <small>Voz</small>
+    </button>
+
+    <button class="bottom-nav__item" type="button" disabled>
+      <span aria-hidden="true">↶</span>
+      <small>Histórico</small>
+    </button>
+
+    <button class="bottom-nav__item" type="button" disabled>
+      <span aria-hidden="true">♙</span>
+      <small>Perfil</small>
+    </button>
+  </nav>
+</div>
