@@ -56,6 +56,9 @@ export class Home {
   openDiaper(): void {
     void this.router.navigate(['/diaper']);
   }
+  openHistory(): void {
+    void this.router.navigate(['/history']);
+  }
   private readonly timeFormatter = new Intl.DateTimeFormat(
     'pt-BR',
     {

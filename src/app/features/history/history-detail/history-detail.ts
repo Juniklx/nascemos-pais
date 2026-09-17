@@ -14,13 +14,15 @@ import {
 import type {
   Diaper,
   DiaperType,
-} from '../../../core/models/diaper'; import type {
+} from '../../../core/models/diaper';
+
+import type {
   Feeding,
   FeedingPeriod,
   FeedingSide,
 } from '../../../core/models/feeding';
-import type { Sleep } from '../../../core/models/sleep';
 
+import type { Sleep } from '../../../core/models/sleep';
 import { DiaperService } from '../../../core/services/diaper';
 import { FeedingService } from '../../../core/services/feeding';
 import { SleepService } from '../../../core/services/sleep';
