@@ -6,10 +6,12 @@ import {
   signal,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import type { Sleep } from '../../core/models/sleep';
 import { SleepService } from '../../core/services/sleep';
 import type { Feeding } from '../../core/models/feeding';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
+
 
 interface RoutineEvent {
   id: string;
@@ -31,7 +33,8 @@ export class Home {
   private readonly router = inject(Router);
   private readonly feedingService = inject(FeedingService);
   private readonly destroyRef = inject(DestroyRef);
-
+  private readonly sleepService = inject(SleepService);
+  readonly activeSleep = this.sleepService.activeSleep;
   private readonly now = signal(Date.now());
 
   private readonly timeFormatter = new Intl.DateTimeFormat(
@@ -41,15 +44,13 @@ export class Home {
       minute: '2-digit',
     },
   );
-  private readonly sleepService = inject(SleepService);
 
-  readonly activeSleep = this.sleepService.activeSleep;
 
   openSleep(): void {
     this.sleepService.start();
     void this.router.navigate(['/sleep']);
   }
-  
+
   readonly caregiverName = this.onboarding.caregiverName;
   readonly babyName = this.onboarding.babyName;
   readonly babyBirthDate = this.onboarding.babyBirthDate;
@@ -57,24 +58,44 @@ export class Home {
   readonly activeFeeding = this.feedingService.activeFeeding;
   readonly storageError = this.feedingService.storageError;
 
-  readonly lastCompletedFeeding = computed(() =>
-    this.feedingService.completedFeedings().reduce<Feeding | null>(
-      (latest, feeding) => {
-        if (
-          latest === null ||
-          (feeding.endedAt ?? 0) > (latest.endedAt ?? 0)
-        ) {
-          return feeding;
-        }
+  readonly lastCompletedActivity = computed(() => {
+    const activities = [
+      ...this.feedingService.completedFeedings().map((record) => ({
+        kind: 'feeding' as const,
+        record,
+      })),
+      ...this.sleepService.completedSleeps().map((record) => ({
+        kind: 'sleep' as const,
+        record,
+      })),
+    ];
 
-        return latest;
-      },
-      null,
-    ),
-  );
+    return activities.reduce<
+      | {
+        kind: 'feeding';
+        record: Feeding;
+      }
+      | {
+        kind: 'sleep';
+        record: Sleep;
+      }
+      | null
+    >((latest, activity) => {
+      if (
+        latest === null ||
+        (activity.record.endedAt ?? 0) >
+        (latest.record.endedAt ?? 0)
+      ) {
+        return activity;
+      }
 
-  readonly lastFeedingElapsed = computed(() => {
-    const endedAt = this.lastCompletedFeeding()?.endedAt;
+      return latest;
+    }, null);
+  });
+
+  readonly lastActivityElapsed = computed(() => {
+    const endedAt =
+      this.lastCompletedActivity()?.record.endedAt;
 
     if (endedAt === null || endedAt === undefined) {
       return '';
@@ -106,6 +127,19 @@ export class Home {
     return days === 1 ? 'há 1 dia' : `há ${days} dias`;
   });
 
+  sleepDescription(sleep: Sleep): string {
+    const duration = this.sleepService.duration(
+      sleep,
+      this.now(),
+    );
+
+    if (sleep.endedAt === null) {
+      return `Em andamento · ${this.formatFeedingDuration(duration)}`;
+    }
+
+    return this.formatFeedingDuration(duration);
+  }
+
   readonly events = computed<RoutineEvent[]>(() => {
     const startOfDay = new Date(this.now());
     startOfDay.setHours(0, 0, 0, 0);
@@ -113,25 +147,62 @@ export class Home {
     const nextDay = new Date(startOfDay);
     nextDay.setDate(nextDay.getDate() + 1);
 
-    return this.feedingService
-      .feedings()
-      .filter(
-        (feeding) =>
-          feeding.startedAt >= startOfDay.getTime() &&
-          feeding.startedAt < nextDay.getTime(),
-      )
-      .sort((a, b) => b.startedAt - a.startedAt)
-      .map((feeding) => ({
-        id: feeding.id,
-        type: 'feeding',
-        title:
-          feeding.endedAt === null
-            ? 'Mamada em andamento'
-            : 'Mamada',
-        time: this.timeFormatter.format(feeding.startedAt),
-        dateTime: new Date(feeding.startedAt).toISOString(),
-        description: this.feedingDescription(feeding),
-      }));
+    const start = startOfDay.getTime();
+    const end = nextDay.getTime();
+
+    const feedingEvents: RoutineEvent[] =
+      this.feedingService
+        .feedings()
+        .filter(
+          (feeding) =>
+            feeding.startedAt >= start &&
+            feeding.startedAt < end,
+        )
+        .map((feeding) => ({
+          id: feeding.id,
+          type: 'feeding',
+          title:
+            feeding.endedAt === null
+              ? 'Mamada em andamento'
+              : 'Mamada',
+          time: this.timeFormatter.format(
+            feeding.startedAt,
+          ),
+          dateTime: new Date(
+            feeding.startedAt,
+          ).toISOString(),
+          description: this.feedingDescription(feeding),
+        }));
+
+    const sleepEvents: RoutineEvent[] =
+      this.sleepService
+        .sleeps()
+        .filter(
+          (sleep) =>
+            sleep.startedAt >= start &&
+            sleep.startedAt < end,
+        )
+        .map((sleep) => ({
+          id: sleep.id,
+          type: 'sleep',
+          title:
+            sleep.endedAt === null
+              ? 'Sono em andamento'
+              : 'Sono',
+          time: this.timeFormatter.format(
+            sleep.startedAt,
+          ),
+          dateTime: new Date(
+            sleep.startedAt,
+          ).toISOString(),
+          description: this.sleepDescription(sleep),
+        }));
+
+    return [...feedingEvents, ...sleepEvents].sort(
+      (a, b) =>
+        new Date(b.dateTime).getTime() -
+        new Date(a.dateTime).getTime(),
+    );
   });
 
   constructor() {
