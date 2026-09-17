@@ -12,6 +12,7 @@ import type { Feeding } from '../../core/models/feeding';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
 import { DiaperService } from '../../core/services/diaper';
+import type { Diaper } from '../../core/models/diaper';
 
 interface RoutineEvent {
   id: string;
@@ -21,6 +22,20 @@ interface RoutineEvent {
   dateTime: string;
   description: string;
 }
+
+type HomeActivity =
+  | {
+    kind: 'feeding';
+    record: Feeding;
+  }
+  | {
+    kind: 'sleep';
+    record: Sleep;
+  }
+  | {
+    kind: 'diaper';
+    record: Diaper;
+  };
 
 @Component({
   selector: 'app-home',
@@ -62,51 +77,70 @@ export class Home {
   readonly activeFeeding = this.feedingService.activeFeeding;
   readonly storageError = this.feedingService.storageError;
 
-  readonly lastCompletedActivity = computed(() => {
-    const activities = [
-      ...this.feedingService.completedFeedings().map((record) => ({
-        kind: 'feeding' as const,
-        record,
-      })),
-      ...this.sleepService.completedSleeps().map((record) => ({
-        kind: 'sleep' as const,
-        record,
-      })),
+  readonly lastCompletedActivity = computed<HomeActivity | null>(() => {
+    const activities: HomeActivity[] = [
+      ...this.feedingService.completedFeedings().map(
+        (record) => ({
+          kind: 'feeding' as const,
+          record,
+        }),
+      ),
+      ...this.sleepService.completedSleeps().map(
+        (record) => ({
+          kind: 'sleep' as const,
+          record,
+        }),
+      ),
+      ...this.diaperService.diapers().map(
+        (record) => ({
+          kind: 'diaper' as const,
+          record,
+        }),
+      ),
     ];
 
-    return activities.reduce<
-      | {
-        kind: 'feeding';
-        record: Feeding;
-      }
-      | {
-        kind: 'sleep';
-        record: Sleep;
-      }
-      | null
-    >((latest, activity) => {
-      if (
-        latest === null ||
-        (activity.record.endedAt ?? 0) >
-        (latest.record.endedAt ?? 0)
-      ) {
-        return activity;
-      }
+    return activities.reduce<HomeActivity | null>(
+      (latest, activity) => {
+        if (
+          latest === null ||
+          this.activityTimestamp(activity) >
+          this.activityTimestamp(latest)
+        ) {
+          return activity;
+        }
 
-      return latest;
-    }, null);
+        return latest;
+      },
+      null,
+    );
   });
+  private activityTimestamp(
+    activity: HomeActivity,
+  ): number {
+    if (activity.kind === 'diaper') {
+      return activity.record.recordedAt;
+    }
+
+    return activity.record.endedAt ?? 0;
+  }
+
+  diaperDescription(diaper: Diaper): string {
+    return `Fralda · ${this.diaperService.label(
+      diaper.type,
+    )}`;
+  }
 
   readonly lastActivityElapsed = computed(() => {
-    const endedAt =
-      this.lastCompletedActivity()?.record.endedAt;
+    const activity = this.lastCompletedActivity();
 
-    if (endedAt === null || endedAt === undefined) {
+    if (!activity) {
       return '';
     }
 
+    const recordedAt = this.activityTimestamp(activity);
+
     const minutes = Math.floor(
-      Math.max(0, this.now() - endedAt) / 60_000,
+      Math.max(0, this.now() - recordedAt) / 60_000,
     );
 
     if (minutes === 0) {
@@ -128,7 +162,9 @@ export class Home {
 
     const days = Math.floor(hours / 24);
 
-    return days === 1 ? 'há 1 dia' : `há ${days} dias`;
+    return days === 1
+      ? 'há 1 dia'
+      : `há ${days} dias`;
   });
 
   sleepDescription(sleep: Sleep): string {
@@ -202,7 +238,34 @@ export class Home {
           description: this.sleepDescription(sleep),
         }));
 
-    return [...feedingEvents, ...sleepEvents].sort(
+    const diaperEvents: RoutineEvent[] =
+      this.diaperService
+        .diapers()
+        .filter(
+          (diaper) =>
+            diaper.recordedAt >= start &&
+            diaper.recordedAt < end,
+        )
+        .map((diaper) => ({
+          id: diaper.id,
+          type: 'diaper',
+          title: 'Fralda',
+          time: this.timeFormatter.format(
+            diaper.recordedAt,
+          ),
+          dateTime: new Date(
+            diaper.recordedAt,
+          ).toISOString(),
+          description: this.diaperService.label(
+            diaper.type,
+          ),
+        }));
+
+    return [
+      ...feedingEvents,
+      ...sleepEvents,
+      ...diaperEvents,
+    ].sort(
       (a, b) =>
         new Date(b.dateTime).getTime() -
         new Date(a.dateTime).getTime(),
