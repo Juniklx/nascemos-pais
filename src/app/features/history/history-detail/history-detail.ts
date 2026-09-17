@@ -1,8 +1,24 @@
-import { Component, computed, inject } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import {
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 
-import type { Diaper } from '../../../core/models/diaper';
-import type { Feeding } from '../../../core/models/feeding';
+import {
+  ActivatedRoute,
+  Router,
+  RouterLink,
+} from '@angular/router';
+
+import type {
+  Diaper,
+  DiaperType,
+} from '../../../core/models/diaper'; import type {
+  Feeding,
+  FeedingPeriod,
+  FeedingSide,
+} from '../../../core/models/feeding';
 import type { Sleep } from '../../../core/models/sleep';
 
 import { DiaperService } from '../../../core/services/diaper';
@@ -11,17 +27,23 @@ import { SleepService } from '../../../core/services/sleep';
 
 type HistoryActivity =
   | {
-      kind: 'feeding';
-      record: Feeding;
-    }
+    kind: 'feeding';
+    record: Feeding;
+  }
   | {
-      kind: 'sleep';
-      record: Sleep;
-    }
+    kind: 'sleep';
+    record: Sleep;
+  }
   | {
-      kind: 'diaper';
-      record: Diaper;
-    };
+    kind: 'diaper';
+    record: Diaper;
+  };
+
+type FeedingSideSelection =
+  | 'keep'
+  | 'left'
+  | 'right'
+  | 'none';
 
 @Component({
   selector: 'app-history-detail',
@@ -34,7 +56,21 @@ export class HistoryDetail {
   private readonly feedingService = inject(FeedingService);
   private readonly sleepService = inject(SleepService);
   private readonly diaperService = inject(DiaperService);
+  private readonly router = inject(Router);
 
+  readonly confirmingDelete = signal(false);
+  readonly deleteError = signal<string | null>(null);
+  readonly editing = signal(false);
+  readonly editError = signal<string | null>(null);
+
+  readonly startedAtInput = signal('');
+  readonly endedAtInput = signal('');
+
+  readonly feedingSideInput =
+    signal<FeedingSideSelection>('keep');
+
+  readonly diaperTypeInput =
+    signal<DiaperType>('wet');
   private readonly type =
     this.route.snapshot.paramMap.get('type');
 
@@ -81,6 +117,223 @@ export class HistoryDetail {
         return null;
     }
   });
+
+  requestDelete(): void {
+    this.deleteError.set(null);
+    this.confirmingDelete.set(true);
+  }
+
+  cancelDelete(): void {
+    this.deleteError.set(null);
+    this.confirmingDelete.set(false);
+  }
+
+  confirmDelete(): void {
+    const activity = this.activity();
+
+    if (!activity) {
+      this.deleteError.set(
+        'O registro não está mais disponível.',
+      );
+
+      return;
+    }
+
+    let removed = false;
+
+    switch (activity.kind) {
+      case 'feeding':
+        removed =
+          this.feedingService.removeCompleted(
+            activity.record.id,
+          );
+        break;
+
+      case 'sleep':
+        removed =
+          this.sleepService.removeCompleted(
+            activity.record.id,
+          );
+        break;
+
+      case 'diaper':
+        removed =
+          this.diaperService.remove(
+            activity.record.id,
+          );
+        break;
+    }
+
+    if (!removed) {
+      this.deleteError.set(
+        'Não foi possível excluir o registro.',
+      );
+
+      return;
+    }
+
+    void this.router.navigate(['/history']);
+  }
+
+  startEditing(): void {
+    const activity = this.activity();
+
+    if (!activity) {
+      return;
+    }
+
+    this.confirmingDelete.set(false);
+    this.editError.set(null);
+
+    switch (activity.kind) {
+      case 'feeding':
+        if (activity.record.endedAt === null) {
+          this.editError.set(
+            'Somente mamadas concluídas podem ser editadas.',
+          );
+
+          return;
+        }
+
+        this.startedAtInput.set(
+          this.toDateTimeInput(
+            activity.record.startedAt,
+          ),
+        );
+
+        this.endedAtInput.set(
+          this.toDateTimeInput(
+            activity.record.endedAt,
+          ),
+        );
+
+        this.feedingSideInput.set('keep');
+        break;
+
+      case 'sleep':
+        if (activity.record.endedAt === null) {
+          this.editError.set(
+            'Somente períodos de sono concluídos podem ser editados.',
+          );
+
+          return;
+        }
+
+        this.startedAtInput.set(
+          this.toDateTimeInput(
+            activity.record.startedAt,
+          ),
+        );
+
+        this.endedAtInput.set(
+          this.toDateTimeInput(
+            activity.record.endedAt,
+          ),
+        );
+        break;
+
+      case 'diaper':
+        this.startedAtInput.set(
+          this.toDateTimeInput(
+            activity.record.recordedAt,
+          ),
+        );
+
+        this.endedAtInput.set('');
+        this.diaperTypeInput.set(
+          activity.record.type,
+        );
+        break;
+    }
+
+    this.editing.set(true);
+  }
+
+  cancelEditing(): void {
+    this.editError.set(null);
+    this.editing.set(false);
+  }
+
+  onStartedAtInput(event: Event): void {
+    this.startedAtInput.set(
+      this.readControlValue(event),
+    );
+  }
+
+  onEndedAtInput(event: Event): void {
+    this.endedAtInput.set(
+      this.readControlValue(event),
+    );
+  }
+
+  onFeedingSideInput(event: Event): void {
+    const value = this.readControlValue(event);
+
+    if (
+      value === 'keep' ||
+      value === 'left' ||
+      value === 'right' ||
+      value === 'none'
+    ) {
+      this.feedingSideInput.set(value);
+    }
+  }
+
+  onDiaperTypeInput(event: Event): void {
+    const value = this.readControlValue(event);
+
+    if (
+      value === 'wet' ||
+      value === 'dirty' ||
+      value === 'both'
+    ) {
+      this.diaperTypeInput.set(value);
+    }
+  }
+
+  saveEditing(event: Event): void {
+    event.preventDefault();
+
+    const activity = this.activity();
+
+    if (!activity) {
+      this.editError.set(
+        'O registro não está mais disponível.',
+      );
+
+      return;
+    }
+
+    this.editError.set(null);
+
+    let saved = false;
+
+    switch (activity.kind) {
+      case 'feeding':
+        saved = this.saveFeeding(activity.record);
+        break;
+
+      case 'sleep':
+        saved = this.saveSleep(activity.record);
+        break;
+
+      case 'diaper':
+        saved = this.saveDiaper(activity.record);
+        break;
+    }
+
+    if (!saved && this.editError() === null) {
+      this.editError.set(
+        'Não foi possível salvar as alterações.',
+      );
+
+      return;
+    }
+
+    if (saved) {
+      this.editing.set(false);
+    }
+  }
 
   feedingDuration(record: Feeding): number {
     return this.feedingService.durations(record).total;
@@ -143,5 +396,238 @@ export class HistoryDetail {
     }
 
     return parts.join(' ');
+  }
+  private saveFeeding(record: Feeding): boolean {
+    if (record.endedAt === null) {
+      return false;
+    }
+
+    const range = this.readDateRange();
+
+    if (!range) {
+      return false;
+    }
+
+    const selection = this.feedingSideInput();
+
+    let periods: readonly FeedingPeriod[] | null;
+    let side: FeedingSide | null;
+
+    if (selection === 'keep') {
+      periods = this.resizeFeedingPeriods(
+        record,
+        range.startedAt,
+        range.endedAt,
+      );
+
+      side =
+        periods && periods.length > 0
+          ? periods[periods.length - 1].side
+          : record.side;
+    } else {
+      side =
+        selection === 'none'
+          ? null
+          : selection;
+
+      periods = [
+        {
+          startedAt: range.startedAt,
+          endedAt: range.endedAt,
+          side,
+        },
+      ];
+    }
+
+    return this.feedingService.updateCompleted({
+      ...record,
+      startedAt: range.startedAt,
+      endedAt: range.endedAt,
+      side,
+      periods,
+    });
+  }
+
+  private saveSleep(record: Sleep): boolean {
+    const range = this.readDateRange();
+
+    if (!range) {
+      return false;
+    }
+
+    return this.sleepService.updateCompleted({
+      ...record,
+      startedAt: range.startedAt,
+      endedAt: range.endedAt,
+    });
+  }
+
+  private saveDiaper(record: Diaper): boolean {
+    const recordedAt = this.parseDateTimeInput(
+      this.startedAtInput(),
+    );
+
+    if (recordedAt === null) {
+      this.editError.set(
+        'Informe uma data e um horário válidos.',
+      );
+
+      return false;
+    }
+
+    if (recordedAt > Date.now()) {
+      this.editError.set(
+        'O horário do registro não pode estar no futuro.',
+      );
+
+      return false;
+    }
+
+    return this.diaperService.update({
+      ...record,
+      recordedAt,
+      type: this.diaperTypeInput(),
+    });
+  }
+
+  private readDateRange(): {
+    startedAt: number;
+    endedAt: number;
+  } | null {
+    const startedAt = this.parseDateTimeInput(
+      this.startedAtInput(),
+    );
+
+    const endedAt = this.parseDateTimeInput(
+      this.endedAtInput(),
+    );
+
+    if (startedAt === null || endedAt === null) {
+      this.editError.set(
+        'Informe a data e o horário de início e fim.',
+      );
+
+      return null;
+    }
+
+    if (endedAt < startedAt) {
+      this.editError.set(
+        'O horário final não pode ser anterior ao início.',
+      );
+
+      return null;
+    }
+
+    if (startedAt > Date.now() || endedAt > Date.now()) {
+      this.editError.set(
+        'Os horários não podem estar no futuro.',
+      );
+
+      return null;
+    }
+
+    return { startedAt, endedAt };
+  }
+
+  private resizeFeedingPeriods(
+    record: Feeding,
+    startedAt: number,
+    endedAt: number,
+  ): readonly FeedingPeriod[] | null {
+    if (
+      record.periods === null ||
+      record.periods.length === 0 ||
+      record.endedAt === null
+    ) {
+      return null;
+    }
+
+    const previousDuration = Math.max(
+      1,
+      record.endedAt - record.startedAt,
+    );
+
+    const nextDuration = endedAt - startedAt;
+
+    let cursor = startedAt;
+
+    return record.periods.map((period, index) => {
+      const isLast =
+        index === record.periods!.length - 1;
+
+      const previousEnd =
+        period.endedAt ?? record.endedAt!;
+
+      const relativeEnd =
+        (previousEnd - record.startedAt) /
+        previousDuration;
+
+      const calculatedEnd =
+        startedAt +
+        Math.round(relativeEnd * nextDuration);
+
+      const periodEnd = isLast
+        ? endedAt
+        : Math.min(
+          endedAt,
+          Math.max(cursor, calculatedEnd),
+        );
+
+      const resized: FeedingPeriod = {
+        startedAt: cursor,
+        endedAt: periodEnd,
+        side: period.side,
+      };
+
+      cursor = periodEnd;
+
+      return resized;
+    });
+  }
+
+  private parseDateTimeInput(
+    value: string,
+  ): number | null {
+    if (!value) {
+      return null;
+    }
+
+    const timestamp = new Date(value).getTime();
+
+    return Number.isFinite(timestamp)
+      ? timestamp
+      : null;
+  }
+
+  private toDateTimeInput(timestamp: number): string {
+    const date = new Date(timestamp);
+
+    const pad = (value: number): string =>
+      value.toString().padStart(2, '0');
+
+    return [
+      date.getFullYear(),
+      '-',
+      pad(date.getMonth() + 1),
+      '-',
+      pad(date.getDate()),
+      'T',
+      pad(date.getHours()),
+      ':',
+      pad(date.getMinutes()),
+    ].join('');
+  }
+
+  private readControlValue(event: Event): string {
+    const target = event.target;
+
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLSelectElement
+    ) {
+      return target.value;
+    }
+
+    return '';
   }
 }

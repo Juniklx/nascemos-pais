@@ -7,7 +7,10 @@
   @if (activity(); as activity) {
     <article class="detail-card">
       <header class="detail-card__header">
-        <span class="detail-card__icon" aria-hidden="true">
+        <span
+          class="detail-card__icon"
+          aria-hidden="true"
+        >
           @switch (activity.kind) {
             @case ('feeding') {
               ♢
@@ -24,7 +27,9 @@
         </span>
 
         <div>
-          <span class="eyebrow">DETALHES DO REGISTRO</span>
+          <span class="eyebrow">
+            DETALHES DO REGISTRO
+          </span>
 
           <h1>
             @switch (activity.kind) {
@@ -44,139 +49,389 @@
         </div>
       </header>
 
-      @switch (activity.kind) {
-        @case ('feeding') {
-          <dl class="detail-list">
-            <div>
-              <dt>Início</dt>
-              <dd>
-                {{ formatDateTime(activity.record.startedAt) }}
-              </dd>
-            </div>
+      @if (editing()) {
+        <form
+          class="edit-form"
+          novalidate
+          (submit)="saveEditing($event)"
+        >
+          <div class="edit-form__heading">
+            <h2>Editar registro</h2>
 
-            <div>
-              <dt>Fim</dt>
-              <dd>
-                @if (activity.record.endedAt !== null) {
+            <p>
+              Confira os horários antes de salvar.
+            </p>
+          </div>
+
+          @switch (activity.kind) {
+            @case ('feeding') {
+              <div class="edit-grid">
+                <label class="edit-field">
+                  <span>Início da mamada</span>
+
+                  <input
+                    type="datetime-local"
+                    required
+                    [value]="startedAtInput()"
+                    (input)="onStartedAtInput($event)"
+                  />
+                </label>
+
+                <label class="edit-field">
+                  <span>Fim da mamada</span>
+
+                  <input
+                    type="datetime-local"
+                    required
+                    [value]="endedAtInput()"
+                    (input)="onEndedAtInput($event)"
+                  />
+                </label>
+              </div>
+
+              <label class="edit-field">
+                <span>Divisão por lado</span>
+
+                <select
+                  [value]="feedingSideInput()"
+                  (change)="onFeedingSideInput($event)"
+                >
+                  <option value="keep">
+                    Manter divisão atual
+                  </option>
+
+                  <option value="left">
+                    Somente lado esquerdo
+                  </option>
+
+                  <option value="right">
+                    Somente lado direito
+                  </option>
+
+                  <option value="none">
+                    Não informar lado
+                  </option>
+                </select>
+              </label>
+
+              <p class="edit-help">
+                Ao manter a divisão atual, os tempos de
+                cada lado serão ajustados
+                proporcionalmente à nova duração.
+              </p>
+            }
+
+            @case ('sleep') {
+              <div class="edit-grid">
+                <label class="edit-field">
+                  <span>Início do sono</span>
+
+                  <input
+                    type="datetime-local"
+                    required
+                    [value]="startedAtInput()"
+                    (input)="onStartedAtInput($event)"
+                  />
+                </label>
+
+                <label class="edit-field">
+                  <span>Fim do sono</span>
+
+                  <input
+                    type="datetime-local"
+                    required
+                    [value]="endedAtInput()"
+                    (input)="onEndedAtInput($event)"
+                  />
+                </label>
+              </div>
+            }
+
+            @case ('diaper') {
+              <div class="edit-grid">
+                <label class="edit-field">
+                  <span>Data e horário</span>
+
+                  <input
+                    type="datetime-local"
+                    required
+                    [value]="startedAtInput()"
+                    (input)="onStartedAtInput($event)"
+                  />
+                </label>
+
+                <label class="edit-field">
+                  <span>Tipo de fralda</span>
+
+                  <select
+                    [value]="diaperTypeInput()"
+                    (change)="onDiaperTypeInput($event)"
+                  >
+                    <option value="wet">
+                      Molhada
+                    </option>
+
+                    <option value="dirty">
+                      Suja
+                    </option>
+
+                    <option value="both">
+                      Ambas
+                    </option>
+                  </select>
+                </label>
+              </div>
+            }
+          }
+
+          @if (editError(); as error) {
+            <p class="edit-error" role="alert">
+              {{ error }}
+            </p>
+          }
+
+          <div class="edit-form__actions">
+            <button
+              type="button"
+              class="edit-cancel-button"
+              (click)="cancelEditing()"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="save-button"
+            >
+              Salvar alterações
+            </button>
+          </div>
+        </form>
+      } @else {
+        @switch (activity.kind) {
+          @case ('feeding') {
+            <dl class="detail-list">
+              <div>
+                <dt>Início</dt>
+
+                <dd>
                   {{
                     formatDateTime(
-                      activity.record.endedAt
+                      activity.record.startedAt
                     )
                   }}
-                } @else {
-                  Em andamento
-                }
-              </dd>
-            </div>
+                </dd>
+              </div>
 
-            <div>
-              <dt>Duração total</dt>
-              <dd>
-                {{
-                  formatDuration(
-                    feedingDuration(activity.record)
-                  )
-                }}
-              </dd>
-            </div>
+              <div>
+                <dt>Fim</dt>
 
-            <div>
-              <dt>Lado esquerdo</dt>
-              <dd>
-                {{
-                  formatDuration(
-                    feedingLeftDuration(activity.record)
-                  )
-                }}
-              </dd>
-            </div>
+                <dd>
+                  @if (
+                    activity.record.endedAt !== null
+                  ) {
+                    {{
+                      formatDateTime(
+                        activity.record.endedAt
+                      )
+                    }}
+                  } @else {
+                    Em andamento
+                  }
+                </dd>
+              </div>
 
-            <div>
-              <dt>Lado direito</dt>
-              <dd>
-                {{
-                  formatDuration(
-                    feedingRightDuration(activity.record)
-                  )
-                }}
-              </dd>
-            </div>
+              <div>
+                <dt>Duração total</dt>
 
-            <div>
-              <dt>Sem lado informado</dt>
-              <dd>
-                {{
-                  formatDuration(
-                    feedingUnspecifiedDuration(
-                      activity.record
+                <dd>
+                  {{
+                    formatDuration(
+                      feedingDuration(activity.record)
                     )
-                  )
-                }}
-              </dd>
-            </div>
-          </dl>
-        }
+                  }}
+                </dd>
+              </div>
 
-        @case ('sleep') {
-          <dl class="detail-list">
-            <div>
-              <dt>Início</dt>
-              <dd>
-                {{ formatDateTime(activity.record.startedAt) }}
-              </dd>
-            </div>
+              <div>
+                <dt>Lado esquerdo</dt>
 
-            <div>
-              <dt>Fim</dt>
-              <dd>
-                @if (activity.record.endedAt !== null) {
+                <dd>
+                  {{
+                    formatDuration(
+                      feedingLeftDuration(
+                        activity.record
+                      )
+                    )
+                  }}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Lado direito</dt>
+
+                <dd>
+                  {{
+                    formatDuration(
+                      feedingRightDuration(
+                        activity.record
+                      )
+                    )
+                  }}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Sem lado informado</dt>
+
+                <dd>
+                  {{
+                    formatDuration(
+                      feedingUnspecifiedDuration(
+                        activity.record
+                      )
+                    )
+                  }}
+                </dd>
+              </div>
+            </dl>
+          }
+
+          @case ('sleep') {
+            <dl class="detail-list">
+              <div>
+                <dt>Início</dt>
+
+                <dd>
                   {{
                     formatDateTime(
-                      activity.record.endedAt
+                      activity.record.startedAt
                     )
                   }}
-                } @else {
-                  Em andamento
-                }
-              </dd>
-            </div>
+                </dd>
+              </div>
 
-            <div>
-              <dt>Duração</dt>
-              <dd>
-                {{
-                  formatDuration(
-                    sleepDuration(activity.record)
-                  )
-                }}
-              </dd>
-            </div>
-          </dl>
+              <div>
+                <dt>Fim</dt>
+
+                <dd>
+                  @if (
+                    activity.record.endedAt !== null
+                  ) {
+                    {{
+                      formatDateTime(
+                        activity.record.endedAt
+                      )
+                    }}
+                  } @else {
+                    Em andamento
+                  }
+                </dd>
+              </div>
+
+              <div>
+                <dt>Duração</dt>
+
+                <dd>
+                  {{
+                    formatDuration(
+                      sleepDuration(activity.record)
+                    )
+                  }}
+                </dd>
+              </div>
+            </dl>
+          }
+
+          @case ('diaper') {
+            <dl class="detail-list">
+              <div>
+                <dt>Horário do registro</dt>
+
+                <dd>
+                  {{
+                    formatDateTime(
+                      activity.record.recordedAt
+                    )
+                  }}
+                </dd>
+              </div>
+
+              <div>
+                <dt>Tipo</dt>
+
+                <dd>
+                  {{ diaperLabel(activity.record) }}
+                </dd>
+              </div>
+            </dl>
+          }
         }
 
-        @case ('diaper') {
-          <dl class="detail-list">
-            <div>
-              <dt>Horário do registro</dt>
-              <dd>
-                {{
-                  formatDateTime(
-                    activity.record.recordedAt
-                  )
-                }}
-              </dd>
-            </div>
+        <div class="detail-actions">
+          <button
+            type="button"
+            class="edit-button"
+            (click)="startEditing()"
+          >
+            Editar registro
+          </button>
 
-            <div>
-              <dt>Tipo</dt>
-              <dd>
-                {{ diaperLabel(activity.record) }}
-              </dd>
-            </div>
-          </dl>
-        }
+          <button
+            type="button"
+            class="delete-button"
+            (click)="requestDelete()"
+          >
+            Excluir registro
+          </button>
+        </div>
       }
     </article>
+
+    @if (confirmingDelete()) {
+      <section
+        class="delete-confirmation"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-title"
+        aria-describedby="delete-description"
+      >
+        <div class="delete-confirmation__content">
+          <h2 id="delete-title">
+            Excluir este registro?
+          </h2>
+
+          <p id="delete-description">
+            Esta ação é permanente e não poderá ser
+            desfeita.
+          </p>
+
+          @if (deleteError(); as error) {
+            <p class="delete-error" role="alert">
+              {{ error }}
+            </p>
+          }
+
+          <div class="delete-confirmation__actions">
+            <button
+              type="button"
+              class="cancel-button"
+              (click)="cancelDelete()"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              class="confirm-delete-button"
+              (click)="confirmDelete()"
+            >
+              Sim, excluir
+            </button>
+          </div>
+        </div>
+      </section>
+    }
   } @else {
     <section class="not-found">
       <span aria-hidden="true">?</span>
