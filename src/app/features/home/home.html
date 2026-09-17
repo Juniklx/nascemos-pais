@@ -32,35 +32,54 @@
         </span>
 
         <span class="last-activity__label">
-          Última mamada concluída
+          Última atividade concluída
         </span>
       </div>
 
-      @if (lastCompletedFeeding(); as feeding) {
+      @if (lastCompletedActivity(); as activity) {
       <strong class="last-activity__time">
-        {{ lastFeedingElapsed() }}
+        {{ lastActivityElapsed() }}
       </strong>
 
       <div class="last-activity__detail">
-        <span class="activity-icon" aria-hidden="true">♢</span>
+        <span class="activity-icon" aria-hidden="true">
+          @switch (activity.kind) {
+          @case ('feeding') {
+          ♢
+          }
+          @case ('sleep') {
+          ◔
+          }
+          }
+        </span>
 
         <span>
-          {{ feedingDescription(feeding) }}
+          @switch (activity.kind) {
+          @case ('feeding') {
+          {{ feedingDescription(activity.record) }}
+          }
+          @case ('sleep') {
+          Sono · {{ sleepDescription(activity.record) }}
+          }
+          }
         </span>
       </div>
       } @else {
       <strong class="last-activity__time">
-        {{ activeFeeding() ? 'Primeira mamada em andamento' : 'Tudo pronto' }}
+        {{ activeSleep() ? 'Sono em andamento' : 'Tudo pronto' }}
       </strong>
 
-      <p>
-        Nenhuma mamada concluída ainda.
-      </p>
+      <p>Nenhuma atividade concluída ainda.</p>
       }
 
       @if (activeFeeding()) {
       <button type="button" class="history-link" (click)="openFeeding()">
         Acompanhar mamada
+        <span aria-hidden="true">›</span>
+      </button>
+      } @else if (activeSleep()) {
+      <button type="button" class="history-link" (click)="openSleep()">
+        Acompanhar sono
         <span aria-hidden="true">›</span>
       </button>
       }
@@ -144,12 +163,18 @@
           </span>
         </button>
 
-        <button type="button" class="quick-action">
-          <span class="quick-action__icon">◔</span>
+        <button type="button" class="quick-action" (click)="openSleep()">
+          <span class="quick-action__icon" aria-hidden="true">
+            ◔
+          </span>
 
-          <strong>Sono</strong>
+          <strong>
+            {{ activeSleep() ? 'Acompanhar sono' : 'Sono' }}
+          </strong>
 
-          <span class="quick-action__plus">+</span>
+          <span class="quick-action__plus" aria-hidden="true">
+            {{ activeSleep() ? '›' : '+' }}
+          </span>
         </button>
 
         <button type="button" class="quick-action">
