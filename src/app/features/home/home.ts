@@ -11,7 +11,7 @@ import { SleepService } from '../../core/services/sleep';
 import type { Feeding } from '../../core/models/feeding';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
-
+import { DiaperService } from '../../core/services/diaper';
 
 interface RoutineEvent {
   id: string;
@@ -36,7 +36,11 @@ export class Home {
   private readonly sleepService = inject(SleepService);
   readonly activeSleep = this.sleepService.activeSleep;
   private readonly now = signal(Date.now());
+  private readonly diaperService = inject(DiaperService);
 
+  openDiaper(): void {
+    void this.router.navigate(['/diaper']);
+  }
   private readonly timeFormatter = new Intl.DateTimeFormat(
     'pt-BR',
     {

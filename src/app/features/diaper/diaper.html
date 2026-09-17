@@ -1,0 +1,83 @@
+<main class="diaper">
+  <header class="diaper__header">
+    <a routerLink="/home" class="back-link">
+      <span aria-hidden="true">←</span>
+      Início
+    </a>
+
+    <span class="baby-chip">{{ babyName() }}</span>
+  </header>
+
+  <section class="diaper-card" aria-labelledby="diaper-title">
+    <span class="eyebrow">REGISTRO DE FRALDA</span>
+
+    <h1 id="diaper-title">Troca de fralda</h1>
+
+    <p>
+      Registre rapidamente o tipo de troca de
+      {{ babyName() }}.
+    </p>
+
+    @if (storageError(); as error) {
+      <p class="storage-warning" role="alert">
+        {{ error }}
+      </p>
+    }
+
+    @if (savedType(); as type) {
+      <div class="success-message" role="status">
+        <strong>Fralda registrada</strong>
+
+        <span>
+          {{ label(type) }}
+          · {{ savedAt() | date: 'HH:mm' }}
+        </span>
+      </div>
+    }
+
+    <fieldset class="type-selector">
+      <legend>Tipo de fralda</legend>
+
+      <div class="type-options">
+        <button
+          type="button"
+          [class.is-selected]="selectedType() === 'wet'"
+          [attr.aria-pressed]="selectedType() === 'wet'"
+          (click)="selectType('wet')"
+        >
+          <span aria-hidden="true">💧</span>
+          Molhada
+        </button>
+
+        <button
+          type="button"
+          [class.is-selected]="selectedType() === 'dirty'"
+          [attr.aria-pressed]="selectedType() === 'dirty'"
+          (click)="selectType('dirty')"
+        >
+          <span aria-hidden="true">●</span>
+          Suja
+        </button>
+
+        <button
+          type="button"
+          [class.is-selected]="selectedType() === 'both'"
+          [attr.aria-pressed]="selectedType() === 'both'"
+          (click)="selectType('both')"
+        >
+          <span aria-hidden="true">◉</span>
+          Ambas
+        </button>
+      </div>
+    </fieldset>
+
+    <button
+      type="button"
+      class="primary-button"
+      [disabled]="selectedType() === null"
+      (click)="register()"
+    >
+      Registrar troca
+    </button>
+  </section>
+</main>

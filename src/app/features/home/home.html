@@ -177,12 +177,16 @@
           </span>
         </button>
 
-        <button type="button" class="quick-action">
-          <span class="quick-action__icon">▱</span>
+        <button type="button" class="quick-action" (click)="openDiaper()">
+          <span class="quick-action__icon" aria-hidden="true">
+            ▱
+          </span>
 
           <strong>Fralda</strong>
 
-          <span class="quick-action__plus">+</span>
+          <span class="quick-action__plus" aria-hidden="true">
+            +
+          </span>
         </button>
       </div>
     </section>
