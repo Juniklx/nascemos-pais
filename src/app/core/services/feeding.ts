@@ -136,10 +136,10 @@ export class FeedingService {
         periods === null
           ? null
           : periods.map((period, index) =>
-              index === periods.length - 1
-                ? { ...period, endedAt }
-                : period,
-            ),
+            index === periods.length - 1
+              ? { ...period, endedAt }
+              : period,
+          ),
     };
 
     this.updateFeedings((feedings) =>
@@ -198,12 +198,72 @@ export class FeedingService {
     };
   }
 
+    private readStoredFeedings(): Feeding[] {
+    try {
+      const saved = localStorage.getItem(
+        this.storageKey,
+      );
+
+      if (saved === null) {
+        return [...this.feedingsState()];
+      }
+
+      const parsed: unknown = JSON.parse(saved);
+
+      if (!Array.isArray(parsed)) {
+        return [...this.feedingsState()];
+      }
+
+      return parsed.map((item: unknown) =>
+        this.parseFeeding(item, false),
+      );
+    } catch {
+      // Se o armazenamento estiver inválido, preserva
+      // a lista atual e deixa loadFeedings() controlar
+      // a mensagem de erro.
+      return [...this.feedingsState()];
+    }
+  }
+
   private updateFeedings(
     update: (current: readonly Feeding[]) => readonly Feeding[],
   ): void {
-    const next = update(this.feedingsState());
+    const previous = this.feedingsState();
+    const requested = update(previous);
 
-    this.feedingsState.set(next);
+    const stored = this.readStoredFeedings();
+    const changedIds = new Set<string>();
+
+    for (const feeding of requested) {
+      const previousFeeding = previous.find(
+        (item) => item.id === feeding.id,
+      );
+
+      if (
+        previousFeeding === undefined ||
+        JSON.stringify(previousFeeding) !==
+        JSON.stringify(feeding)
+      ) {
+        changedIds.add(feeding.id);
+      }
+    }
+
+    const merged = stored.filter((feeding) => {
+      // Mantém registros de outras abas.
+      // Registros removidos ainda não são suportados nesta etapa.
+      return !changedIds.has(feeding.id);
+    });
+
+    for (const feeding of requested) {
+      if (changedIds.has(feeding.id)) {
+        merged.push(feeding);
+      }
+    }
+
+    // Ordena do mais recente para o mais antigo.
+    merged.sort((a, b) => b.startedAt - a.startedAt);
+
+    this.feedingsState.set(merged);
 
     if (!this.canWriteToStorage) {
       return;
@@ -212,7 +272,7 @@ export class FeedingService {
     try {
       localStorage.setItem(
         this.storageKey,
-        JSON.stringify(next),
+        JSON.stringify(merged),
       );
 
       this.storageErrorState.set(null);
