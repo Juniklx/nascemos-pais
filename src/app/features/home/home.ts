@@ -189,7 +189,12 @@ export class Home {
       );
     }
 
-    return [status, ...details].join(' · ');
+    return [
+      status,
+      ...(details.length > 0
+        ? [`Por lado (aprox.): ${details.join(' · ')}`]
+        : []),
+    ].join(' · ');
   }
 
   private formatFeedingDuration(milliseconds: number): string {
