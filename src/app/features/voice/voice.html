@@ -1,0 +1,244 @@
+<header class="mobile-header">
+  <strong>Voz</strong>
+
+  <button type="button" aria-label="Voltar ao início" (click)="goHome()">
+    ×
+  </button>
+</header>
+
+<section class="voice-page" aria-labelledby="voice-title">
+  <button type="button" class="back-button" (click)="goHome()">
+    <span aria-hidden="true">←</span>
+    Início
+  </button>
+
+  <article class="voice-panel">
+    <header class="voice-panel__header">
+      <span class="eyebrow">COMANDO DE VOZ</span>
+
+      <h1 id="voice-title">
+        Registre sem usar as mãos
+      </h1>
+
+      <p>
+        Toque no microfone e fale um comando de forma
+        clara.
+      </p>
+    </header>
+
+    <div class="voice-state" [class.voice-state--listening]="
+        status() === 'listening'
+      " [class.voice-state--success]="
+        status() === 'recognized' &&
+        commandExecuted()
+      " [class.voice-state--error]="
+        status() === 'error' ||
+        status() === 'permission-denied' ||
+        status() === 'unsupported'
+      " aria-live="polite">
+      <div class="voice-state__icon" aria-hidden="true">
+        @switch (status()) {
+        @case ('listening') {
+        ●
+        }
+
+        @case ('recognized') {
+        ✓
+        }
+
+        @case ('error') {
+        !
+        }
+
+        @case ('permission-denied') {
+        !
+        }
+
+        @case ('unsupported') {
+        !
+        }
+
+        @default {
+        ♩
+        }
+        }
+      </div>
+
+      @switch (status()) {
+      @case ('listening') {
+      <strong>Estou ouvindo…</strong>
+
+      <p>
+        Diga o comando agora.
+      </p>
+      }
+
+      @case ('recognized') {
+      <strong>Comando reconhecido</strong>
+
+      @if (transcript(); as spokenText) {
+      <blockquote>
+        “{{ spokenText }}”
+      </blockquote>
+      }
+
+      <p>{{ feedback() }}</p>
+      }
+
+      @case ('error') {
+      <strong>
+        {{
+        transcript()
+        ? 'Comando não reconhecido'
+        : 'Não consegui ouvir'
+        }}
+      </strong>
+
+      @if (transcript(); as spokenText) {
+      <blockquote>
+        Entendi: “{{ spokenText }}”
+      </blockquote>
+      }
+
+      <p role="alert">
+        {{ error() }}
+      </p>
+      }
+
+      @case ('permission-denied') {
+      <strong>Microfone bloqueado</strong>
+
+      <p role="alert">
+        {{ error() }}
+      </p>
+      }
+
+      @case ('unsupported') {
+      <strong>Recurso indisponível</strong>
+
+      <p role="alert">
+        {{ error() }}
+      </p>
+      }
+
+      @default {
+      <strong>Pronto para ouvir</strong>
+
+      <p>{{ feedback() }}</p>
+      }
+      }
+    </div>
+
+    <div class="voice-actions">
+      @if (status() === 'listening') {
+      <button type="button" class="cancel-button" (click)="cancelListening()">
+        Cancelar
+      </button>
+      } @else if (
+      status() === 'unsupported' ||
+      status() === 'permission-denied'
+      ) {
+      <button type="button" class="manual-button" (click)="useManualRegistration()">
+        Registrar manualmente
+      </button>
+      } @else {
+      <button type="button" class="microphone-button" [disabled]="!supported" (click)="startListening()">
+        <span aria-hidden="true">●</span>
+
+        {{
+        status() === 'recognized'
+        ? 'Dizer outro comando'
+        : 'Ativar microfone'
+        }}
+      </button>
+
+      @if (status() === 'error') {
+      <button type="button" class="manual-link" (click)="useManualRegistration()">
+        Registrar manualmente
+      </button>
+      }
+      }
+    </div>
+  </article>
+
+  <section class="command-examples" aria-labelledby="examples-title">
+    <div class="command-examples__heading">
+      <span class="eyebrow">EXEMPLOS</span>
+
+      <h2 id="examples-title">
+        O que você pode dizer
+      </h2>
+    </div>
+
+    <ul>
+      <li>
+        <span aria-hidden="true">♢</span>
+
+        <div>
+          <strong>Mamada</strong>
+
+          <p>
+            “Registrar mamada no lado esquerdo”
+          </p>
+
+          <p>
+            “Finalizar mamada”
+          </p>
+        </div>
+      </li>
+
+      <li>
+        <span aria-hidden="true">◔</span>
+
+        <div>
+          <strong>Sono</strong>
+
+          <p>
+            “Iniciar sono”
+          </p>
+
+          <p>
+            “Finalizar sono”
+          </p>
+        </div>
+      </li>
+
+      <li>
+        <span aria-hidden="true">▱</span>
+
+        <div>
+          <strong>Fralda</strong>
+
+          <p>
+            “Registrar fralda molhada”
+          </p>
+
+          <p>
+            “Registrar fralda suja”
+          </p>
+        </div>
+      </li>
+
+      <li>
+        <span aria-hidden="true">→</span>
+
+        <div>
+          <strong>Navegação</strong>
+
+          <p>
+            “Abrir histórico”
+          </p>
+
+          <p>
+            “Ir para rotina”
+          </p>
+        </div>
+      </li>
+    </ul>
+
+    <p class="privacy-note">
+      O áudio e a transcrição não são armazenados no
+      histórico de cuidados.
+    </p>
+  </section>
+</section>

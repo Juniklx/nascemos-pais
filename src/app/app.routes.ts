@@ -62,6 +62,14 @@ export const routes: Routes = [
             (m) => m.Routine,
           ),
       },
+            {
+        path: 'voice',
+        title: 'Comando de voz | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/voice/voice').then(
+            (m) => m.VoicePage,
+          ),
+      },
       {
         path: 'diaper',
         title: 'Fralda | Nascemos Pais',
