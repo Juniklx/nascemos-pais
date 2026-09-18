@@ -59,6 +59,9 @@ export class Home {
   openHistory(): void {
     void this.router.navigate(['/history']);
   }
+  openVoice(): void {
+    void this.router.navigate(['/voice']);
+  }
   private readonly timeFormatter = new Intl.DateTimeFormat(
     'pt-BR',
     {
