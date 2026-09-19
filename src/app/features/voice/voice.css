@@ -140,7 +140,7 @@
   position: relative;
   border-color: var(--color-sage);
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
   animation: voice-pulse 1.6s ease-in-out infinite;
 }
 
@@ -152,18 +152,18 @@
 .voice-state--success .voice-state__icon {
   border-color: var(--color-sage);
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
 }
 
 .voice-state--error {
-  border-color: #e8c8c4;
-  background: #fff7f6;
+  border-color: var(--color-error);
+  background: var(--color-surface);
 }
 
 .voice-state--error .voice-state__icon {
-  border-color: #d88e86;
-  background: #fff1ef;
-  color: #a8473d;
+  border-color: var(--color-error);
+  background: var(--color-canvas);
+  color: var(--color-error);
 }
 
 .voice-actions {
@@ -193,7 +193,7 @@
 .microphone-button {
   border: 1px solid var(--color-sage);
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
 }
 
 .microphone-button:hover {
@@ -216,7 +216,7 @@
 .manual-button {
   border: 1px solid var(--color-sage);
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
 }
 
 .manual-link {
@@ -238,7 +238,7 @@
 .manual-button:focus-visible,
 .manual-link:focus-visible,
 .mobile-header button:focus-visible {
-  outline: 3px solid rgb(111 143 122 / 30%);
+  outline: 3px solid var(--color-sage);
   outline-offset: 3px;
 }
 

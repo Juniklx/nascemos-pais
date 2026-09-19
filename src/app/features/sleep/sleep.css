@@ -38,6 +38,7 @@
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--color-surface);
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 
@@ -59,6 +60,7 @@
 
 h1 {
   margin: 16px 0 12px;
+  color: var(--color-ink);
   font-size: clamp(24px, 5vw, 32px);
   line-height: 1.2;
 }
@@ -94,15 +96,20 @@ p {
   border: 0;
   border-radius: 999px;
   background: var(--color-sage);
-  color: #fff;
+  color: var(--color-on-sage);
   font: inherit;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
 }
 
-.primary-button:hover {
-  background: #4c6658;
+.primary-button:hover:not(:disabled) {
+  background: var(--color-sage-hover);
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 button:focus-visible,
@@ -118,10 +125,10 @@ a:focus-visible {
 
 .storage-warning {
   padding: 16px;
-  border: 1px solid #95696c;
+  border: 1px solid var(--color-warning-border);
   border-radius: 12px;
-  background: #ffdadb;
-  color: #623c3f;
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
 }
 
 @media (max-width: 480px) {
