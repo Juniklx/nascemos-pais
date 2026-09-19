@@ -111,6 +111,7 @@ export class OnboardingService {
     if (storage === null) {
       this.setStorageError(
         'Não foi possível acessar o armazenamento deste navegador. Os dados ficarão apenas nesta sessão.',
+        true,
       );
       return false;
     }
@@ -143,6 +144,7 @@ export class OnboardingService {
     if (storage === null) {
       this.setStorageError(
         'Não foi possível acessar o cadastro salvo neste navegador.',
+        true,
       );
       return this.emptyData;
     }
@@ -264,8 +266,14 @@ export class OnboardingService {
     }
   }
 
-  private setStorageError(message: string): void {
-    this.canWriteToStorage = false;
+  private setStorageError(
+    message: string,
+    disableWrites = false,
+  ): void {
+    if (disableWrites) {
+      this.canWriteToStorage = false;
+    }
+
     this.storageErrorState.set(message);
   }
 }
