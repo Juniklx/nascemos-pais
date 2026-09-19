@@ -4,6 +4,11 @@ import {
   signal,
 } from '@angular/core';
 
+import {
+  isValidName,
+  isValidBirthDate,
+} from '../validators/onboarding.validators';
+
 export interface OnboardingData {
   caregiverName: string;
   babyName: string;
@@ -79,6 +84,22 @@ export class OnboardingService {
 
     this.babyName.set(normalizedName);
     this.babyBirthDate.set(birthDate);
+
+    return this.saveData();
+  }
+
+  updateProfile(data: OnboardingData): boolean {
+    if (
+      !isValidName(data.caregiverName) ||
+      !isValidName(data.babyName) ||
+      !isValidBirthDate(data.babyBirthDate)
+    ) {
+      return false;
+    }
+
+    this.caregiverName.set(data.caregiverName.trim());
+    this.babyName.set(data.babyName.trim());
+    this.babyBirthDate.set(data.babyBirthDate);
 
     return this.saveData();
   }
@@ -222,36 +243,11 @@ export class OnboardingService {
   }
 
   private isValidName(value: string): boolean {
-    return value.trim().length > 0;
+    return isValidName(value);
   }
 
   private isValidBirthDate(value: string): boolean {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return false;
-    }
-
-    const [year, month, day] = value
-      .split('-')
-      .map(Number);
-
-    const date = new Date(
-      year,
-      month - 1,
-      day,
-    );
-
-    if (
-      date.getFullYear() !== year ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day
-    ) {
-      return false;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return date.getTime() <= today.getTime();
+    return isValidBirthDate(value);
   }
 
   private getStorage(): Storage | null {
