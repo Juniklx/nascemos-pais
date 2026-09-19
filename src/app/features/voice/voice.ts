@@ -31,6 +31,7 @@ export class VoicePage {
   private readonly diaperService = inject(DiaperService);
 
   private lastProcessedTranscript: string | null = null;
+  private awaitingDiaperType = false;
 
   readonly status = this.voiceService.status;
   readonly transcript = this.voiceService.transcript;
@@ -71,6 +72,7 @@ export class VoicePage {
   }
 
   cancelListening(): void {
+    this.awaitingDiaperType = false;
     this.voiceService.stop();
     this.lastProcessedTranscript = null;
     this.commandExecuted.set(false);
@@ -92,209 +94,175 @@ export class VoicePage {
   private executeCommand(transcript: string): void {
     const command = this.normalize(transcript);
 
-    if (this.hasAny(command, ['cancelar', 'cancele'])) {
+    this.commandExecuted.set(false);
+
+    if (/^(cancelar|cancele)$/.test(command)) {
       this.cancelListening();
       return;
     }
 
+    if (/\b(nao|nunca|nem)\b/.test(command)) {
+      this.awaitingDiaperType = false;
+
+      this.voiceService.reportError(
+        'Identifiquei uma frase negativa. Nenhuma ação foi executada.',
+      );
+
+      this.feedback.set(
+        'Para registrar, diga um comando direto e completo.',
+      );
+      return;
+    }
+
+    const navigationCommands = [
+      {
+        pattern: /^(abrir inicio|ir para inicio|ir para o inicio|voltar ao inicio|inicio)$/,
+        destination: '/home',
+        message: 'Abrindo a página inicial.',
+      },
+      {
+        pattern: /^(abrir rotina|ir para rotina|ir para a rotina|rotina)$/,
+        destination: '/routine',
+        message: 'Abrindo a rotina.',
+      },
+      {
+        pattern: /^(abrir historico|ir para historico|ir para o historico|historico)$/,
+        destination: '/history',
+        message: 'Abrindo o histórico.',
+      },
+      {
+        pattern: /^(abrir mamada|acompanhar mamada|mamada)$/,
+        destination: '/feeding',
+        message: 'Abrindo o registro de mamada.',
+      },
+      {
+        pattern: /^(abrir sono|acompanhar sono)$/,
+        destination: '/sleep',
+        message: 'Abrindo o registro de sono.',
+      },
+      {
+        pattern: /^(abrir fralda|ir para fralda|ir para a fralda)$/,
+        destination: '/diaper',
+        message: 'Abrindo o registro de fralda.',
+      },
+    ];
+
+    const navigation = navigationCommands.find(
+      (option) => option.pattern.test(command),
+    );
+
+    if (navigation) {
+      this.awaitingDiaperType = false;
+      this.navigateTo(
+        navigation.destination,
+        navigation.message,
+      );
+      return;
+    }
+
+    const diaperTypes: Record<string, DiaperType> = {
+      molhada: 'wet',
+      xixi: 'wet',
+      suja: 'dirty',
+      coco: 'dirty',
+      ambas: 'both',
+      'molhada e suja': 'both',
+      'suja e molhada': 'both',
+      'xixi e coco': 'both',
+      'coco e xixi': 'both',
+    };
+
+    // Uma resposta curta só registra quando o tipo foi solicitado.
     if (
-      this.hasAny(command, [
-        'finalizar mamada',
-        'encerrar mamada',
-        'terminar mamada',
-        'parar mamada',
-      ])
+      this.awaitingDiaperType &&
+      Object.prototype.hasOwnProperty.call(diaperTypes, command)
     ) {
+      this.awaitingDiaperType = false;
+      this.registerDiaper(diaperTypes[command]);
+      return;
+    }
+
+    // Qualquer outra frase encerra a solicitação anterior.
+    this.awaitingDiaperType = false;
+
+    if (/^(registrar fralda|trocar fralda|fralda)$/.test(command)) {
+      this.awaitingDiaperType = true;
+
+      this.voiceService.reportError(
+        'Qual foi o tipo da fralda: molhada, suja ou ambas?',
+      );
+
+      this.feedback.set(
+        'Toque novamente no microfone e informe o tipo. Nenhuma fralda foi registrada ainda.',
+      );
+      return;
+    }
+
+    const diaperMatch = command.match(
+      /^(?:(?:registrar|trocar) )?fralda (molhada|suja|ambas|xixi|coco|molhada e suja|suja e molhada|xixi e coco|coco e xixi)$/,
+    );
+
+    if (diaperMatch) {
+      this.registerDiaper(diaperTypes[diaperMatch[1]]);
+      return;
+    }
+
+    if (/^(finalizar|encerrar|terminar|parar) mamada$/.test(command)) {
       this.finishFeeding();
       return;
     }
 
     if (
-      this.hasAny(command, [
-        'registrar mamada',
-        'iniciar mamada',
-        'comecar mamada',
-      ])
+      /^(registrar|iniciar|comecar) mamada(?: (?:no lado (?:esquerdo|direito)|lado (?:esquerdo|direito)|na mama (?:esquerda|direita)|no seio (?:esquerdo|direito)))?$/.test(
+        command,
+      )
     ) {
       this.startFeeding(command);
       return;
     }
 
     if (
-      this.hasAny(command, [
-        'lado esquerdo',
-        'mudar para esquerda',
-        'trocar para esquerda',
-      ])
+      /^(lado esquerdo|mudar para esquerda|trocar para esquerda|mudar para o lado esquerdo|trocar para o lado esquerdo)$/.test(
+        command,
+      )
     ) {
       this.changeFeedingSide('left');
       return;
     }
 
     if (
-      this.hasAny(command, [
-        'lado direito',
-        'mudar para direita',
-        'trocar para direita',
-      ])
+      /^(lado direito|mudar para direita|trocar para direita|mudar para o lado direito|trocar para o lado direito)$/.test(
+        command,
+      )
     ) {
       this.changeFeedingSide('right');
       return;
     }
 
     if (
-      this.hasAny(command, [
-        'finalizar sono',
-        'encerrar sono',
-        'terminar sono',
-        'acordou',
-      ])
+      /^(finalizar sono|encerrar sono|terminar sono|acordou)$/.test(
+        command,
+      )
     ) {
       this.finishSleep();
       return;
     }
 
     if (
-      this.hasAny(command, [
-        'registrar sono',
-        'iniciar sono',
-        'comecar sono',
-        'dormiu',
-      ])
+      /^(registrar sono|iniciar sono|comecar sono|dormiu)$/.test(
+        command,
+      )
     ) {
       this.startSleep();
       return;
     }
 
-    if (
-      command.includes('fralda') &&
-      this.hasAny(command, ['ambas', 'molhada e suja'])
-    ) {
-      this.registerDiaper('both');
-      return;
-    }
-
-    if (
-      command.includes('fralda') &&
-      this.hasAny(command, ['suja', 'coco'])
-    ) {
-      this.registerDiaper('dirty');
-      return;
-    }
-
-    if (
-      command.includes('fralda') &&
-      this.hasAny(command, ['molhada', 'xixi'])
-    ) {
-      this.registerDiaper('wet');
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'registrar fralda',
-        'trocar fralda',
-        'fralda',
-      ])
-    ) {
-      this.voiceService.reportError(
-        'Qual foi o tipo da fralda: molhada, suja ou ambas?',
-      );
-      this.feedback.set(
-        'O comando precisa informar o tipo da fralda.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir inicio',
-        'ir para inicio',
-        'voltar ao inicio',
-        'inicio'
-      ])
-    ) {
-      this.navigateTo(
-        '/home',
-        'Abrindo a página inicial.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir rotina',
-        'ir para rotina',
-        'rotina'
-      ])
-    ) {
-      this.navigateTo(
-        '/routine',
-        'Abrindo a rotina.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir historico',
-        'ir para historico',
-        'historico'
-      ])
-    ) {
-      this.navigateTo(
-        '/history',
-        'Abrindo o histórico.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir mamada',
-        'acompanhar mamada',
-        'mamada'
-      ])
-    ) {
-      this.navigateTo(
-        '/feeding',
-        'Abrindo o registro de mamada.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir sono',
-        'acompanhar sono',
-      ])
-    ) {
-      this.navigateTo(
-        '/sleep',
-        'Abrindo o registro de sono.',
-      );
-      return;
-    }
-
-    if (
-      this.hasAny(command, [
-        'abrir fralda',
-        'ir para fralda',
-      ])
-    ) {
-      this.navigateTo(
-        '/diaper',
-        'Abrindo o registro de fralda.',
-      );
-      return;
-    }
-
     this.voiceService.reportError(
-      'Não reconheci esse comando. Tente dizer “registrar mamada”, “iniciar sono” ou “registrar fralda suja”.',
+      'Não reconheci um comando único e completo. Tente dizer “registrar mamada”, “iniciar sono” ou “registrar fralda suja”.',
     );
 
     this.feedback.set(
-      'Nenhuma atividade foi registrada.',
+      'Nenhuma ação foi executada. Diga apenas um comando por vez.',
     );
   }
 
@@ -321,6 +289,7 @@ export class VoicePage {
       alreadyActive
         ? `A mamada já estava em andamento${sideDescription}.`
         : `Mamada iniciada agora${sideDescription}.`,
+      this.feedingService.storageError(),
     );
   }
 
@@ -337,7 +306,10 @@ export class VoicePage {
       return;
     }
 
-    this.completeCommand('Mamada finalizada com sucesso.');
+    this.completeCommand(
+      'Mamada finalizada com sucesso.',
+      this.feedingService.storageError(),
+    );
   }
 
   private changeFeedingSide(side: FeedingSide): void {
@@ -357,6 +329,7 @@ export class VoicePage {
       side === 'left'
         ? 'Mamada alterada para o lado esquerdo.'
         : 'Mamada alterada para o lado direito.',
+      this.feedingService.storageError(),
     );
   }
 
@@ -370,6 +343,7 @@ export class VoicePage {
       alreadyActive
         ? 'O sono já estava em andamento.'
         : 'Sono iniciado agora.',
+      this.sleepService.storageError(),
     );
   }
 
@@ -386,7 +360,10 @@ export class VoicePage {
       return;
     }
 
-    this.completeCommand('Sono finalizado com sucesso.');
+    this.completeCommand(
+      'Sono finalizado com sucesso.',
+      this.sleepService.storageError(),
+    );
   }
 
   private registerDiaper(type: DiaperType): void {
@@ -396,6 +373,7 @@ export class VoicePage {
       `Fralda ${this.diaperService
         .label(type)
         .toLocaleLowerCase('pt-BR')} registrada agora.`,
+      this.diaperService.storageError(),
     );
   }
 
@@ -425,7 +403,24 @@ export class VoicePage {
     return null;
   }
 
-  private completeCommand(message: string): void {
+  private completeCommand(
+    message: string,
+    storageError: string | null = null,
+  ): void {
+    if (storageError !== null) {
+      this.commandExecuted.set(false);
+
+      this.feedback.set(
+        'O registro foi atualizado nesta sessão, mas não foi possível confirmar o salvamento no dispositivo.',
+      );
+
+      this.voiceService.reportError(
+        `${storageError} Os dados desta sessão podem ser perdidos ao recarregar ou fechar a página. Confira o histórico antes de repetir o comando.`,
+      );
+
+      return;
+    }
+
     this.commandExecuted.set(true);
     this.feedback.set(message);
   }
