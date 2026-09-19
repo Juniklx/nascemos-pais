@@ -1,15 +1,16 @@
 import { Component, inject } from '@angular/core';
 import {
-  AbstractControl,
   FormControl,
   FormGroup,
   ReactiveFormsModule,
-  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-
 import { OnboardingService } from '../../../core/services/onboarding';
+import {
+  trimmedRequired,
+  validBirthDate,
+} from '../../../core/validators/onboarding.validators';
 
 @Component({
   selector: 'app-about-baby',
@@ -20,20 +21,21 @@ import { OnboardingService } from '../../../core/services/onboarding';
 export class AboutBaby {
   private readonly onboarding = inject(OnboardingService);
   private readonly router = inject(Router);
-
+  readonly storageError =
+    this.onboarding.storageError;
   readonly today = this.getToday();
 
   form = new FormGroup({
     babyName: new FormControl(this.onboarding.babyName(), {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [trimmedRequired],
     }),
 
     birthDate: new FormControl(this.onboarding.babyBirthDate(), {
       nonNullable: true,
       validators: [
         Validators.required,
-        this.birthDateNotInFuture,
+        validBirthDate,
       ],
     }),
   });
@@ -61,7 +63,7 @@ export class AboutBaby {
   }
 
   babyAge(): string {
-    if (!this.birthDate.value) {
+    if (this.birthDate.invalid || !this.birthDate.value) {
       return '';
     }
 
@@ -113,23 +115,6 @@ export class AboutBaby {
     return `${years} anos`;
   }
 
-  private birthDateNotInFuture(
-    control: AbstractControl<string>,
-  ): ValidationErrors | null {
-    if (!control.value) {
-      return null;
-    }
-
-    const selectedDate = new Date(`${control.value}T00:00:00`);
-    const today = new Date();
-
-    today.setHours(0, 0, 0, 0);
-
-    return selectedDate > today
-      ? { futureDate: true }
-      : null;
-  }
-
   private getToday(): string {
     const today = new Date();
 
@@ -139,4 +124,6 @@ export class AboutBaby {
 
     return `${year}-${month}-${day}`;
   }
+
+  
 }

@@ -1,15 +1,7 @@
 <main class="onboarding">
   <header class="onboarding__header">
-    <a
-      class="back-link"
-      routerLink="/"
-      aria-label="Voltar para a tela de boas-vindas"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
+    <a class="back-link" routerLink="/" aria-label="Voltar para a tela de boas-vindas">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M19 12H5"></path>
         <path d="M11 18L5 12L11 6"></path>
       </svg>
@@ -19,10 +11,7 @@
 
     <div class="brand">
       <div class="brand__icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-        >
+        <svg viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9"></circle>
           <path d="M12 7V12L15 15"></path>
         </svg>
@@ -44,33 +33,23 @@
       <p>Como podemos chamar você?</p>
     </div>
 
-    <form class="onboarding__form"
-          [formGroup]="form"
-          (ngSubmit)="continue()">
+    @if (storageError(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+    }
+
+    <form class="onboarding__form" [formGroup]="form" (ngSubmit)="continue()">
       <div class="field">
         <label for="name">Seu nome</label>
 
-        <input
-          id="name"
-          type="text"
-          autocomplete="name"
-          placeholder="Digite seu nome"
-          formControlName="name"
-        />
+        <input id="name" type="text" autocomplete="name" placeholder="Digite seu nome" formControlName="name" />
       </div>
 
-      <button
-        class="continue-button"
-        type="submit"
-        [disabled]="name.invalid"
-      >
+      <button class="continue-button" type="submit" [disabled]="name.invalid">
         <span>Continuar</span>
 
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12H19"></path>
           <path d="M13 6L19 12L13 18"></path>
         </svg>

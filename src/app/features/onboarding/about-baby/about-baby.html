@@ -1,15 +1,7 @@
 <main class="onboarding">
   <header class="onboarding__header">
-    <a
-      class="back-link"
-      routerLink="/onboarding/about-you"
-      aria-label="Voltar para a etapa anterior"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
+    <a class="back-link" routerLink="/onboarding/about-you" aria-label="Voltar para a etapa anterior">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M19 12H5"></path>
         <path d="M11 18L5 12L11 6"></path>
       </svg>
@@ -19,10 +11,7 @@
 
     <div class="brand">
       <div class="brand__icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-        >
+        <svg viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9"></circle>
           <path d="M12 7V12L15 15"></path>
         </svg>
@@ -46,23 +35,28 @@
       </p>
     </div>
 
-    <form
-      class="onboarding__form"
-      [formGroup]="form"
-      (ngSubmit)="finish()"
-    >
+    @if (storageError(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+    }
+
+    <form class="onboarding__form" [formGroup]="form" (ngSubmit)="finish()">
       <div class="field">
         <label for="babyName">
           Nome do bebê
         </label>
 
-        <input
-          id="babyName"
-          type="text"
-          autocomplete="off"
-          placeholder="Digite o nome do bebê"
-          formControlName="babyName"
-        />
+        <input id="babyName" type="text" autocomplete="off" placeholder="Digite o nome do bebê"
+          formControlName="babyName" [attr.aria-invalid]="babyName.touched && babyName.invalid" [attr.aria-describedby]="
+    babyName.touched && babyName.invalid ? 'baby-name-error' : null
+  " />
+
+        @if (babyName.touched && babyName.hasError('required')) {
+        <p id="baby-name-error" class="field-error" role="alert">
+          Informe o nome do bebê. O campo não pode conter apenas espaços.
+        </p>
+        }
       </div>
 
       <div class="field">
@@ -70,40 +64,40 @@
           Data de nascimento
         </label>
 
-        <input
-          id="birthDate"
-          type="date"
-          [max]="today"
-          formControlName="birthDate"
-        />
+        <input id="birthDate" type="date" [max]="today" formControlName="birthDate"
+          [attr.aria-invalid]="birthDate.touched && birthDate.invalid" [attr.aria-describedby]="
+    birthDate.touched && birthDate.invalid ? 'birth-date-error' : null
+  " />
+
+        @if (birthDate.touched && birthDate.invalid) {
+        <p id="birth-date-error" class="field-error" role="alert">
+          @if (birthDate.hasError('required')) {
+          Informe a data de nascimento.
+          } @else {
+          Informe uma data de nascimento válida, que não esteja no futuro.
+          }
+        </p>
+        }
       </div>
 
-      @if (babyName.value && birthDate.value && birthDate.valid) {
-        <div class="baby-preview">
-          <div class="baby-preview__avatar">
-            {{ babyName.value.charAt(0).toUpperCase() }}
-          </div>
-
-          <div class="baby-preview__info">
-            <strong>{{ babyName.value }}</strong>
-
-            <span>{{ babyAge() }}</span>
-          </div>
+      @if (babyName.valid && birthDate.valid) {
+      <div class="baby-preview">
+        <div class="baby-preview__avatar">
+          {{ babyName.value.trim().charAt(0).toUpperCase() }}
         </div>
+
+        <div class="baby-preview__info">
+          <strong>{{ babyName.value.trim() }}</strong>
+
+          <span>{{ babyAge() }}</span>
+        </div>
+      </div>
       }
 
-      <button
-        class="continue-button"
-        type="submit"
-        [disabled]="form.invalid"
-      >
+      <button class="continue-button" type="submit" [disabled]="form.invalid">
         <span>Começar nossa rotina</span>
 
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12H19"></path>
           <path d="M13 6L19 12L13 18"></path>
         </svg>

@@ -423,3 +423,14 @@
     transition: none;
   }
 }
+
+.storage-warning {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #ead6ba;
+  border-radius: 12px;
+  background: #fff8ed;
+  color: #8a6331;
+  font-size: 13px;
+  line-height: 1.5;
+}
