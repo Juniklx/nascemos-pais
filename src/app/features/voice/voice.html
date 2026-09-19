@@ -86,13 +86,7 @@
       }
 
       @case ('error') {
-      <strong>
-        {{
-        transcript()
-        ? 'Comando não reconhecido'
-        : 'Não consegui ouvir'
-        }}
-      </strong>
+      <strong>Não foi possível concluir a solicitação</strong>
 
       @if (transcript(); as spokenText) {
       <blockquote>

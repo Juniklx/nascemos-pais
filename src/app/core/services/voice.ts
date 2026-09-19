@@ -39,12 +39,12 @@ interface SpeechRecognitionLike {
   maxAlternatives: number;
 
   onresult:
-    | ((event: SpeechRecognitionEventLike) => void)
-    | null;
+  | ((event: SpeechRecognitionEventLike) => void)
+  | null;
 
   onerror:
-    | ((event: SpeechRecognitionErrorEventLike) => void)
-    | null;
+  | ((event: SpeechRecognitionErrorEventLike) => void)
+  | null;
 
   onend: (() => void) | null;
 
@@ -65,53 +65,58 @@ interface SpeechRecognitionWindow {
   providedIn: 'root',
 })
 export class VoiceService {
-  private readonly statusState =
-    signal<VoiceStatus>('ready');
+  readonly supported = this.getConstructor() !== null;
+
+  private readonly unsupportedMessage =
+    'O reconhecimento de voz não está disponível neste navegador. Use os botões de registro.';
+
+  private readonly statusState = signal<VoiceStatus>(
+    this.supported ? 'ready' : 'unsupported',
+  );
 
   private readonly transcriptState =
     signal<string | null>(null);
 
-  private readonly errorState =
-    signal<string | null>(null);
+  private readonly errorState = signal<string | null>(
+    this.supported ? null : this.unsupportedMessage,
+  );
 
   private recognition: SpeechRecognitionLike | null = null;
-  private cancelled = false;
+  private sessionId = 0;
 
   readonly status = this.statusState.asReadonly();
   readonly transcript = this.transcriptState.asReadonly();
   readonly error = this.errorState.asReadonly();
 
-  readonly supported = this.getConstructor() !== null;
-
   start(): void {
-    const Recognition = this.getConstructor();
-
-    if (Recognition === null) {
-      this.statusState.set('unsupported');
-      this.errorState.set(
-        'O reconhecimento de voz não está disponível neste navegador. Use os botões de registro.',
-      );
-      return;
-    }
-
     if (this.statusState() === 'listening') {
       return;
     }
 
-    this.cancelled = false;
+    this.releaseRecognition();
     this.transcriptState.set(null);
     this.errorState.set(null);
 
-    if (this.recognition === null) {
-      this.recognition = new Recognition();
-      this.configureRecognition(this.recognition);
+    const Recognition = this.getConstructor();
+
+    if (Recognition === null) {
+      this.statusState.set('unsupported');
+      this.errorState.set(this.unsupportedMessage);
+      return;
     }
 
-    this.statusState.set('listening');
+    const sessionId = this.sessionId;
 
     try {
-      this.recognition.start();
+      const recognition = new Recognition();
+
+      this.recognition = recognition;
+      this.configureRecognition(recognition, sessionId);
+      this.statusState.set('listening');
+
+      recognition.start();
     } catch {
+      this.releaseRecognition();
       this.statusState.set('error');
       this.errorState.set(
         'Não foi possível iniciar o reconhecimento de voz. Tente novamente.',
@@ -120,48 +125,73 @@ export class VoiceService {
   }
 
   stop(): void {
-    this.cancelled = true;
-
-    if (this.recognition !== null) {
-      try {
-        this.recognition.abort();
-      } catch {
-        // O reconhecimento já pode estar encerrado.
-      }
-    }
-
-    this.statusState.set('ready');
+    this.releaseRecognition();
     this.transcriptState.set(null);
-    this.errorState.set(null);
-  }
 
-  reset(): void {
-    this.cancelled = false;
-    this.transcriptState.set(null);
-    this.errorState.set(null);
     this.statusState.set(
       this.supported ? 'ready' : 'unsupported',
     );
+
+    this.errorState.set(
+      this.supported ? null : this.unsupportedMessage,
+    );
+  }
+
+  reset(): void {
+    this.stop();
   }
 
   reportError(message: string): void {
+    this.releaseRecognition();
     this.errorState.set(message);
     this.statusState.set('error');
   }
 
+  private releaseRecognition(): void {
+    // Invalida os callbacks da sessão anterior.
+    this.sessionId += 1;
+
+    const recognition = this.recognition;
+    this.recognition = null;
+
+    if (recognition === null) {
+      return;
+    }
+
+    recognition.onresult = null;
+    recognition.onerror = null;
+    recognition.onend = null;
+
+    try {
+      recognition.abort();
+    } catch {
+      // O reconhecimento já pode ter sido encerrado.
+    }
+  }
+
   private configureRecognition(
     recognition: SpeechRecognitionLike,
+    sessionId: number,
   ): void {
     recognition.lang = 'pt-BR';
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
+    const isCurrentSession = (): boolean =>
+      this.sessionId === sessionId &&
+      this.recognition === recognition;
+
     recognition.onresult = (event) => {
+      if (!isCurrentSession()) {
+        return;
+      }
+
       const result = event.results[event.resultIndex];
-      const alternative = result?.[0];
-      const transcript =
-        alternative?.transcript.trim() ?? '';
+      const transcript = result?.[0]?.transcript.trim() ?? '';
+
+      // Aceita somente um resultado por sessão.
+      this.releaseRecognition();
 
       if (transcript.length === 0) {
         this.statusState.set('error');
@@ -171,20 +201,21 @@ export class VoiceService {
         return;
       }
 
-      this.transcriptState.set(transcript);
       this.errorState.set(null);
       this.statusState.set('recognized');
-
-      try {
-        recognition.stop();
-      } catch {
-        // O navegador pode encerrar automaticamente.
-      }
+      this.transcriptState.set(transcript);
     };
 
     recognition.onerror = (event) => {
-      if (this.cancelled || event.error === 'aborted') {
+      if (!isCurrentSession()) {
+        return;
+      }
+
+      this.releaseRecognition();
+
+      if (event.error === 'aborted') {
         this.statusState.set('ready');
+        this.errorState.set(null);
         return;
       }
 
@@ -215,16 +246,26 @@ export class VoiceService {
         return;
       }
 
+      if (event.error === 'network') {
+        this.errorState.set(
+          'O serviço de reconhecimento apresentou um erro de conexão. Verifique sua internet e tente novamente.',
+        );
+        return;
+      }
+
       this.errorState.set(
         'Não foi possível reconhecer o comando. Tente novamente.',
       );
     };
 
     recognition.onend = () => {
-      if (
-        !this.cancelled &&
-        this.statusState() === 'listening'
-      ) {
+      if (!isCurrentSession()) {
+        return;
+      }
+
+      this.releaseRecognition();
+
+      if (this.statusState() === 'listening') {
         this.statusState.set('error');
         this.errorState.set(
           'Não consegui ouvir o comando. Tente novamente.',
