@@ -49,7 +49,7 @@
 }
 
 .back-link:focus-visible {
-  outline: 3px solid rgba(111, 143, 122, 0.3);
+  outline: 3px solid var(--color-sage);
   outline-offset: 4px;
   border-radius: 6px;
 }
@@ -118,7 +118,7 @@
 
   border-radius: 999px;
 
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--color-surface);
   color: var(--color-muted);
 
   font-size: 14px;
@@ -220,16 +220,17 @@
 }
 
 .field input::placeholder {
-  color: #aaa59f;
+  color: var(--color-muted);
 }
 
 .field input:hover {
-  border-color: #cfc9c2;
+  border-color: var(--color-sage);
 }
 
 .field input:focus {
   border-color: var(--color-sage);
-
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
   box-shadow: 0 0 0 3px rgba(111, 143, 122, 0.12);
 }
 
@@ -253,7 +254,7 @@
   border-radius: 16px;
 
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
 
   font-size: 16px;
   font-weight: 600;
@@ -285,7 +286,7 @@
 }
 
 .continue-button:focus-visible {
-  outline: 3px solid rgba(111, 143, 122, 0.35);
+  outline: 3px solid var(--color-sage);
   outline-offset: 3px;
 }
 
@@ -427,10 +428,10 @@
 .storage-warning {
   margin: 0 0 18px;
   padding: 12px 14px;
-  border: 1px solid #ead6ba;
   border-radius: 12px;
-  background: #fff8ed;
-  color: #8a6331;
+  border: 1px solid var(--color-warning-border);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
   font-size: 13px;
   line-height: 1.5;
 }

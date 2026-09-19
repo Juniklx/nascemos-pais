@@ -36,10 +36,11 @@
         Histórico
       </a>
 
-      <button class="nav-item nav-item--disabled" type="button" disabled>
+      <a class="nav-item" routerLink="/profile" routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: true }">
         <span aria-hidden="true">♙</span>
         Perfil
-      </button>
+      </a>
     </nav>
 
     <div class="sidebar__baby">
@@ -80,9 +81,10 @@
       <small>Histórico</small>
     </a>
 
-    <button class="bottom-nav__item" type="button" disabled>
+    <a class="bottom-nav__item" routerLink="/profile" routerLinkActive="bottom-nav__item--active"
+      [routerLinkActiveOptions]="{ exact: true }">
       <span aria-hidden="true">♙</span>
       <small>Perfil</small>
-    </button>
+    </a>
   </nav>
 </div>

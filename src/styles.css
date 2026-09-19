@@ -57,3 +57,33 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+:root {
+  color-scheme: light;
+
+  --color-on-sage: #ffffff;
+  --color-error: #a8473d;
+  --color-warning-border: #ead6ba;
+  --color-warning-surface: #fff8ed;
+  --color-warning-text: #8a6331;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-canvas: #151b18;
+  --color-surface: #202923;
+  --color-ink: #f0f3ed;
+  --color-muted: #b3bdb5;
+  --color-border: #465249;
+
+  --color-sage: #a9c7b3;
+  --color-sage-hover: #bad5c3;
+  --color-sage-soft: #2d4034;
+  --color-on-sage: #17231d;
+
+  --color-error: #ffb4ab;
+  --color-warning-border: #806746;
+  --color-warning-surface: #352b1e;
+  --color-warning-text: #f2d09d;
+}

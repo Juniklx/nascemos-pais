@@ -38,6 +38,7 @@
   padding: 8px 16px;
   border-radius: 999px;
   background: var(--color-surface);
+  color: var(--color-ink);
   overflow-wrap: anywhere;
 }
 
@@ -59,7 +60,9 @@
 
 h1 {
   margin: 16px 0 12px;
+  color: var(--color-ink);
   font-size: clamp(24px, 5vw, 32px);
+  line-height: 1.2;
 }
 
 p {
@@ -68,6 +71,7 @@ p {
 }
 
 .type-selector {
+  min-width: 0;
   margin: 32px 0;
   padding: 0;
   border: 0;
@@ -81,11 +85,12 @@ p {
 
 .type-options {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 .type-options button {
+  min-width: 0;
   min-height: 92px;
   display: grid;
   place-items: center;
@@ -103,6 +108,10 @@ p {
   font-size: 24px;
 }
 
+.type-options button:hover:not(:disabled) {
+  border-color: var(--color-sage);
+}
+
 .type-options button.is-selected {
   border-color: var(--color-sage);
   background: var(--color-sage-soft);
@@ -118,10 +127,14 @@ p {
   border: 0;
   border-radius: 999px;
   background: var(--color-sage);
-  color: #fff;
+  color: var(--color-on-sage);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--color-sage-hover);
 }
 
 .primary-button:disabled {
@@ -155,9 +168,9 @@ a:focus-visible {
 }
 
 .storage-warning {
-  border: 1px solid #95696c;
-  background: #ffdadb;
-  color: #623c3f;
+  border: 1px solid var(--color-warning-border);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
 }
 
 @media (max-width: 480px) {

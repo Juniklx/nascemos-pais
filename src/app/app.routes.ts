@@ -33,6 +33,14 @@ export const routes: Routes = [
       ),
     children: [
       {
+        path: 'profile',
+        title: 'Perfil | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/profile/profile').then(
+            (m) => m.ProfilePage,
+          ),
+      },
+      {
         path: 'home',
         title: 'Início | Nascemos Pais',
         loadComponent: () =>
@@ -64,7 +72,7 @@ export const routes: Routes = [
             (m) => m.Routine,
           ),
       },
-            {
+      {
         path: 'voice',
         title: 'Comando de voz | Nascemos Pais',
         loadComponent: () =>

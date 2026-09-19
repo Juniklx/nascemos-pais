@@ -1,0 +1,84 @@
+<section class="profile" aria-labelledby="profile-title">
+  <a class="back-link" routerLink="/home">
+    <span aria-hidden="true">←</span>
+    Início
+  </a>
+
+  <header class="profile__header">
+    <h1 id="profile-title">Perfil</h1>
+    <p>Atualize seus dados e as informações do bebê.</p>
+  </header>
+
+  @if (storageError(); as error) {
+  <p class="storage-warning" role="alert">
+    {{ error }}
+  </p>
+  }
+
+  <form class="profile-card" [formGroup]="form" (ngSubmit)="save()" (input)="clearMessage()" novalidate>
+    <h2>Dados da família</h2>
+
+    @for (field of fields; track field.key) {
+    <div class="profile-field">
+      <label [for]="field.key">{{ field.label }}</label>
+
+      <input [id]="field.key" [type]="field.type" [attr.autocomplete]="field.autocomplete"
+        [attr.max]="field.type === 'date' ? today : null" [formControlName]="field.key" required [attr.aria-invalid]="
+            form.controls[field.key].touched &&
+            form.controls[field.key].invalid
+          " [attr.aria-describedby]="
+            form.controls[field.key].touched &&
+            form.controls[field.key].invalid
+              ? field.key + '-error'
+              : null
+          " />
+
+      @if (
+      form.controls[field.key].touched &&
+      form.controls[field.key].invalid
+      ) {
+      <p [id]="field.key + '-error'" class="field-error" role="alert">
+        {{ field.error }}
+      </p>
+      }
+    </div>
+    }
+
+    <p class="profile-note">
+      Alterar esses dados mantém os registros de mamadas,
+      sono e fraldas.
+    </p>
+
+    <p class="profile-feedback" role="status">
+      {{ message() }}
+    </p>
+
+    <button type="submit" class="save-button">
+      Salvar alterações
+    </button>
+  </form>
+  <section class="profile-card appearance" aria-labelledby="appearance-title">
+    <div>
+      <h2 id="appearance-title">Aparência</h2>
+
+      <p id="theme-description" class="profile-note">
+        Sua preferência de tema será salva neste navegador.
+      </p>
+    </div>
+
+    <button type="button" class="theme-switch" role="switch" [attr.aria-checked]="theme.isDark()"
+      aria-describedby="theme-description" (click)="theme.toggle()">
+      <span>Modo noturno</span>
+
+      <span class="theme-switch__track" aria-hidden="true">
+        <span class="theme-switch__thumb"></span>
+      </span>
+    </button>
+
+    @if (theme.storageError(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+    }
+  </section>
+</section>
