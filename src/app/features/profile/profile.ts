@@ -6,7 +6,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-
+import { ThemeService } from '../../core/services/theme';
 import { OnboardingService } from '../../core/services/onboarding';
 import {
   trimmedRequired,
@@ -21,7 +21,7 @@ import {
 })
 export class ProfilePage {
   private readonly onboarding = inject(OnboardingService);
-
+  readonly theme = inject(ThemeService);
   readonly storageError = this.onboarding.storageError;
   readonly message = signal('');
 
