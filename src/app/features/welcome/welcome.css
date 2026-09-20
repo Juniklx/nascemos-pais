@@ -123,7 +123,7 @@
   border-radius: 16px;
 
   background: var(--color-sage);
-  color: #ffffff;
+  color: var(--color-on-sage);
 
   font-size: 16px;
   font-weight: 500;
@@ -144,7 +144,7 @@
 }
 
 .welcome__button:focus-visible {
-  outline: 3px solid rgba(111, 143, 122, 0.35);
+  outline: 3px solid var(--color-sage);
   outline-offset: 3px;
 }
 
