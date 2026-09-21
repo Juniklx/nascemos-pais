@@ -493,6 +493,31 @@
   border: 0;
 }
 
+.welcome__auth {
+  margin: 18px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 14px;
+}
+
+.welcome__auth a {
+  color: var(--color-sage);
+
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.welcome__auth a:hover {
+  text-decoration: underline;
+}
+
+.welcome__auth a:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 /* =========================
    Tablet
    ========================= */

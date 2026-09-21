@@ -29,7 +29,7 @@
         simples.
       </p>
 
-      <a class="welcome__button" routerLink="/onboarding/about-you">
+      <a class="welcome__button" routerLink="/auth/register">
         <span>Começar</span>
 
         <svg class="welcome__button-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -37,6 +37,14 @@
           <path d="M13 6L19 12L13 18"></path>
         </svg>
       </a>
+      
+      <p class="welcome__auth">
+        Já possui uma conta?
+
+        <a routerLink="/auth/login">
+          Entrar
+        </a>
+      </p>
     </div>
 
     <section class="carousel" role="region" aria-roledescription="carrossel" aria-label="Recursos do Nascemos Pais"
