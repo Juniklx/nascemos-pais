@@ -52,7 +52,7 @@ export class Welcome implements OnDestroy {
 
   private textTransitionTimer:
     ReturnType<typeof setTimeout> | null = null;
-  private readonly autoplayDelay = 5000;
+  private readonly autoplayDelay = 6000;
 
   private autoplayTimer:
     ReturnType<typeof setInterval> | null = null;

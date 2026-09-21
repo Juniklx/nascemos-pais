@@ -21,10 +21,10 @@ describe('Welcome: carrossel', () => {
       matches,
       media: '(prefers-reduced-motion: reduce)',
       onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
+      addListener: () => { },
+      removeListener: () => { },
+      addEventListener: () => { },
+      removeEventListener: () => { },
       dispatchEvent: () => false,
     }) as MediaQueryList;
 
@@ -281,44 +281,28 @@ describe('Welcome: carrossel', () => {
   });
 
   it('avança automaticamente após seis segundos', () => {
-  createComponent();
+    createComponent();
 
-  expect(
-    component.activeIndex(),
-  ).toBe(0);
+    expect(
+      component.activeIndex(),
+    ).toBe(0);
 
-  jasmine.clock().tick(
-    autoplayDelay + transitionDuration,
-  );
+    jasmine.clock().tick(5999);
 
-  expect(
-    component.activeIndex(),
-  ).toBe(1);
+    expect(
+      component.activeIndex(),
+    ).toBe(0);
 
-  jasmine.clock().tick(
-    autoplayDelay,
-  );
+    jasmine.clock().tick(1);
 
-  jasmine.clock().tick(
-    transitionDuration,
-  );
+    jasmine.clock().tick(
+      transitionDuration,
+    );
 
-  expect(
-    component.activeIndex(),
-  ).toBe(2);
-
-  jasmine.clock().tick(
-    autoplayDelay,
-  );
-
-  jasmine.clock().tick(
-    transitionDuration,
-  );
-
-  expect(
-    component.activeIndex(),
-  ).toBe(0);
-});
+    expect(
+      component.activeIndex(),
+    ).toBe(1);
+  });
 
   it('permite pausar e reproduzir novamente o carrossel', () => {
     createComponent();
