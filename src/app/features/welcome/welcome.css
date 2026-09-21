@@ -8,7 +8,6 @@
 
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 
   padding:
     max(32px, env(safe-area-inset-top))
@@ -18,7 +17,9 @@
   background: var(--color-canvas);
 }
 
-/* Brand */
+/* =========================
+   Marca
+   ========================= */
 
 .welcome__header {
   width: 100%;
@@ -65,17 +66,27 @@
   letter-spacing: -0.02em;
 }
 
-/* Conteúdo */
+/* =========================
+   Conteúdo
+   ========================= */
 
 .welcome__content {
   width: 100%;
 
   display: flex;
   flex-direction: column;
+  gap: 40px;
 
   margin: auto 0;
 
   padding: 48px 0;
+}
+
+.welcome__intro {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
 }
 
 .welcome__title {
@@ -95,23 +106,23 @@
 .welcome__description {
   max-width: 620px;
 
-  margin: 28px 0 0;
+  margin: 24px 0 0;
 
   color: var(--color-muted);
 
-  font-size: 18px;
-  font-weight: 400;
-
+  font-size: 17px;
   line-height: 1.55;
 }
 
-/* Botão */
+/* =========================
+   CTA
+   ========================= */
 
 .welcome__button {
   width: 100%;
   min-height: 52px;
 
-  margin-top: 40px;
+  margin-top: 32px;
   padding: 0 24px;
 
   display: inline-flex;
@@ -119,16 +130,15 @@
   justify-content: center;
   gap: 10px;
 
-  border: 0;
   border-radius: 16px;
 
   background: var(--color-sage);
   color: var(--color-on-sage);
 
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
 
-  cursor: pointer;
+  text-decoration: none;
 
   transition:
     background-color 180ms ease,
@@ -158,11 +168,334 @@
   stroke-linejoin: round;
 }
 
-.welcome__spacer {
-  display: none;
+/* =========================
+   Carrossel
+   ========================= */
+
+.carousel {
+  width: 100%;
+
+  position: relative;
+
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+
+  background: var(--color-surface);
+
+  overflow: hidden;
+
+  outline: none;
 }
 
-/* Tablet */
+.carousel:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 4px;
+}
+
+.carousel__slide {
+  min-height: 300px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  padding: 28px 24px;
+}
+
+.carousel__text {
+  width: 100%;
+
+  opacity: 1;
+  transform: translateY(0);
+
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.carousel__text--hidden {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.carousel__icon {
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 18px;
+
+  background: var(--color-sage-soft);
+  color: var(--color-sage);
+}
+
+.carousel__icon svg {
+  width: 27px;
+  height: 27px;
+
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.carousel__eyebrow {
+  margin: 28px 0 0;
+
+  color: var(--color-sage);
+
+  font-size: 13px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.carousel__title {
+  margin: 8px 0 0;
+
+  color: var(--color-ink);
+
+  font-size: 24px;
+  font-weight: 700;
+
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.carousel__description {
+  max-width: 520px;
+
+  margin: 14px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* =========================
+   Rodapé do carrossel
+   ========================= */
+
+.carousel__footer {
+  width: 100%;
+
+  min-height: 92px;
+
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 16px;
+
+  border-top: 1px solid var(--color-border);
+}
+
+/* =========================
+   Setas
+   ========================= */
+
+.carousel__arrow {
+  width: 48px;
+  height: 48px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 0;
+  border-radius: 14px;
+
+  background: transparent;
+  color: var(--color-ink);
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 150ms ease;
+}
+
+.carousel__arrow svg {
+  width: 21px;
+  height: 21px;
+
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.carousel__arrow:hover {
+  background: var(--color-sage-soft);
+  color: var(--color-sage);
+}
+
+.carousel__arrow:active {
+  transform: translateY(1px);
+}
+
+.carousel__arrow:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 2px;
+}
+
+/* =========================
+   Área central
+   ========================= */
+
+.carousel__center {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================
+   Indicadores
+   ========================= */
+
+.carousel__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.carousel__dot-button {
+  width: 44px;
+  height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: transparent;
+
+  cursor: pointer;
+}
+
+.carousel__dot-button:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 1px;
+}
+
+.carousel__dot {
+  width: 8px;
+  height: 8px;
+
+  display: block;
+
+  border-radius: 999px;
+
+  background: var(--color-border);
+
+  transition:
+    width 180ms ease,
+    background-color 180ms ease;
+}
+
+.carousel__dot--active {
+  width: 24px;
+
+  background: var(--color-sage);
+}
+
+/* =========================
+   Autoplay
+   ========================= */
+
+.carousel__autoplay {
+  min-width: 44px;
+  min-height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  margin-top: 2px;
+  padding: 0 10px;
+
+  border: 0;
+  border-radius: 12px;
+
+  background: transparent;
+  color: var(--color-muted);
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.carousel__autoplay svg {
+  width: 16px;
+  height: 16px;
+
+  flex-shrink: 0;
+
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.carousel__autoplay:hover {
+  background: var(--color-sage-soft);
+  color: var(--color-sage);
+}
+
+.carousel__autoplay:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 2px;
+}
+
+/* =========================
+   Texto apenas para leitores
+   de tela
+   ========================= */
+
+.carousel__status {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+
+  white-space: nowrap;
+
+  border: 0;
+}
+
+/* =========================
+   Tablet
+   ========================= */
 
 @media (min-width: 768px) {
   .welcome {
@@ -170,7 +503,9 @@
   }
 
   .welcome__content {
-    padding: 72px 0;
+    gap: 52px;
+
+    padding: 64px 0;
   }
 
   .welcome__title {
@@ -178,27 +513,48 @@
   }
 
   .welcome__description {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .welcome__button {
     width: auto;
     min-width: 200px;
-    text-decoration: none;
+    min-height: 56px;
+
     align-self: flex-start;
 
     padding: 0 36px;
   }
+
+  .carousel {
+    max-width: 680px;
+  }
+
+  .carousel__slide {
+    min-height: 310px;
+
+    padding: 34px;
+  }
+
+  .carousel__title {
+    font-size: 28px;
+  }
+
+  .carousel__description {
+    font-size: 16px;
+  }
 }
 
-/* Desktop */
+/* =========================
+   Desktop
+   ========================= */
 
 @media (min-width: 1024px) {
   .welcome {
     max-width: 1440px;
 
     margin: 0 auto;
-    padding: 64px 96px;
+    padding: 56px 72px;
   }
 
   .brand {
@@ -211,55 +567,123 @@
   }
 
   .welcome__content {
-    max-width: 720px;
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1.05fr)
+      minmax(380px, 0.95fr);
+    align-items: center;
+    gap: clamp(48px, 7vw, 96px);
 
-    margin: auto 0 auto 48px;
+    padding: clamp(56px, 8vh, 96px) 0;
+  }
 
-    padding: clamp(48px, 8vh, 96px) 0;
+  .welcome__intro {
+    max-width: 660px;
   }
 
   .welcome__title {
-    max-width: 720px;
+    max-width: 660px;
 
-    font-size: clamp(40px, 3.8vw, 60px);
+    font-size: clamp(42px, 4vw, 60px);
     line-height: 1.15;
   }
 
   .welcome__description {
-    max-width: 680px;
+    max-width: 620px;
 
-    margin-top: 32px;
+    margin-top: 28px;
 
-    font-size: clamp(20px, 1.7vw, 24px);
-    line-height: 1.5;
+    font-size: clamp(19px, 1.5vw, 22px);
   }
 
   .welcome__button {
-    min-width: 200px;
-    min-height: 56px;
+    margin-top: 36px;
 
-    margin-top: 40px;
-    padding: 0 40px;
-
-    font-size: 18px;
+    font-size: 17px;
   }
 
-  .welcome__spacer {
-    display: block;
-    height: 16px;
+  .carousel {
+    max-width: 560px;
+
+    justify-self: end;
+  }
+
+  .carousel__slide {
+    min-height: 340px;
+
+    padding: 38px;
+  }
+
+  .carousel__title {
+    font-size: 30px;
+  }
+
+  .carousel__description {
+    margin-top: 16px;
+
+    font-size: 16px;
   }
 }
+
+/* =========================
+   Desktop grande
+   ========================= */
 
 @media (min-width: 1280px) {
-  .welcome__content {
-    margin-left: 80px;
+  .welcome {
+    padding-inline: 96px;
+  }
+
+  .carousel {
+    max-width: 590px;
   }
 }
 
-/* Acessibilidade */
+/* =========================
+   Mobile pequeno
+   ========================= */
+
+@media (max-width: 380px) {
+  .welcome {
+    padding-inline: 20px;
+  }
+
+  .welcome__content {
+    gap: 32px;
+
+    padding: 36px 0;
+  }
+
+  .carousel__slide {
+    min-height: 320px;
+
+    padding: 24px 20px;
+  }
+
+  .carousel__footer {
+    gap: 2px;
+
+    padding-inline: 8px;
+  }
+
+  .carousel__autoplay {
+    padding-inline: 6px;
+
+    font-size: 11px;
+  }
+}
+
+/* =========================
+   Acessibilidade
+   ========================= */
 
 @media (prefers-reduced-motion: reduce) {
-  .welcome__button {
+  .welcome__button,
+  .carousel__arrow,
+  .carousel__dot,
+  .carousel__autoplay,
+  .carousel__text {
     transition: none;
   }
 }
+
