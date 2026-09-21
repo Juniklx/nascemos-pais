@@ -81,4 +81,39 @@
     </p>
     }
   </section>
+
+  <section class="profile-card account" aria-labelledby="account-title">
+    <div>
+      <h2 id="account-title">
+        Conta
+      </h2>
+
+      <p class="profile-note">
+        Você está conectado como
+      </p>
+
+      <p class="account-email">
+        {{ auth.email() }}
+      </p>
+    </div>
+
+    @if (auth.error(); as error) {
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
+    }
+
+    <button type="button" class="logout-button" [disabled]="auth.isLoading()" (click)="logout()">
+      @if (auth.isLoading()) {
+      Saindo...
+      } @else {
+      Sair da conta
+      }
+    </button>
+
+    <p class="profile-note">
+      Seus registros continuam
+      armazenados localmente neste navegador.
+    </p>
+  </section>
 </section>

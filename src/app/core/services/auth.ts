@@ -7,26 +7,19 @@ import {
 } from '@angular/core';
 
 import {
-  GoogleAuthProvider,
   User,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
 } from 'firebase/auth';
 
 import {
-  FIREBASE_AUTH,
-} from '../firebase/firebase-auth';
+  FirebaseAuthGateway,
+} from '../firebase/firebase-auth.gateway';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService implements OnDestroy {
-  private readonly auth = inject(
-    FIREBASE_AUTH,
-  );
+  private readonly gateway =
+    inject(FirebaseAuthGateway);
 
   private readonly userState =
     signal<User | null>(null);
@@ -41,8 +34,7 @@ export class AuthService implements OnDestroy {
     signal<string | null>(null);
 
   private readonly unsubscribe =
-    onAuthStateChanged(
-      this.auth,
+    this.gateway.observe(
       (user) => {
         this.userState.set(user);
         this.readyState.set(true);
@@ -78,10 +70,10 @@ export class AuthService implements OnDestroy {
   );
 
   async waitUntilReady(): Promise<void> {
-    await this.auth.authStateReady();
+    await this.gateway.waitUntilReady();
 
     this.userState.set(
-      this.auth.currentUser,
+      this.gateway.currentUser,
     );
 
     this.readyState.set(true);
@@ -94,8 +86,7 @@ export class AuthService implements OnDestroy {
     this.startOperation();
 
     try {
-      await createUserWithEmailAndPassword(
-        this.auth,
+      await this.gateway.register(
         email.trim(),
         password,
       );
@@ -103,7 +94,6 @@ export class AuthService implements OnDestroy {
       return true;
     } catch (error) {
       this.handleError(error);
-
       return false;
     } finally {
       this.loadingState.set(false);
@@ -117,8 +107,7 @@ export class AuthService implements OnDestroy {
     this.startOperation();
 
     try {
-      await signInWithEmailAndPassword(
-        this.auth,
+      await this.gateway.login(
         email.trim(),
         password,
       );
@@ -126,33 +115,23 @@ export class AuthService implements OnDestroy {
       return true;
     } catch (error) {
       this.handleError(error);
-
       return false;
     } finally {
       this.loadingState.set(false);
     }
   }
 
-  async loginWithGoogle(): Promise<boolean> {
+  async loginWithGoogle():
+    Promise<boolean> {
     this.startOperation();
 
     try {
-      const provider =
-        new GoogleAuthProvider();
-
-      provider.setCustomParameters({
-        prompt: 'select_account',
-      });
-
-      await signInWithPopup(
-        this.auth,
-        provider,
-      );
+      await this.gateway
+        .loginWithGoogle();
 
       return true;
     } catch (error) {
       this.handleError(error);
-
       return false;
     } finally {
       this.loadingState.set(false);
@@ -163,12 +142,11 @@ export class AuthService implements OnDestroy {
     this.startOperation();
 
     try {
-      await signOut(this.auth);
+      await this.gateway.logout();
 
       return true;
     } catch (error) {
       this.handleError(error);
-
       return false;
     } finally {
       this.loadingState.set(false);
@@ -232,9 +210,7 @@ export class AuthService implements OnDestroy {
         );
 
       case 'auth/user-disabled':
-        return (
-          'Esta conta está desativada.'
-        );
+        return 'Esta conta está desativada.';
 
       case 'auth/popup-closed-by-user':
         return (
