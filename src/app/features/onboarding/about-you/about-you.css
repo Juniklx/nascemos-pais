@@ -296,6 +296,169 @@
 }
 
 /* =========================
+   Privacidade / consentimento
+   ========================= */
+
+.field-error,
+.consent-error {
+  margin: 2px 0 0;
+
+  color: var(--color-warning-text);
+
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.privacy-card {
+  width: 100%;
+
+  margin-top: 28px;
+  padding: 20px;
+
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+
+  background: var(--color-surface);
+}
+
+.privacy-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.privacy-card__icon {
+  width: 24px;
+  height: 24px;
+
+  flex-shrink: 0;
+
+  color: var(--color-sage);
+
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.privacy-card__header h2 {
+  margin: 0;
+
+  color: var(--color-ink);
+
+  font-size: 16px;
+  font-weight: 600;
+
+  line-height: 1.35;
+}
+
+.privacy-card__header p {
+  margin: 4px 0 0;
+
+  color: var(--color-muted);
+
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.privacy-card__details {
+  margin-top: 18px;
+
+  color: var(--color-muted);
+
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.privacy-card__details p {
+  margin: 0;
+}
+
+.privacy-card__details p + p {
+  margin-top: 10px;
+}
+
+.consent {
+  position: relative;
+
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  margin-top: 20px;
+
+  color: var(--color-ink);
+
+  cursor: pointer;
+}
+
+.consent input {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  opacity: 0;
+}
+
+.consent__control {
+  width: 24px;
+  height: 24px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border: 2px solid var(--color-border);
+  border-radius: 7px;
+
+  background: var(--color-canvas);
+
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.consent__control svg {
+  width: 15px;
+  height: 15px;
+
+  opacity: 0;
+
+  stroke: var(--color-on-sage);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.consent input:checked +
+.consent__control {
+  border-color: var(--color-sage);
+
+  background: var(--color-sage);
+}
+
+.consent input:checked +
+.consent__control svg {
+  opacity: 1;
+}
+
+.consent input:focus-visible +
+.consent__control {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 3px;
+}
+
+.consent__text {
+  padding-top: 2px;
+
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* =========================
    Tablet / Desktop
    ========================= */
 
@@ -313,6 +476,11 @@
     display: inline-flex;
     justify-self: center;
   }
+
+  .privacy-card {
+  margin-top: 32px;
+  padding: 22px 24px;
+}
 
   .step {
     justify-self: end;
@@ -420,7 +588,8 @@
 @media (prefers-reduced-motion: reduce) {
   .back-link,
   .field input,
-  .continue-button {
+  .continue-button,
+  .consent__control {
     transition: none;
   }
 }

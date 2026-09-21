@@ -13,7 +13,14 @@ export interface OnboardingData {
   caregiverName: string;
   babyName: string;
   babyBirthDate: string;
+  consentGiven: boolean;
+  consentAt: string | null;
 }
+
+type ProfileData = Pick<
+  OnboardingData,
+  'caregiverName' | 'babyName' | 'babyBirthDate'
+>;
 
 @Injectable({
   providedIn: 'root',
@@ -26,6 +33,8 @@ export class OnboardingService {
     caregiverName: '',
     babyName: '',
     babyBirthDate: '',
+    consentGiven: false,
+    consentAt: null,
   };
 
   private readonly storageErrorState =
@@ -47,6 +56,14 @@ export class OnboardingService {
     this.initialData.babyBirthDate,
   );
 
+  readonly consentGiven = signal(
+    this.initialData.consentGiven,
+  );
+
+  readonly consentAt = signal(
+    this.initialData.consentAt,
+  );
+
   readonly storageError =
     this.storageErrorState.asReadonly();
 
@@ -54,17 +71,29 @@ export class OnboardingService {
     () =>
       this.isValidName(this.caregiverName()) &&
       this.isValidName(this.babyName()) &&
-      this.isValidBirthDate(this.babyBirthDate()),
+      this.isValidBirthDate(this.babyBirthDate()) &&
+      this.consentGiven(),
   );
 
-  setCaregiverName(name: string): boolean {
+  setCaregiverName(
+    name: string,
+    consentGiven: boolean,
+  ): boolean {
     const normalizedName = name.trim();
 
-    if (!this.isValidName(normalizedName)) {
+    if (
+      !this.isValidName(normalizedName) ||
+      !consentGiven
+    ) {
       return false;
     }
 
     this.caregiverName.set(normalizedName);
+    this.consentGiven.set(true);
+
+    if (!this.consentAt()) {
+      this.consentAt.set(new Date().toISOString());
+    }
 
     return this.saveData();
   }
@@ -88,7 +117,7 @@ export class OnboardingService {
     return this.saveData();
   }
 
-  updateProfile(data: OnboardingData): boolean {
+  updateProfile(data: ProfileData): boolean {
     if (
       !isValidName(data.caregiverName) ||
       !isValidName(data.babyName) ||
@@ -97,9 +126,17 @@ export class OnboardingService {
       return false;
     }
 
-    this.caregiverName.set(data.caregiverName.trim());
-    this.babyName.set(data.babyName.trim());
-    this.babyBirthDate.set(data.babyBirthDate);
+    this.caregiverName.set(
+      data.caregiverName.trim(),
+    );
+
+    this.babyName.set(
+      data.babyName.trim(),
+    );
+
+    this.babyBirthDate.set(
+      data.babyBirthDate,
+    );
 
     return this.saveData();
   }
@@ -108,7 +145,10 @@ export class OnboardingService {
     | '/onboarding/about-you'
     | '/onboarding/about-baby'
     | '/home' {
-    if (!this.isValidName(this.caregiverName())) {
+    if (
+      !this.isValidName(this.caregiverName()) ||
+      !this.consentGiven()
+    ) {
       return '/onboarding/about-you';
     }
 
@@ -134,6 +174,7 @@ export class OnboardingService {
         'Não foi possível acessar o armazenamento deste navegador. Os dados ficarão apenas nesta sessão.',
         true,
       );
+
       return false;
     }
 
@@ -141,6 +182,8 @@ export class OnboardingService {
       caregiverName: this.caregiverName(),
       babyName: this.babyName(),
       babyBirthDate: this.babyBirthDate(),
+      consentGiven: this.consentGiven(),
+      consentAt: this.consentAt(),
     };
 
     try {
@@ -150,11 +193,13 @@ export class OnboardingService {
       );
 
       this.storageErrorState.set(null);
+
       return true;
     } catch {
       this.setStorageError(
         'Não foi possível salvar o cadastro. Os dados ficarão apenas nesta sessão.',
       );
+
       return false;
     }
   }
@@ -167,6 +212,7 @@ export class OnboardingService {
         'Não foi possível acessar o cadastro salvo neste navegador.',
         true,
       );
+
       return this.emptyData;
     }
 
@@ -179,17 +225,17 @@ export class OnboardingService {
         return this.emptyData;
       }
 
-      const parsed: unknown = JSON.parse(savedData);
+      const parsed: unknown =
+        JSON.parse(savedData);
 
-      if (!this.isStoredData(parsed)) {
+      const normalizedData =
+        this.normalizeStoredData(parsed);
+
+      if (normalizedData === null) {
         throw new Error('Dados inválidos.');
       }
 
-      return {
-        caregiverName: parsed.caregiverName.trim(),
-        babyName: parsed.babyName.trim(),
-        babyBirthDate: parsed.babyBirthDate,
-      };
+      return normalizedData;
     } catch {
       this.setStorageError(
         'O cadastro salvo estava inválido e foi reiniciado. Preencha os dados novamente.',
@@ -199,22 +245,26 @@ export class OnboardingService {
     }
   }
 
-  private isStoredData(
+  private normalizeStoredData(
     value: unknown,
-  ): value is OnboardingData {
+  ): OnboardingData | null {
     if (
       typeof value !== 'object' ||
       value === null ||
       Array.isArray(value)
     ) {
-      return false;
+      return null;
     }
 
-    const data = value as Record<string, unknown>;
+    const data =
+      value as Record<string, unknown>;
+
     const allowedKeys = new Set([
       'caregiverName',
       'babyName',
       'babyBirthDate',
+      'consentGiven',
+      'consentAt',
     ]);
 
     if (
@@ -222,31 +272,125 @@ export class OnboardingService {
         (key) => !allowedKeys.has(key),
       )
     ) {
-      return false;
+      return null;
     }
 
-    const caregiverName = data['caregiverName'];
-    const babyName = data['babyName'];
-    const babyBirthDate = data['babyBirthDate'];
+    const caregiverName =
+      data['caregiverName'];
 
+    const babyName =
+      data['babyName'];
+
+    const babyBirthDate =
+      data['babyBirthDate'];
+
+    const consentGiven =
+      data['consentGiven'];
+
+    const consentAt =
+      data['consentAt'];
+
+    if (
+      typeof caregiverName !== 'string' ||
+      typeof babyName !== 'string' ||
+      typeof babyBirthDate !== 'string'
+    ) {
+      return null;
+    }
+
+    if (
+      caregiverName.trim().length > 0 &&
+      !this.isValidName(caregiverName)
+    ) {
+      return null;
+    }
+
+    if (
+      babyName.trim().length > 0 &&
+      !this.isValidName(babyName)
+    ) {
+      return null;
+    }
+
+    if (
+      babyBirthDate !== '' &&
+      !this.isValidBirthDate(babyBirthDate)
+    ) {
+      return null;
+    }
+
+    /*
+     * Compatibilidade com cadastros criados
+     * antes da implementação do consentimento.
+     */
+    if (
+      consentGiven === undefined &&
+      consentAt === undefined
+    ) {
+      return {
+        caregiverName:
+          caregiverName.trim(),
+        babyName:
+          babyName.trim(),
+        babyBirthDate,
+        consentGiven: false,
+        consentAt: null,
+      };
+    }
+
+    if (
+      typeof consentGiven !== 'boolean'
+    ) {
+      return null;
+    }
+
+    if (
+      consentGiven &&
+      !this.isValidConsentDate(consentAt)
+    ) {
+      return null;
+    }
+
+    if (
+      !consentGiven &&
+      consentAt !== null
+    ) {
+      return null;
+    }
+
+    return {
+      caregiverName:
+        caregiverName.trim(),
+      babyName:
+        babyName.trim(),
+      babyBirthDate,
+      consentGiven,
+      consentAt:
+        consentGiven
+          ? (consentAt as string)
+          : null,
+    };
+  }
+
+  private isValidConsentDate(
+    value: unknown,
+  ): value is string {
     return (
-      typeof caregiverName === 'string' &&
-      typeof babyName === 'string' &&
-      typeof babyBirthDate === 'string' &&
-      (caregiverName.trim().length === 0 ||
-        this.isValidName(caregiverName)) &&
-      (babyName.trim().length === 0 ||
-        this.isValidName(babyName)) &&
-      (babyBirthDate === '' ||
-        this.isValidBirthDate(babyBirthDate))
+      typeof value === 'string' &&
+      value.length > 0 &&
+      !Number.isNaN(Date.parse(value))
     );
   }
 
-  private isValidName(value: string): boolean {
+  private isValidName(
+    value: string,
+  ): boolean {
     return isValidName(value);
   }
 
-  private isValidBirthDate(value: string): boolean {
+  private isValidBirthDate(
+    value: string,
+  ): boolean {
     return isValidBirthDate(value);
   }
 
