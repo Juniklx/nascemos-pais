@@ -5,13 +5,19 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import {
+  Router,
+  RouterLink,
+} from '@angular/router';
 import { ThemeService } from '../../core/services/theme';
 import { OnboardingService } from '../../core/services/onboarding';
 import {
   trimmedRequired,
   validBirthDate,
 } from '../../core/validators/onboarding.validators';
+import {
+  AuthService,
+} from '../../core/services/auth';
 
 @Component({
   selector: 'app-profile',
@@ -20,10 +26,23 @@ import {
   styleUrl: './profile.css',
 })
 export class ProfilePage {
-  private readonly onboarding = inject(OnboardingService);
-  readonly theme = inject(ThemeService);
-  readonly storageError = this.onboarding.storageError;
-  readonly message = signal('');
+  private readonly onboarding =
+    inject(OnboardingService);
+
+  private readonly router =
+    inject(Router);
+
+  readonly auth =
+    inject(AuthService);
+
+  readonly theme =
+    inject(ThemeService);
+
+  readonly storageError =
+    this.onboarding.storageError;
+
+  readonly message =
+    signal('');
 
   readonly fields = [
     {
@@ -117,5 +136,18 @@ export class ProfilePage {
 
     this.form.reset(data);
     this.message.set('Perfil salvo com sucesso.');
+  }
+
+  async logout(): Promise<void> {
+    const success =
+      await this.auth.logout();
+
+    if (!success) {
+      return;
+    }
+
+    await this.router.navigate([
+      '/auth/login',
+    ]);
   }
 }

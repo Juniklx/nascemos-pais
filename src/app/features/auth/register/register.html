@@ -1,0 +1,199 @@
+<main class="auth-page">
+  <section
+    class="auth-card"
+    aria-labelledby="register-title"
+  >
+    <a
+      class="auth-back"
+      routerLink="/"
+      aria-label="Voltar para a tela de boas-vindas"
+    >
+      <span aria-hidden="true">←</span>
+      Voltar
+    </a>
+
+    <div class="auth-brand">
+      <div
+        class="auth-brand__icon"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+          ></circle>
+
+          <path
+            d="M12 7V12L15 15"
+          ></path>
+        </svg>
+      </div>
+
+      <span>Nascemos Pais</span>
+    </div>
+
+    <header class="auth-header">
+      <h1 id="register-title">
+        Crie sua conta
+      </h1>
+
+      <p>
+        Comece criando seu acesso. Depois,
+        vamos configurar as informações da
+        família.
+      </p>
+    </header>
+
+    @if (auth.error(); as error) {
+      <p
+        class="auth-error"
+        role="alert"
+      >
+        {{ error }}
+      </p>
+    }
+
+    <form
+      class="auth-form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      (input)="clearError()"
+      novalidate
+    >
+      <div class="auth-field">
+        <label for="register-email">
+          E-mail
+        </label>
+
+        <input
+          id="register-email"
+          type="email"
+          autocomplete="email"
+          placeholder="voce@exemplo.com"
+          formControlName="email"
+        />
+
+        @if (
+          email.touched &&
+          email.invalid
+        ) {
+          <p
+            class="field-error"
+            role="alert"
+          >
+            Informe um e-mail válido.
+          </p>
+        }
+      </div>
+
+      <div class="auth-field">
+        <label for="register-password">
+          Senha
+        </label>
+
+        <input
+          id="register-password"
+          type="password"
+          autocomplete="new-password"
+          placeholder="Mínimo de 6 caracteres"
+          formControlName="password"
+        />
+
+        @if (
+          password.touched &&
+          password.invalid
+        ) {
+          <p
+            class="field-error"
+            role="alert"
+          >
+            A senha deve ter pelo menos
+            6 caracteres.
+          </p>
+        }
+      </div>
+
+      <div class="auth-field">
+        <label for="confirm-password">
+          Confirme sua senha
+        </label>
+
+        <input
+          id="confirm-password"
+          type="password"
+          autocomplete="new-password"
+          placeholder="Digite a senha novamente"
+          formControlName="confirmPassword"
+        />
+
+        @if (
+          confirmPassword.touched &&
+          confirmPassword.invalid
+        ) {
+          <p
+            class="field-error"
+            role="alert"
+          >
+            Confirme sua senha.
+          </p>
+        } @else if (passwordsDoNotMatch) {
+          <p
+            class="field-error"
+            role="alert"
+          >
+            As senhas não são iguais.
+          </p>
+        }
+      </div>
+
+      <button
+        class="auth-primary"
+        type="submit"
+        [disabled]="auth.isLoading()"
+      >
+        @if (auth.isLoading()) {
+          Criando conta...
+        } @else {
+          Criar conta
+        }
+      </button>
+    </form>
+
+    <div
+      class="auth-divider"
+      aria-hidden="true"
+    >
+      <span></span>
+      <p>ou</p>
+      <span></span>
+    </div>
+
+    <button
+      class="auth-google"
+      type="button"
+      [disabled]="auth.isLoading()"
+      (click)="continueWithGoogle()"
+    >
+      <span
+        class="auth-google__mark"
+        aria-hidden="true"
+      >
+        G
+      </span>
+
+      Continuar com Google
+    </button>
+
+    <p class="auth-switch">
+      Já possui uma conta?
+
+      <a routerLink="/auth/login">
+        Entrar
+      </a>
+    </p>
+  </section>
+</main>

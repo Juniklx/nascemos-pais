@@ -1,32 +1,66 @@
 import { Routes } from '@angular/router';
 import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
+import { authGuard } from './core/guards/auth.guard';
+import { guestGuard } from './core/guards/guest.guard';
 
 export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
+    canActivate: [guestGuard],
     loadComponent: () =>
       import('./features/welcome/welcome').then(
         (m) => m.Welcome,
       ),
   },
   {
-    path: 'onboarding/about-you',
+    path: 'auth/login',
+    canActivate: [guestGuard],
+    title: 'Entrar | Nascemos Pais',
     loadComponent: () =>
-      import('./features/onboarding/about-you/about-you').then(
+      import(
+        './features/auth/login/login'
+      ).then(
+        (m) => m.LoginPage,
+      ),
+  },
+  {
+    path: 'auth/register',
+    canActivate: [guestGuard],
+    title: 'Criar conta | Nascemos Pais',
+    loadComponent: () =>
+      import(
+        './features/auth/register/register'
+      ).then(
+        (m) => m.RegisterPage,
+      ),
+  },
+  {
+    path: 'onboarding/about-you',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import(
+        './features/onboarding/about-you/about-you'
+      ).then(
         (m) => m.AboutYou,
       ),
   },
   {
     path: 'onboarding/about-baby',
+    canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/onboarding/about-baby/about-baby').then(
+      import(
+        './features/onboarding/about-baby/about-baby'
+      ).then(
         (m) => m.AboutBaby,
       ),
   },
   {
     path: '',
-    canActivate: [onboardingCompleteGuard],
+    canActivate: [
+      authGuard,
+      onboardingCompleteGuard,
+    ],
     loadComponent: () =>
       import('./layouts/app-shell/app-shell').then(
         (m) => m.AppShell,
