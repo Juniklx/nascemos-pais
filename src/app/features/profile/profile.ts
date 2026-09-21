@@ -6,7 +6,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ThemeService } from '../../core/services/theme';
+import { ThemeService } from '../../core/services/src/app/core/services/theme';
 import { OnboardingService } from '../../core/services/onboarding';
 import {
   trimmedRequired,

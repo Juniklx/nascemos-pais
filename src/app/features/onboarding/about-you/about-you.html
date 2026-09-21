@@ -1,7 +1,15 @@
 <main class="onboarding">
   <header class="onboarding__header">
-    <a class="back-link" routerLink="/" aria-label="Voltar para a tela de boas-vindas">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <a
+      class="back-link"
+      routerLink="/"
+      aria-label="Voltar para a tela de boas-vindas"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+      >
         <path d="M19 12H5"></path>
         <path d="M11 18L5 12L11 6"></path>
       </svg>
@@ -10,14 +18,29 @@
     </a>
 
     <div class="brand">
-      <div class="brand__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9"></circle>
-          <path d="M12 7V12L15 15"></path>
+      <div
+        class="brand__icon"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+          ></circle>
+
+          <path
+            d="M12 7V12L15 15"
+          ></path>
         </svg>
       </div>
 
-      <span class="brand__name">Nascemos Pais</span>
+      <span class="brand__name">
+        Nascemos Pais
+      </span>
     </div>
 
     <div class="step">
@@ -30,26 +53,159 @@
     <div class="onboarding__intro">
       <h1>Primeiro, sobre você</h1>
 
-      <p>Como podemos chamar você?</p>
+      <p>
+        Como podemos chamar você?
+      </p>
     </div>
 
     @if (storageError(); as error) {
-    <p class="storage-warning" role="alert">
-      {{ error }}
-    </p>
+      <p
+        class="storage-warning"
+        role="alert"
+      >
+        {{ error }}
+      </p>
     }
 
-    <form class="onboarding__form" [formGroup]="form" (ngSubmit)="continue()">
+    <form
+      class="onboarding__form"
+      [formGroup]="form"
+      (ngSubmit)="continue()"
+    >
       <div class="field">
-        <label for="name">Seu nome</label>
+        <label for="name">
+          Seu nome
+        </label>
 
-        <input id="name" type="text" autocomplete="name" placeholder="Digite seu nome" formControlName="name" />
+        <input
+          id="name"
+          type="text"
+          autocomplete="name"
+          placeholder="Digite seu nome"
+          formControlName="name"
+        />
+
+        @if (
+          name.invalid &&
+          (name.dirty || name.touched)
+        ) {
+          <p
+            class="field-error"
+            role="alert"
+          >
+            Informe seu nome para continuar.
+          </p>
+        }
       </div>
 
-      <button class="continue-button" type="submit" [disabled]="name.invalid">
+      <section
+        class="privacy-card"
+        aria-labelledby="privacy-title"
+      >
+        <div class="privacy-card__header">
+          <svg
+            class="privacy-card__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 3L19 6V11C19 15.5 16.2 19.2 12 21C7.8 19.2 5 15.5 5 11V6L12 3Z"
+            ></path>
+
+            <path
+              d="M9 12L11 14L15 10"
+            ></path>
+          </svg>
+
+          <div>
+            <h2 id="privacy-title">
+              Privacidade dos seus dados
+            </h2>
+
+            <p id="privacy-description">
+              Antes de continuar, saiba como
+              seus dados são usados neste MVP.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="privacy-card__details"
+          id="privacy-details"
+        >
+          <p>
+            O Nascemos Pais guarda neste
+            navegador o seu nome, o nome e a
+            data de nascimento do bebê e os
+            registros de mamada, sono e troca
+            de fralda.
+          </p>
+
+          <p>
+            Nesta versão demonstrativa, esses
+            dados ficam armazenados localmente
+            no navegador.
+          </p>
+
+          <p>
+            O Nascemos Pais não salva o áudio
+            dos comandos de voz. Quando esse
+            recurso é utilizado, o serviço de
+            reconhecimento de voz do navegador
+            pode processar o áudio conforme o
+            funcionamento do fornecedor.
+          </p>
+        </div>
+
+        <label class="consent">
+          <input
+            type="checkbox"
+            formControlName="consent"
+            aria-describedby="privacy-details"
+          />
+
+          <span class="consent__control">
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M3 8L6.5 11.5L13 4.5"></path>
+            </svg>
+          </span>
+
+          <span class="consent__text">
+            Li e concordo com o uso dos meus dados conforme descrito acima
+          </span>
+        </label>
+
+        @if (
+          consent.invalid &&
+          (consent.dirty || consent.touched)
+        ) {
+          <p
+            class="consent-error"
+            role="alert"
+          >
+            É necessário confirmar a leitura
+            para continuar.
+          </p>
+        }
+      </section>
+
+      <button
+        class="continue-button"
+        type="submit"
+        [disabled]="form.invalid"
+      >
         <span>Continuar</span>
 
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
           <path d="M5 12H19"></path>
           <path d="M13 6L19 12L13 18"></path>
         </svg>
