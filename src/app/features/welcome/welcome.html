@@ -2,45 +2,177 @@
   <header class="welcome__header">
     <div class="brand">
       <div class="brand__icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9"></circle>
+
           <path d="M12 7V12L15 15"></path>
         </svg>
       </div>
 
-      <span class="brand__name">Nascemos Pais</span>
+      <span class="brand__name">
+        Nascemos Pais
+      </span>
     </div>
   </header>
 
   <section class="welcome__content">
-    <h1 class="welcome__title">
-      A rotina muda.
-      <br />
-      Vocês não precisam lembrar de tudo.
-    </h1>
+    <div class="welcome__intro">
+      <h1 class="welcome__title">
+        A rotina muda.
+        <br />
+        Vocês não precisam lembrar de tudo.
+      </h1>
 
-    <p class="welcome__description">
-      Registre mamadas, sono e trocas e acompanhe o dia do seu bebê de forma simples.
-    </p>
+      <p class="welcome__description">
+        Registre mamadas, sono e trocas e
+        acompanhe o dia do seu bebê de forma
+        simples.
+      </p>
 
-    <button class="welcome__button" type="button" routerLink="/onboarding/about-you">
-      <span>Começar</span>
+      <a class="welcome__button" routerLink="/onboarding/about-you">
+        <span>Começar</span>
 
-      <svg
-        class="welcome__button-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path d="M5 12H19"></path>
-        <path d="M13 6L19 12L13 18"></path>
-      </svg>
-    </button>
+        <svg class="welcome__button-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12H19"></path>
+          <path d="M13 6L19 12L13 18"></path>
+        </svg>
+      </a>
+    </div>
+
+    <section class="carousel" role="region" aria-roledescription="carrossel" aria-label="Recursos do Nascemos Pais"
+      tabindex="0" (keydown)="onCarouselKeydown($event)">
+      <div class="carousel__slide" role="group" aria-roledescription="slide" [attr.aria-label]="
+          (activeIndex() + 1) +
+          ' de ' +
+          slides.length
+        ">
+        <div class="carousel__icon" aria-hidden="true">
+          @switch (activeSlide.type) {
+          @case ('voice') {
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+
+            <path d="M5.5 11A6.5 6.5 0 0 0 18.5 11"></path>
+
+            <path d="M12 17.5V21"></path>
+
+            <path d="M9 21H15"></path>
+          </svg>
+          }
+
+          @case ('timeline') {
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M7 4V20"></path>
+
+            <circle cx="7" cy="7" r="2"></circle>
+
+            <circle cx="7" cy="12" r="2"></circle>
+
+            <circle cx="7" cy="17" r="2"></circle>
+
+            <path d="M11 7H19"></path>
+            <path d="M11 12H17"></path>
+            <path d="M11 17H19"></path>
+          </svg>
+          }
+
+          @case ('quick') {
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M13 2L5 14H11L10 22L19 9H13L13 2Z"></path>
+          </svg>
+          }
+          }
+        </div>
+
+        <div class="carousel__text" [class.carousel__text--hidden]="
+    isTextTransitioning()
+  ">
+          <p class="carousel__eyebrow">
+            Recurso {{ activeIndex() + 1 }}
+          </p>
+
+          <h2 class="carousel__title">
+            {{ activeSlide.title }}
+          </h2>
+
+          <p class="carousel__description">
+            {{ activeSlide.description }}
+          </p>
+        </div>
+      </div>
+
+      <div class="carousel__footer">
+        <button class="carousel__arrow" type="button" aria-label="Ver recurso anterior" (click)="previous()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M19 12H5"></path>
+            <path d="M11 18L5 12L11 6"></path>
+          </svg>
+        </button>
+
+        <div class="carousel__center">
+          <div class="carousel__dots" aria-label="Selecionar recurso">
+            @for (
+            slide of slides;
+            track $index
+            ) {
+            <button class="carousel__dot-button" type="button" [attr.aria-label]="
+                  'Ir para recurso ' +
+                  ($index + 1) +
+                  ': ' +
+                  slide.title
+                " [attr.aria-current]="
+                  activeIndex() === $index
+                    ? 'true'
+                    : null
+                " (click)="goTo($index)">
+              <span class="carousel__dot" [class.carousel__dot--active]="
+                    activeIndex() === $index
+                  " aria-hidden="true"></span>
+            </button>
+            }
+          </div>
+
+          <button class="carousel__autoplay" type="button" (click)="toggleAutoplay()" [attr.aria-label]="
+              isPaused()
+                ? 'Reproduzir carrossel automaticamente'
+                : 'Pausar carrossel automático'
+            ">
+            @if (isPaused()) {
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M8 5L19 12L8 19V5Z"></path>
+            </svg>
+
+            <span>
+              Reproduzir
+            </span>
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 5V19"></path>
+              <path d="M15 5V19"></path>
+            </svg>
+
+            <span>
+              Pausar
+            </span>
+            }
+          </button>
+        </div>
+
+        <button class="carousel__arrow" type="button" aria-label="Ver próximo recurso" (click)="next()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 12H19"></path>
+            <path d="M13 6L19 12L13 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <p class="carousel__status" [attr.aria-live]="
+          isPaused()
+            ? 'polite'
+            : 'off'
+        " aria-atomic="true">
+        {{ activeSlide.title }}
+      </p>
+    </section>
   </section>
-
-  <div class="welcome__spacer" aria-hidden="true"></div>
 </main>
