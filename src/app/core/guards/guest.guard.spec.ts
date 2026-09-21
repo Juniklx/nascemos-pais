@@ -1,4 +1,7 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  TestBed,
+} from '@angular/core/testing';
+
 import {
   Router,
   UrlTree,
@@ -16,143 +19,211 @@ import {
   OnboardingService,
 } from '../services/onboarding';
 
-describe('guestGuard', () => {
-  it(
-    'permite acesso quando não existe sessão',
-    async () => {
-      const auth = {
-        waitUntilReady:
-          jasmine
-            .createSpy('waitUntilReady')
-            .and.resolveTo(),
+describe(
+  'guestGuard',
+  () => {
+    it(
+      'permite acesso quando não existe sessão',
+      async () => {
+        const auth = {
+          waitUntilReady:
+            jasmine
+              .createSpy(
+                'waitUntilReady',
+              )
+              .and.resolveTo(),
 
-        isAuthenticated:
-          jasmine
-            .createSpy('isAuthenticated')
-            .and.returnValue(false),
-      };
+          isAuthenticated:
+            jasmine
+              .createSpy(
+                'isAuthenticated',
+              )
+              .and.returnValue(
+                false,
+              ),
+        };
 
-      const onboarding = {
-        getIncompleteRoute:
-          jasmine.createSpy(
-            'getIncompleteRoute',
-          ),
-      };
+        const onboarding = {
+          ensureLoaded:
+            jasmine
+              .createSpy(
+                'ensureLoaded',
+              )
+              .and.resolveTo(),
 
-      const router = {
-        createUrlTree:
-          jasmine.createSpy(
-            'createUrlTree',
-          ),
-      };
-
-      TestBed.configureTestingModule({
-        providers: [
-          {
-            provide: AuthService,
-            useValue: auth,
-          },
-          {
-            provide: OnboardingService,
-            useValue: onboarding,
-          },
-          {
-            provide: Router,
-            useValue: router,
-          },
-        ],
-      });
-
-      const result =
-        await TestBed.runInInjectionContext(
-          () =>
-            guestGuard(
-              {} as never,
-              {} as never,
+          getIncompleteRoute:
+            jasmine.createSpy(
+              'getIncompleteRoute',
             ),
-        );
+        };
 
-      expect(result).toBeTrue();
-
-      expect(
-        router.createUrlTree,
-      ).not.toHaveBeenCalled();
-    },
-  );
-
-  it(
-    'redireciona usuário autenticado',
-    async () => {
-      const auth = {
-        waitUntilReady:
-          jasmine
-            .createSpy('waitUntilReady')
-            .and.resolveTo(),
-
-        isAuthenticated:
-          jasmine
-            .createSpy('isAuthenticated')
-            .and.returnValue(true),
-      };
-
-      const onboarding = {
-        getIncompleteRoute:
-          jasmine
-            .createSpy('getIncompleteRoute')
-            .and.returnValue('/home'),
-      };
-
-      const expectedTree =
-        {} as UrlTree;
-
-      const router = {
-        createUrlTree:
-          jasmine
-            .createSpy('createUrlTree')
-            .and.returnValue(
-              expectedTree,
+        const router = {
+          createUrlTree:
+            jasmine.createSpy(
+              'createUrlTree',
             ),
-      };
+        };
 
-      TestBed.configureTestingModule({
-        providers: [
-          {
-            provide: AuthService,
-            useValue: auth,
-          },
-          {
-            provide: OnboardingService,
-            useValue: onboarding,
-          },
-          {
-            provide: Router,
-            useValue: router,
-          },
-        ],
-      });
+        TestBed
+          .configureTestingModule({
+            providers: [
+              {
+                provide:
+                  AuthService,
 
-      const result =
-        await TestBed.runInInjectionContext(
-          () =>
-            guestGuard(
-              {} as never,
-              {} as never,
-            ),
-        );
+                useValue:
+                  auth,
+              },
+              {
+                provide:
+                  OnboardingService,
 
-      expect(result).toBe(
-        expectedTree,
-      );
+                useValue:
+                  onboarding,
+              },
+              {
+                provide:
+                  Router,
 
-      expect(
-        onboarding.getIncompleteRoute,
-      ).toHaveBeenCalled();
+                useValue:
+                  router,
+              },
+            ],
+          });
 
-      expect(
-        router.createUrlTree,
-      ).toHaveBeenCalledOnceWith([
-        '/home',
-      ]);
-    },
-  );
-});
+        const result =
+          await TestBed
+            .runInInjectionContext(
+              () =>
+                guestGuard(
+                  {} as never,
+                  {} as never,
+                ),
+            );
+
+        expect(result)
+          .toBeTrue();
+
+        expect(
+          onboarding.ensureLoaded,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          router.createUrlTree,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'redireciona usuário autenticado',
+      async () => {
+        const auth = {
+          waitUntilReady:
+            jasmine
+              .createSpy(
+                'waitUntilReady',
+              )
+              .and.resolveTo(),
+
+          isAuthenticated:
+            jasmine
+              .createSpy(
+                'isAuthenticated',
+              )
+              .and.returnValue(
+                true,
+              ),
+        };
+
+        const onboarding = {
+          ensureLoaded:
+            jasmine
+              .createSpy(
+                'ensureLoaded',
+              )
+              .and.resolveTo(),
+
+          getIncompleteRoute:
+            jasmine
+              .createSpy(
+                'getIncompleteRoute',
+              )
+              .and.returnValue(
+                '/home',
+              ),
+        };
+
+        const expectedTree =
+          {} as UrlTree;
+
+        const router = {
+          createUrlTree:
+            jasmine
+              .createSpy(
+                'createUrlTree',
+              )
+              .and.returnValue(
+                expectedTree,
+              ),
+        };
+
+        TestBed
+          .configureTestingModule({
+            providers: [
+              {
+                provide:
+                  AuthService,
+
+                useValue:
+                  auth,
+              },
+              {
+                provide:
+                  OnboardingService,
+
+                useValue:
+                  onboarding,
+              },
+              {
+                provide:
+                  Router,
+
+                useValue:
+                  router,
+              },
+            ],
+          });
+
+        const result =
+          await TestBed
+            .runInInjectionContext(
+              () =>
+                guestGuard(
+                  {} as never,
+                  {} as never,
+                ),
+            );
+
+        expect(result)
+          .toBe(
+            expectedTree,
+          );
+
+        expect(
+          onboarding.ensureLoaded,
+        ).toHaveBeenCalled();
+
+        expect(
+          onboarding
+            .getIncompleteRoute,
+        ).toHaveBeenCalled();
+
+        expect(
+          router.createUrlTree,
+        ).toHaveBeenCalledOnceWith([
+          '/home',
+        ]);
+      },
+    );
+  },
+);

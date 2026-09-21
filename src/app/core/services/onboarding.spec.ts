@@ -1,200 +1,374 @@
-import { TestBed } from '@angular/core/testing';
+import {
+  signal,
+} from '@angular/core';
 
-import { OnboardingService } from './onboarding';
+import {
+  TestBed,
+} from '@angular/core/testing';
 
-describe('OnboardingService: consentimento', () => {
-  const storageKey = 'nascemos-pais:onboarding';
+import type {
+  User,
+} from 'firebase/auth';
 
-  beforeEach(() => {
-    localStorage.clear();
+import {
+  AuthService,
+} from './auth';
 
-    TestBed.configureTestingModule({});
-  });
+import {
+  OnboardingPersistenceService,
+} from './onboarding-persistence';
 
-  afterEach(() => {
-    localStorage.clear();
+import {
+  OnboardingService,
+} from './onboarding';
 
-    TestBed.resetTestingModule();
-  });
+describe(
+  'OnboardingService',
+  () => {
+    let service:
+      OnboardingService;
 
-  it('não considera o onboarding completo sem consentimento', () => {
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        caregiverName: 'Marcelo',
-        babyName: 'Bebê',
-        babyBirthDate: '2026-01-01',
-        consentGiven: false,
-        consentAt: null,
-      }),
+    let userState:
+      ReturnType<
+        typeof signal<User | null>
+      >;
+
+    let auth: {
+      user:
+        ReturnType<
+          typeof signal<User | null>
+        >['asReadonly'] extends
+          () => infer T
+            ? T
+            : never;
+
+      waitUntilReady:
+        jasmine.Spy;
+    };
+
+    let persistence: {
+      load:
+        jasmine.Spy;
+
+      save:
+        jasmine.Spy;
+    };
+
+    const completeData = {
+      caregiverName:
+        'Marcelo',
+
+      babyName:
+        'Bebê',
+
+      babyBirthDate:
+        '2026-01-01',
+
+      consentGiven:
+        true,
+
+      consentAt:
+        '2026-09-20T12:00:00.000Z',
+    };
+
+    beforeEach(() => {
+      userState =
+        signal<User | null>(
+          {
+            uid: 'user-a',
+          } as User,
+        );
+
+      auth = {
+        user:
+          userState.asReadonly(),
+
+        waitUntilReady:
+          jasmine
+            .createSpy(
+              'waitUntilReady',
+            )
+            .and.resolveTo(),
+      };
+
+      persistence = {
+        load:
+          jasmine
+            .createSpy('load')
+            .and.resolveTo(null),
+
+        save:
+          jasmine
+            .createSpy('save')
+            .and.resolveTo(),
+      };
+
+      TestBed
+        .configureTestingModule({
+          providers: [
+            OnboardingService,
+
+            {
+              provide:
+                AuthService,
+
+              useValue:
+                auth,
+            },
+
+            {
+              provide:
+                OnboardingPersistenceService,
+
+              useValue:
+                persistence,
+            },
+          ],
+        });
+
+      service =
+        TestBed.inject(
+          OnboardingService,
+        );
+    });
+
+    afterEach(() => {
+      TestBed
+        .resetTestingModule();
+    });
+
+    it(
+      'carrega o perfil do usuário autenticado',
+      async () => {
+        persistence.load
+          .and.resolveTo(
+            completeData,
+          );
+
+        await service
+          .ensureLoaded();
+
+        expect(
+          service.caregiverName(),
+        ).toBe('Marcelo');
+
+        expect(
+          service.babyName(),
+        ).toBe('Bebê');
+
+        expect(
+          service.isComplete(),
+        ).toBeTrue();
+
+        expect(
+          service.getIncompleteRoute(),
+        ).toBe('/home');
+      },
     );
 
-    const service = TestBed.inject(
-      OnboardingService,
+    it(
+      'registra consentimento e salva na nuvem',
+      async () => {
+        await service
+          .ensureLoaded();
+
+        const saved =
+          await service
+            .setCaregiverName(
+              'Marcelo',
+              true,
+            );
+
+        expect(saved)
+          .toBeTrue();
+
+        expect(
+          service.consentGiven(),
+        ).toBeTrue();
+
+        expect(
+          service.consentAt(),
+        ).not.toBeNull();
+
+        expect(
+          persistence.save,
+        ).toHaveBeenCalled();
+
+        const savedData =
+          persistence.save
+            .calls
+            .mostRecent()
+            .args[0];
+
+        expect(
+          savedData.caregiverName,
+        ).toBe('Marcelo');
+
+        expect(
+          savedData.consentGiven,
+        ).toBeTrue();
+
+        expect(
+          typeof savedData.consentAt,
+        ).toBe('string');
+      },
     );
 
-    expect(service.isComplete()).toBeFalse();
+    it(
+      'não aceita cadastro sem consentimento',
+      async () => {
+        const saved =
+          await service
+            .setCaregiverName(
+              'Marcelo',
+              false,
+            );
 
-    expect(
-      service.getIncompleteRoute(),
-    ).toBe('/onboarding/about-you');
-  });
+        expect(saved)
+          .toBeFalse();
 
-  it('registra consentimento com data e hora', () => {
-    const service = TestBed.inject(
-      OnboardingService,
+        expect(
+          persistence.save,
+        ).not.toHaveBeenCalled();
+
+        expect(
+          service.consentGiven(),
+        ).toBeFalse();
+      },
     );
 
-    const saved = service.setCaregiverName(
-      'Marcelo',
-      true,
+    it(
+      'preserva a data original do consentimento',
+      async () => {
+        await service
+          .ensureLoaded();
+
+        await service
+          .setCaregiverName(
+            'Marcelo',
+            true,
+          );
+
+        const consentAt =
+          service.consentAt();
+
+        await service
+          .setCaregiverName(
+            'Marcelo Soares',
+            true,
+          );
+
+        expect(
+          service.consentAt(),
+        ).toBe(consentAt);
+      },
     );
 
-    expect(saved).toBeTrue();
+    it(
+      'considera o onboarding completo depois de salvar os dados do bebê',
+      async () => {
+        await service
+          .ensureLoaded();
 
-    expect(
-      service.consentGiven(),
-    ).toBeTrue();
+        await service
+          .setCaregiverName(
+            'Marcelo',
+            true,
+          );
 
-    expect(
-      service.consentAt(),
-    ).not.toBeNull();
+        const saved =
+          await service
+            .setBabyData(
+              'Bebê',
+              '2026-01-01',
+            );
 
-    const parsedDate = Date.parse(
-      service.consentAt()!,
+        expect(saved)
+          .toBeTrue();
+
+        expect(
+          service.isComplete(),
+        ).toBeTrue();
+
+        expect(
+          service.getIncompleteRoute(),
+        ).toBe('/home');
+      },
     );
 
-    expect(
-      Number.isNaN(parsedDate),
-    ).toBeFalse();
-  });
+    it(
+      'mantém onboarding incompleto sem consentimento',
+      async () => {
+        persistence.load
+          .and.resolveTo({
+            caregiverName:
+              'Marcelo',
 
-  it('não aceita cadastro do responsável sem consentimento', () => {
-    const service = TestBed.inject(
-      OnboardingService,
+            babyName:
+              'Bebê',
+
+            babyBirthDate:
+              '2026-01-01',
+
+            consentGiven:
+              false,
+
+            consentAt:
+              null,
+          });
+
+        await service
+          .ensureLoaded();
+
+        expect(
+          service.isComplete(),
+        ).toBeFalse();
+
+        expect(
+          service.getIncompleteRoute(),
+        ).toBe(
+          '/onboarding/about-you',
+        );
+      },
     );
 
-    const saved = service.setCaregiverName(
-      'Marcelo',
-      false,
+    it(
+      'não altera o estado quando o salvamento falha',
+      async () => {
+        await service
+          .ensureLoaded();
+
+        persistence.save
+          .and.rejectWith(
+            new Error(
+              'Firestore indisponível',
+            ),
+          );
+
+        const saved =
+          await service
+            .setCaregiverName(
+              'Marcelo',
+              true,
+            );
+
+        expect(saved)
+          .toBeFalse();
+
+        expect(
+          service.caregiverName(),
+        ).toBe('');
+
+        expect(
+          service.consentGiven(),
+        ).toBeFalse();
+
+        expect(
+          service.storageError(),
+        ).toContain(
+          'Não foi possível salvar',
+        );
+      },
     );
-
-    expect(saved).toBeFalse();
-
-    expect(
-      service.consentGiven(),
-    ).toBeFalse();
-
-    expect(
-      service.consentAt(),
-    ).toBeNull();
-  });
-
-  it('persiste o consentimento no localStorage', () => {
-    const service = TestBed.inject(
-      OnboardingService,
-    );
-
-    service.setCaregiverName(
-      'Marcelo',
-      true,
-    );
-
-    const raw =
-      localStorage.getItem(storageKey);
-
-    expect(raw).not.toBeNull();
-
-    const stored = JSON.parse(raw!);
-
-    expect(
-      stored.consentGiven,
-    ).toBeTrue();
-
-    expect(
-      typeof stored.consentAt,
-    ).toBe('string');
-  });
-
-  it('mantém compatibilidade com cadastro antigo sem consentimento', () => {
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        caregiverName: 'Marcelo',
-        babyName: 'Bebê',
-        babyBirthDate: '2026-01-01',
-      }),
-    );
-
-    const service = TestBed.inject(
-      OnboardingService,
-    );
-
-    expect(
-      service.caregiverName(),
-    ).toBe('Marcelo');
-
-    expect(
-      service.babyName(),
-    ).toBe('Bebê');
-
-    expect(
-      service.consentGiven(),
-    ).toBeFalse();
-
-    expect(
-      service.consentAt(),
-    ).toBeNull();
-
-    expect(
-      service.getIncompleteRoute(),
-    ).toBe('/onboarding/about-you');
-  });
-
-  it('preserva a data original ao salvar novamente', () => {
-    const service = TestBed.inject(
-      OnboardingService,
-    );
-
-    service.setCaregiverName(
-      'Marcelo',
-      true,
-    );
-
-    const firstConsentAt =
-      service.consentAt();
-
-    service.setCaregiverName(
-      'Marcelo Soares',
-      true,
-    );
-
-    expect(
-      service.consentAt(),
-    ).toBe(firstConsentAt);
-  });
-
-  it('considera o onboarding completo quando todos os dados e o consentimento são válidos', () => {
-    const service = TestBed.inject(
-      OnboardingService,
-    );
-
-    service.setCaregiverName(
-      'Marcelo',
-      true,
-    );
-
-    service.setBabyData(
-      'Bebê',
-      '2026-01-01',
-    );
-
-    expect(
-      service.isComplete(),
-    ).toBeTrue();
-
-    expect(
-      service.getIncompleteRoute(),
-    ).toBe('/home');
-  });
-});
+  },
+);

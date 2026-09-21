@@ -86,7 +86,7 @@ export class RegisterPage {
     return (
       this.confirmPassword.touched &&
       this.password.value !==
-        this.confirmPassword.value
+      this.confirmPassword.value
     );
   }
 
@@ -100,7 +100,7 @@ export class RegisterPage {
     if (
       this.form.invalid ||
       this.password.value !==
-        this.confirmPassword.value
+      this.confirmPassword.value
     ) {
       this.form.markAllAsTouched();
       return;
@@ -128,6 +128,9 @@ export class RegisterPage {
     if (!success) {
       return;
     }
+
+    await this.onboarding
+      .ensureLoaded();
 
     await this.router.navigate([
       this.onboarding.getIncompleteRoute(),

@@ -1,13 +1,22 @@
 import {
   Injectable,
   computed,
+  inject,
   signal,
 } from '@angular/core';
 
 import {
-  isValidName,
   isValidBirthDate,
+  isValidName,
 } from '../validators/onboarding.validators';
+
+import {
+  AuthService,
+} from './auth';
+
+import {
+  OnboardingPersistenceService,
+} from './onboarding-persistence';
 
 export interface OnboardingData {
   caregiverName: string;
@@ -19,126 +28,262 @@ export interface OnboardingData {
 
 type ProfileData = Pick<
   OnboardingData,
-  'caregiverName' | 'babyName' | 'babyBirthDate'
+  | 'caregiverName'
+  | 'babyName'
+  | 'babyBirthDate'
 >;
 
 @Injectable({
   providedIn: 'root',
 })
 export class OnboardingService {
-  private readonly storageKey =
-    'nascemos-pais:onboarding';
+  private readonly auth =
+    inject(AuthService);
 
-  private readonly emptyData: OnboardingData = {
-    caregiverName: '',
-    babyName: '',
-    babyBirthDate: '',
-    consentGiven: false,
-    consentAt: null,
-  };
+  private readonly persistence =
+    inject(
+      OnboardingPersistenceService,
+    );
 
-  private readonly storageErrorState =
+  private readonly emptyData:
+    OnboardingData = {
+      caregiverName: '',
+      babyName: '',
+      babyBirthDate: '',
+      consentGiven: false,
+      consentAt: null,
+    };
+
+  private readonly errorState =
     signal<string | null>(null);
 
-  private canWriteToStorage = true;
+  private readonly readyState =
+    signal(false);
 
-  private readonly initialData = this.loadData();
+  private readonly loadingState =
+    signal(false);
 
-  readonly caregiverName = signal(
-    this.initialData.caregiverName,
-  );
+  private loadedUid:
+    string | null = null;
 
-  readonly babyName = signal(
-    this.initialData.babyName,
-  );
+  private loadingUid:
+    string | null = null;
 
-  readonly babyBirthDate = signal(
-    this.initialData.babyBirthDate,
-  );
+  private loadPromise:
+    Promise<void> | null = null;
 
-  readonly consentGiven = signal(
-    this.initialData.consentGiven,
-  );
+  readonly caregiverName =
+    signal('');
 
-  readonly consentAt = signal(
-    this.initialData.consentAt,
-  );
+  readonly babyName =
+    signal('');
 
+  readonly babyBirthDate =
+    signal('');
+
+  readonly consentGiven =
+    signal(false);
+
+  readonly consentAt =
+    signal<string | null>(null);
+
+  /*
+   * Mantemos este nome temporariamente
+   * para não quebrar os templates atuais.
+   */
   readonly storageError =
-    this.storageErrorState.asReadonly();
+    this.errorState.asReadonly();
 
-  readonly isComplete = computed(
-    () =>
-      this.isValidName(this.caregiverName()) &&
-      this.isValidName(this.babyName()) &&
-      this.isValidBirthDate(this.babyBirthDate()) &&
-      this.consentGiven(),
-  );
+  readonly isReady =
+    this.readyState.asReadonly();
 
-  setCaregiverName(
-    name: string,
-    consentGiven: boolean,
-  ): boolean {
-    const normalizedName = name.trim();
+  readonly isLoading =
+    this.loadingState.asReadonly();
+
+  readonly isComplete =
+    computed(
+      () =>
+        isValidName(
+          this.caregiverName(),
+        ) &&
+        isValidName(
+          this.babyName(),
+        ) &&
+        isValidBirthDate(
+          this.babyBirthDate(),
+        ) &&
+        this.consentGiven(),
+    );
+
+  async ensureLoaded():
+    Promise<void> {
+    await this.auth
+      .waitUntilReady();
+
+    const uid =
+      this.auth.user()?.uid ??
+      null;
+
+    if (uid === null) {
+      this.loadedUid = null;
+      this.loadingUid = null;
+
+      this.applyData(
+        this.emptyData,
+      );
+
+      this.readyState.set(true);
+      this.loadingState.set(false);
+
+      return;
+    }
 
     if (
-      !this.isValidName(normalizedName) ||
+      this.loadedUid === uid &&
+      this.readyState()
+    ) {
+      return;
+    }
+
+    if (
+      this.loadPromise !== null &&
+      this.loadingUid === uid
+    ) {
+      return this.loadPromise;
+    }
+
+    this.applyData(
+      this.emptyData,
+    );
+
+    this.readyState.set(false);
+    this.loadingState.set(true);
+    this.errorState.set(null);
+
+    this.loadingUid = uid;
+
+    const promise =
+      this.loadForUser(uid);
+
+    this.loadPromise =
+      promise;
+
+    try {
+      await promise;
+    } finally {
+      if (
+        this.loadPromise ===
+        promise
+      ) {
+        this.loadPromise = null;
+        this.loadingUid = null;
+        this.loadingState.set(false);
+      }
+    }
+  }
+
+  async setCaregiverName(
+    name: string,
+    consentGiven: boolean,
+  ): Promise<boolean> {
+    const normalizedName =
+      name.trim();
+
+    if (
+      !isValidName(
+        normalizedName,
+      ) ||
       !consentGiven
     ) {
       return false;
     }
 
-    this.caregiverName.set(normalizedName);
-    this.consentGiven.set(true);
+    await this.ensureLoaded();
 
-    if (!this.consentAt()) {
-      this.consentAt.set(new Date().toISOString());
-    }
+    const data:
+      OnboardingData = {
+        ...this.currentData(),
 
-    return this.saveData();
+        caregiverName:
+          normalizedName,
+
+        consentGiven: true,
+
+        consentAt:
+          this.consentAt() ??
+          new Date()
+            .toISOString(),
+      };
+
+    return this.saveData(
+      data,
+    );
   }
 
-  setBabyData(
+  async setBabyData(
     name: string,
     birthDate: string,
-  ): boolean {
-    const normalizedName = name.trim();
+  ): Promise<boolean> {
+    const normalizedName =
+      name.trim();
 
     if (
-      !this.isValidName(normalizedName) ||
-      !this.isValidBirthDate(birthDate)
+      !isValidName(
+        normalizedName,
+      ) ||
+      !isValidBirthDate(
+        birthDate,
+      )
     ) {
       return false;
     }
 
-    this.babyName.set(normalizedName);
-    this.babyBirthDate.set(birthDate);
+    await this.ensureLoaded();
 
-    return this.saveData();
+    return this.saveData({
+      ...this.currentData(),
+
+      babyName:
+        normalizedName,
+
+      babyBirthDate:
+        birthDate,
+    });
   }
 
-  updateProfile(data: ProfileData): boolean {
+  async updateProfile(
+    data: ProfileData,
+  ): Promise<boolean> {
     if (
-      !isValidName(data.caregiverName) ||
-      !isValidName(data.babyName) ||
-      !isValidBirthDate(data.babyBirthDate)
+      !isValidName(
+        data.caregiverName,
+      ) ||
+      !isValidName(
+        data.babyName,
+      ) ||
+      !isValidBirthDate(
+        data.babyBirthDate,
+      )
     ) {
       return false;
     }
 
-    this.caregiverName.set(
-      data.caregiverName.trim(),
-    );
+    await this.ensureLoaded();
 
-    this.babyName.set(
-      data.babyName.trim(),
-    );
+    return this.saveData({
+      ...this.currentData(),
 
-    this.babyBirthDate.set(
-      data.babyBirthDate,
-    );
+      caregiverName:
+        data.caregiverName
+          .trim(),
 
-    return this.saveData();
+      babyName:
+        data.babyName
+          .trim(),
+
+      babyBirthDate:
+        data.babyBirthDate,
+    });
   }
 
   getIncompleteRoute():
@@ -146,15 +291,21 @@ export class OnboardingService {
     | '/onboarding/about-baby'
     | '/home' {
     if (
-      !this.isValidName(this.caregiverName()) ||
+      !isValidName(
+        this.caregiverName(),
+      ) ||
       !this.consentGiven()
     ) {
       return '/onboarding/about-you';
     }
 
     if (
-      !this.isValidName(this.babyName()) ||
-      !this.isValidBirthDate(this.babyBirthDate())
+      !isValidName(
+        this.babyName(),
+      ) ||
+      !isValidBirthDate(
+        this.babyBirthDate(),
+      )
     ) {
       return '/onboarding/about-baby';
     }
@@ -162,258 +313,139 @@ export class OnboardingService {
     return '/home';
   }
 
-  private saveData(): boolean {
-    if (!this.canWriteToStorage) {
-      return false;
+  private async loadForUser(
+    uid: string,
+  ): Promise<void> {
+    try {
+      const data =
+        await this.persistence
+          .load();
+
+      /*
+       * Evita aplicar os dados caso
+       * o usuário tenha mudado durante
+       * uma leitura assíncrona.
+       */
+      if (
+        this.auth.user()?.uid !==
+        uid
+      ) {
+        return;
+      }
+
+      this.applyData(
+        data ??
+        this.emptyData,
+      );
+
+      this.loadedUid = uid;
+      this.readyState.set(true);
+      this.errorState.set(null);
+    } catch {
+      if (
+        this.auth.user()?.uid !==
+        uid
+      ) {
+        return;
+      }
+
+      this.applyData(
+        this.emptyData,
+      );
+
+      this.loadedUid = uid;
+      this.readyState.set(true);
+
+      this.errorState.set(
+        'Não foi possível carregar seus dados da nuvem. Verifique sua conexão e tente novamente.',
+      );
     }
+  }
 
-    const storage = this.getStorage();
+  private async saveData(
+    data: OnboardingData,
+  ): Promise<boolean> {
+    const uid =
+      this.auth.user()?.uid;
 
-    if (storage === null) {
-      this.setStorageError(
-        'Não foi possível acessar o armazenamento deste navegador. Os dados ficarão apenas nesta sessão.',
-        true,
+    if (!uid) {
+      this.errorState.set(
+        'É necessário estar conectado para salvar seus dados.',
       );
 
       return false;
     }
 
-    const data: OnboardingData = {
-      caregiverName: this.caregiverName(),
-      babyName: this.babyName(),
-      babyBirthDate: this.babyBirthDate(),
-      consentGiven: this.consentGiven(),
-      consentAt: this.consentAt(),
-    };
+    this.loadingState.set(true);
+    this.errorState.set(null);
 
     try {
-      storage.setItem(
-        this.storageKey,
-        JSON.stringify(data),
-      );
+      await this.persistence
+        .save(data);
 
-      this.storageErrorState.set(null);
+      if (
+        this.auth.user()?.uid !==
+        uid
+      ) {
+        return false;
+      }
+
+      this.applyData(data);
+      this.loadedUid = uid;
 
       return true;
     } catch {
-      this.setStorageError(
-        'Não foi possível salvar o cadastro. Os dados ficarão apenas nesta sessão.',
+      this.errorState.set(
+        'Não foi possível salvar seus dados na nuvem. Verifique sua conexão e tente novamente.',
       );
 
       return false;
+    } finally {
+      this.loadingState.set(false);
     }
   }
 
-  private loadData(): OnboardingData {
-    const storage = this.getStorage();
-
-    if (storage === null) {
-      this.setStorageError(
-        'Não foi possível acessar o cadastro salvo neste navegador.',
-        true,
-      );
-
-      return this.emptyData;
-    }
-
-    try {
-      const savedData = storage.getItem(
-        this.storageKey,
-      );
-
-      if (savedData === null) {
-        return this.emptyData;
-      }
-
-      const parsed: unknown =
-        JSON.parse(savedData);
-
-      const normalizedData =
-        this.normalizeStoredData(parsed);
-
-      if (normalizedData === null) {
-        throw new Error('Dados inválidos.');
-      }
-
-      return normalizedData;
-    } catch {
-      this.setStorageError(
-        'O cadastro salvo estava inválido e foi reiniciado. Preencha os dados novamente.',
-      );
-
-      return this.emptyData;
-    }
-  }
-
-  private normalizeStoredData(
-    value: unknown,
-  ): OnboardingData | null {
-    if (
-      typeof value !== 'object' ||
-      value === null ||
-      Array.isArray(value)
-    ) {
-      return null;
-    }
-
-    const data =
-      value as Record<string, unknown>;
-
-    const allowedKeys = new Set([
-      'caregiverName',
-      'babyName',
-      'babyBirthDate',
-      'consentGiven',
-      'consentAt',
-    ]);
-
-    if (
-      Object.keys(data).some(
-        (key) => !allowedKeys.has(key),
-      )
-    ) {
-      return null;
-    }
-
-    const caregiverName =
-      data['caregiverName'];
-
-    const babyName =
-      data['babyName'];
-
-    const babyBirthDate =
-      data['babyBirthDate'];
-
-    const consentGiven =
-      data['consentGiven'];
-
-    const consentAt =
-      data['consentAt'];
-
-    if (
-      typeof caregiverName !== 'string' ||
-      typeof babyName !== 'string' ||
-      typeof babyBirthDate !== 'string'
-    ) {
-      return null;
-    }
-
-    if (
-      caregiverName.trim().length > 0 &&
-      !this.isValidName(caregiverName)
-    ) {
-      return null;
-    }
-
-    if (
-      babyName.trim().length > 0 &&
-      !this.isValidName(babyName)
-    ) {
-      return null;
-    }
-
-    if (
-      babyBirthDate !== '' &&
-      !this.isValidBirthDate(babyBirthDate)
-    ) {
-      return null;
-    }
-
-    /*
-     * Compatibilidade com cadastros criados
-     * antes da implementação do consentimento.
-     */
-    if (
-      consentGiven === undefined &&
-      consentAt === undefined
-    ) {
-      return {
-        caregiverName:
-          caregiverName.trim(),
-        babyName:
-          babyName.trim(),
-        babyBirthDate,
-        consentGiven: false,
-        consentAt: null,
-      };
-    }
-
-    if (
-      typeof consentGiven !== 'boolean'
-    ) {
-      return null;
-    }
-
-    if (
-      consentGiven &&
-      !this.isValidConsentDate(consentAt)
-    ) {
-      return null;
-    }
-
-    if (
-      !consentGiven &&
-      consentAt !== null
-    ) {
-      return null;
-    }
-
+  private currentData():
+    OnboardingData {
     return {
       caregiverName:
-        caregiverName.trim(),
+        this.caregiverName(),
+
       babyName:
-        babyName.trim(),
-      babyBirthDate,
-      consentGiven,
+        this.babyName(),
+
+      babyBirthDate:
+        this.babyBirthDate(),
+
+      consentGiven:
+        this.consentGiven(),
+
       consentAt:
-        consentGiven
-          ? (consentAt as string)
-          : null,
+        this.consentAt(),
     };
   }
 
-  private isValidConsentDate(
-    value: unknown,
-  ): value is string {
-    return (
-      typeof value === 'string' &&
-      value.length > 0 &&
-      !Number.isNaN(Date.parse(value))
-    );
-  }
-
-  private isValidName(
-    value: string,
-  ): boolean {
-    return isValidName(value);
-  }
-
-  private isValidBirthDate(
-    value: string,
-  ): boolean {
-    return isValidBirthDate(value);
-  }
-
-  private getStorage(): Storage | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    try {
-      return window.localStorage;
-    } catch {
-      return null;
-    }
-  }
-
-  private setStorageError(
-    message: string,
-    disableWrites = false,
+  private applyData(
+    data: OnboardingData,
   ): void {
-    if (disableWrites) {
-      this.canWriteToStorage = false;
-    }
+    this.caregiverName.set(
+      data.caregiverName,
+    );
 
-    this.storageErrorState.set(message);
+    this.babyName.set(
+      data.babyName,
+    );
+
+    this.babyBirthDate.set(
+      data.babyBirthDate,
+    );
+
+    this.consentGiven.set(
+      data.consentGiven,
+    );
+
+    this.consentAt.set(
+      data.consentAt,
+    );
   }
 }

@@ -2,6 +2,9 @@ import { Routes } from '@angular/router';
 import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
+import {
+  onboardingReadyGuard,
+} from './core/guards/onboarding-ready.guard';
 
 export const routes: Routes = [
   {
@@ -37,7 +40,10 @@ export const routes: Routes = [
   },
   {
     path: 'onboarding/about-you',
-    canActivate: [authGuard],
+    canActivate: [
+      authGuard,
+      onboardingReadyGuard,
+    ],
     loadComponent: () =>
       import(
         './features/onboarding/about-you/about-you'
@@ -47,7 +53,10 @@ export const routes: Routes = [
   },
   {
     path: 'onboarding/about-baby',
-    canActivate: [authGuard],
+    canActivate: [
+      authGuard,
+      onboardingReadyGuard,
+    ],
     loadComponent: () =>
       import(
         './features/onboarding/about-baby/about-baby'

@@ -3,7 +3,7 @@ import {
   inject,
 } from '@angular/core';
 
-import {
+import type {
   OnboardingData,
 } from './onboarding';
 
@@ -47,6 +47,14 @@ export class OnboardingPersistenceService {
       }
 
       this.profileExists = true;
+
+      /*
+       * A nuvem é a fonte de verdade.
+       * Dados legados deste navegador não
+       * devem ficar disponíveis para uma
+       * futura conta autenticada.
+       */
+      this.removeLegacyData();
 
       return normalized;
     }
@@ -105,8 +113,8 @@ export class OnboardingPersistenceService {
         this.profileExists
           ? {}
           : {
-              createdAt: now,
-            }
+            createdAt: now,
+          }
       ),
 
       updatedAt: now,
@@ -202,11 +210,11 @@ export class OnboardingPersistenceService {
 
     if (
       typeof caregiverName !==
-        'string' ||
+      'string' ||
       typeof babyName !==
-        'string' ||
+      'string' ||
       typeof babyBirthDate !==
-        'string'
+      'string'
     ) {
       return null;
     }
@@ -226,7 +234,7 @@ export class OnboardingPersistenceService {
 
     if (
       typeof consentGiven !==
-        'boolean'
+      'boolean'
     ) {
       return null;
     }
@@ -248,7 +256,7 @@ export class OnboardingPersistenceService {
     if (consentGiven) {
       if (
         typeof consentAt !==
-          'string' ||
+        'string' ||
         consentAt.length === 0 ||
         Number.isNaN(
           Date.parse(consentAt),
@@ -320,7 +328,7 @@ export class OnboardingPersistenceService {
         date.getTime(),
       ) &&
       date.getTime() <=
-        Date.now()
+      Date.now()
     );
   }
 
@@ -328,7 +336,7 @@ export class OnboardingPersistenceService {
     Storage | null {
     if (
       typeof window ===
-        'undefined'
+      'undefined'
     ) {
       return null;
     }

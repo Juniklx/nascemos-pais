@@ -24,6 +24,8 @@ export const guestGuard: CanActivateFn =
     if (!auth.isAuthenticated()) {
       return true;
     }
+    
+    await onboarding.ensureLoaded();
 
     return router.createUrlTree([
       onboarding.getIncompleteRoute(),

@@ -104,9 +104,13 @@ export class LoginPage {
   }
 
   private async goAfterAuthentication():
-    Promise<void> {
-    await this.router.navigate([
-      this.onboarding.getIncompleteRoute(),
-    ]);
-  }
+  Promise<void> {
+  await this.onboarding
+    .ensureLoaded();
+
+  await this.router.navigate([
+    this.onboarding
+      .getIncompleteRoute(),
+  ]);
+}
 }

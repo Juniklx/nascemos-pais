@@ -21,10 +21,10 @@ describe(
 
     let repository: {
       readProfile:
-        jasmine.Spy;
+      jasmine.Spy;
 
       saveProfile:
-        jasmine.Spy;
+      jasmine.Spy;
     };
 
     const completeData = {
@@ -119,6 +119,12 @@ describe(
         expect(
           repository.saveProfile,
         ).not.toHaveBeenCalled();
+
+        expect(
+          localStorage.getItem(
+            storageKey,
+          ),
+        ).toBeNull();
       },
     );
 
