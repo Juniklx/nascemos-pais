@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -26,7 +27,10 @@ export const routes: Routes = [
   },
   {
     path: '',
-    canActivate: [onboardingCompleteGuard],
+    canActivate: [
+      authGuard,
+      onboardingCompleteGuard,
+    ],
     loadComponent: () =>
       import('./layouts/app-shell/app-shell').then(
         (m) => m.AppShell,
