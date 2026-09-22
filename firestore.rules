@@ -8,19 +8,202 @@ service cloud.firestore {
         && request.auth.uid == userId;
     }
 
+    function isValidTimestamp(value) {
+      return value is int
+        && value >= 0;
+    }
+
+    function isNullableTimestamp(value) {
+      return value == null
+        || isValidTimestamp(value);
+    }
+
+    function isValidSide(value) {
+      return value == null
+        || value == 'left'
+        || value == 'right';
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasOnly([
+          'caregiverName',
+          'babyName',
+          'babyBirthDate',
+          'consentGiven',
+          'consentAt',
+          'createdAt',
+          'updatedAt',
+          'legacyMigrationVersion',
+          'recordsMigrationVersion',
+          'recordsMigratedAt'
+        ])
+        && data.keys().hasAll([
+          'caregiverName',
+          'babyName',
+          'babyBirthDate',
+          'consentGiven',
+          'consentAt'
+        ])
+        && data.caregiverName is string
+        && data.caregiverName.size() <= 80
+        && data.babyName is string
+        && data.babyName.size() <= 80
+        && data.babyBirthDate is string
+        && data.consentGiven is bool
+        && (
+          data.consentAt == null
+          || data.consentAt is string
+        )
+        && (
+          !('createdAt' in data)
+          || data.createdAt is string
+        )
+        && (
+          !('updatedAt' in data)
+          || data.updatedAt is string
+        )
+        && (
+          !('legacyMigrationVersion' in data)
+          || data.legacyMigrationVersion is int
+        )
+        && (
+          !('recordsMigrationVersion' in data)
+          || data.recordsMigrationVersion is int
+        )
+        && (
+          !('recordsMigratedAt' in data)
+          || data.recordsMigratedAt is string
+        );
+    }
+
+    function isValidFeeding(data, feedingId) {
+      return data.keys().hasOnly([
+          'id',
+          'startedAt',
+          'endedAt',
+          'side',
+          'periods'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'startedAt',
+          'endedAt',
+          'side',
+          'periods'
+        ])
+        && data.id is string
+        && data.id == feedingId
+        && isValidTimestamp(data.startedAt)
+        && isNullableTimestamp(data.endedAt)
+        && (
+          data.endedAt == null
+          || data.endedAt >= data.startedAt
+        )
+        && isValidSide(data.side)
+        && (
+          data.periods == null
+          || data.periods is list
+        );
+    }
+
+    function isValidSleep(data, sleepId) {
+      return data.keys().hasOnly([
+          'id',
+          'startedAt',
+          'endedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'startedAt',
+          'endedAt'
+        ])
+        && data.id is string
+        && data.id == sleepId
+        && isValidTimestamp(data.startedAt)
+        && isNullableTimestamp(data.endedAt)
+        && (
+          data.endedAt == null
+          || data.endedAt >= data.startedAt
+        );
+    }
+
+    function isValidDiaper(data, diaperId) {
+      return data.keys().hasOnly([
+          'id',
+          'type',
+          'recordedAt'
+        ])
+        && data.keys().hasAll([
+          'id',
+          'type',
+          'recordedAt'
+        ])
+        && data.id is string
+        && data.id == diaperId
+        && (
+          data.type == 'wet'
+          || data.type == 'dirty'
+          || data.type == 'both'
+        )
+        && isValidTimestamp(data.recordedAt);
+    }
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read:
+        if isOwner(userId);
+
+      allow create, update:
+        if isOwner(userId)
+        && isValidProfile(
+          request.resource.data
+        );
+
+      allow delete:
+        if isOwner(userId);
 
       match /feedings/{feedingId} {
-        allow read, write: if isOwner(userId);
+        allow read:
+          if isOwner(userId);
+
+        allow create, update:
+          if isOwner(userId)
+          && isValidFeeding(
+            request.resource.data,
+            feedingId
+          );
+
+        allow delete:
+          if isOwner(userId);
       }
 
       match /sleeps/{sleepId} {
-        allow read, write: if isOwner(userId);
+        allow read:
+          if isOwner(userId);
+
+        allow create, update:
+          if isOwner(userId)
+          && isValidSleep(
+            request.resource.data,
+            sleepId
+          );
+
+        allow delete:
+          if isOwner(userId);
       }
 
       match /diapers/{diaperId} {
-        allow read, write: if isOwner(userId);
+        allow read:
+          if isOwner(userId);
+
+        allow create, update:
+          if isOwner(userId)
+          && isValidDiaper(
+            request.resource.data,
+            diaperId
+          );
+
+        allow delete:
+          if isOwner(userId);
       }
     }
   }
