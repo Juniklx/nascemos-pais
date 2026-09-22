@@ -31,6 +31,7 @@ export class FeedingPage {
   readonly babyName = this.onboarding.babyName;
   readonly activeFeeding = this.feedingService.activeFeeding;
   readonly storageError = this.feedingService.storageError;
+  readonly isSaving = this.feedingService.isSaving;
 
   readonly finishedFeeding = signal<Feeding | null>(null);
 
@@ -60,21 +61,33 @@ export class FeedingPage {
     });
   }
 
-  start(): void {
+  async start(): Promise<void> {
     this.finishedFeeding.set(null);
-    this.feedingService.start();
-    this.now.set(Date.now());
+
+    const feeding =
+      await this.feedingService.start();
+
+    if (feeding !== null) {
+      this.now.set(Date.now());
+    }
   }
 
-  setSide(side: FeedingSide | null): void {
-    this.feedingService.setSide(side);
-    this.now.set(Date.now());
+  async setSide(
+    side: FeedingSide | null,
+  ): Promise<void> {
+    const saved =
+      await this.feedingService.setSide(side);
+
+    if (saved) {
+      this.now.set(Date.now());
+    }
   }
 
-  finish(): void {
-    const finished = this.feedingService.finish();
+  async finish(): Promise<void> {
+    const finished =
+      await this.feedingService.finish();
 
-    if (finished) {
+    if (finished !== null) {
       this.finishedFeeding.set(finished);
       this.now.set(Date.now());
     }
@@ -87,11 +100,17 @@ export class FeedingPage {
     );
 
     const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+    const minutes = Math.floor(
+      (totalSeconds % 3600) / 60,
+    );
+
     const seconds = totalSeconds % 60;
 
     return [hours, minutes, seconds]
-      .map((value) => String(value).padStart(2, '0'))
+      .map((value) =>
+        String(value).padStart(2, '0'),
+      )
       .join(':');
   }
 }

@@ -4,22 +4,22 @@ import {
 } from '@angular/core';
 
 import {
-  Auth,
-  getAuth,
-} from 'firebase/auth';
+  Firestore,
+  getFirestore,
+} from 'firebase/firestore';
 
 import {
   FIREBASE_APP,
 } from './firebase-app';
 
-export const FIREBASE_AUTH =
-  new InjectionToken<Auth>(
-    'FIREBASE_AUTH',
+export const FIREBASE_FIRESTORE =
+  new InjectionToken<Firestore>(
+    'FIREBASE_FIRESTORE',
     {
       providedIn: 'root',
 
       factory: () =>
-        getAuth(
+        getFirestore(
           inject(FIREBASE_APP),
         ),
     },

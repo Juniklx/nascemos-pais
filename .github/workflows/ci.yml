@@ -34,11 +34,24 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
       - name: Instalar dependências
         run: npm ci
 
       - name: Compilar aplicação
         run: npm run build
 
-      - name: Executar testes
+      - name: Executar testes Angular
         run: npm test -- --watch=false --browsers=ChromeHeadless
+
+      - name: Executar testes das regras do Firestore
+        run: >
+          npx firebase-tools@latest emulators:exec
+          --only firestore
+          --project nascemos-pais
+          "npm run test:firestore-rules"

@@ -105,7 +105,7 @@ export class ProfilePage {
     this.message.set('');
   }
 
-  save(): void {
+  async save(): Promise<void> {
     this.message.set('');
     this.form.updateValueAndValidity();
     this.form.controls.babyBirthDate.updateValueAndValidity();
@@ -123,14 +123,16 @@ export class ProfilePage {
       babyBirthDate: values.babyBirthDate,
     };
 
-    const saved = this.onboarding.updateProfile(data);
+    const saved =
+      await this.onboarding
+        .updateProfile(data);
 
     if (!saved) {
       this.message.set(
-        this.storageError()
-          ? 'Os dados foram atualizados apenas nesta sessão e podem ser perdidos ao fechar a página.'
-          : 'Não foi possível atualizar o perfil. Confira os campos.',
+        this.storageError() ??
+        'Não foi possível atualizar o perfil.',
       );
+
       return;
     }
 

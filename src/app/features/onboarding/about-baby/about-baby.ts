@@ -20,6 +20,8 @@ import {
 })
 export class AboutBaby {
   private readonly onboarding = inject(OnboardingService);
+  readonly isLoading =
+    this.onboarding.isLoading;
   private readonly router = inject(Router);
   readonly storageError =
     this.onboarding.storageError;
@@ -48,18 +50,26 @@ export class AboutBaby {
     return this.form.controls.birthDate;
   }
 
-  finish(): void {
+  async finish(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.onboarding.setBabyData(
-      this.babyName.value,
-      this.birthDate.value,
-    );
+    const saved =
+      await this.onboarding
+        .setBabyData(
+          this.babyName.value,
+          this.birthDate.value,
+        );
 
-    this.router.navigate(['/home']);
+    if (!saved) {
+      return;
+    }
+
+    await this.router.navigate([
+      '/home',
+    ]);
   }
 
   babyAge(): string {
@@ -125,5 +135,5 @@ export class AboutBaby {
     return `${year}-${month}-${day}`;
   }
 
-  
+
 }

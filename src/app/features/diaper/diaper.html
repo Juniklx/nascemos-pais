@@ -19,65 +19,49 @@
     </p>
 
     @if (storageError(); as error) {
-      <p class="storage-warning" role="alert">
-        {{ error }}
-      </p>
+    <p class="storage-warning" role="alert">
+      {{ error }}
+    </p>
     }
 
     @if (savedType(); as type) {
-      <div class="success-message" role="status">
-        <strong>Fralda registrada</strong>
+    <div class="success-message" role="status">
+      <strong>Fralda registrada</strong>
 
-        <span>
-          {{ label(type) }}
-          · {{ savedAt() | date: 'HH:mm' }}
-        </span>
-      </div>
+      <span>
+        {{ label(type) }}
+        · {{ savedAt() | date: 'HH:mm' }}
+      </span>
+    </div>
     }
 
     <fieldset class="type-selector">
       <legend>Tipo de fralda</legend>
 
       <div class="type-options">
-        <button
-          type="button"
-          [class.is-selected]="selectedType() === 'wet'"
-          [attr.aria-pressed]="selectedType() === 'wet'"
-          (click)="selectType('wet')"
-        >
+        <button type="button" [class.is-selected]="selectedType() === 'wet'"
+          [attr.aria-pressed]="selectedType() === 'wet'" (click)="selectType('wet')" [disabled]="isSaving()">
           <span aria-hidden="true">💧</span>
           Molhada
         </button>
 
-        <button
-          type="button"
-          [class.is-selected]="selectedType() === 'dirty'"
-          [attr.aria-pressed]="selectedType() === 'dirty'"
-          (click)="selectType('dirty')"
-        >
+        <button type="button" [class.is-selected]="selectedType() === 'dirty'"
+          [attr.aria-pressed]="selectedType() === 'dirty'" (click)="selectType('dirty')" [disabled]="isSaving()">
           <span aria-hidden="true">●</span>
           Suja
         </button>
 
-        <button
-          type="button"
-          [class.is-selected]="selectedType() === 'both'"
-          [attr.aria-pressed]="selectedType() === 'both'"
-          (click)="selectType('both')"
-        >
+        <button type="button" [class.is-selected]="selectedType() === 'both'"
+          [attr.aria-pressed]="selectedType() === 'both'" (click)="selectType('both')" [disabled]="isSaving()">
           <span aria-hidden="true">◉</span>
           Ambas
         </button>
       </div>
     </fieldset>
 
-    <button
-      type="button"
-      class="primary-button"
-      [disabled]="selectedType() === null"
-      (click)="register()"
-    >
-      Registrar troca
+    <button type="button" class="primary-button" [disabled]="selectedType() === null || isSaving()"
+      (click)="register()">
+      {{ isSaving() ? 'Salvando...' : 'Registrar troca' }}
     </button>
   </section>
 </main>

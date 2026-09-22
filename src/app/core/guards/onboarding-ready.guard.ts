@@ -4,14 +4,13 @@ import {
 
 import {
   CanActivateFn,
-  Router,
 } from '@angular/router';
 
 import {
   OnboardingService,
 } from '../services/onboarding';
 
-export const onboardingCompleteGuard:
+export const onboardingReadyGuard:
   CanActivateFn =
   async () => {
     const onboarding =
@@ -19,20 +18,8 @@ export const onboardingCompleteGuard:
         OnboardingService,
       );
 
-    const router =
-      inject(Router);
-
     await onboarding
       .ensureLoaded();
 
-    if (
-      onboarding.isComplete()
-    ) {
-      return true;
-    }
-
-    return router.createUrlTree([
-      onboarding
-        .getIncompleteRoute(),
-    ]);
+    return true;
   };

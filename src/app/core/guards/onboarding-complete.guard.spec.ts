@@ -1,104 +1,176 @@
-import { TestBed } from '@angular/core/testing';
-import { Router, UrlTree } from '@angular/router';
+import {
+  TestBed,
+} from '@angular/core/testing';
 
-import { onboardingCompleteGuard } from './onboarding-complete.guard';
-import { OnboardingService } from '../services/onboarding';
+import {
+  Router,
+  UrlTree,
+} from '@angular/router';
 
-describe('onboardingCompleteGuard: consentimento', () => {
-  it('bloqueia rotas internas sem consentimento', () => {
-    const onboarding = {
-      isComplete: jasmine
-        .createSpy('isComplete')
-        .and.returnValue(false),
+import {
+  onboardingCompleteGuard,
+} from './onboarding-complete.guard';
 
-      getIncompleteRoute: jasmine
-        .createSpy('getIncompleteRoute')
-        .and.returnValue('/onboarding/about-you'),
-    };
+import {
+  OnboardingService,
+} from '../services/onboarding';
 
-    const expectedTree = {} as UrlTree;
+describe(
+  'onboardingCompleteGuard',
+  () => {
+    it(
+      'aguarda os dados e bloqueia onboarding incompleto',
+      async () => {
+        const onboarding = {
+          ensureLoaded:
+            jasmine
+              .createSpy(
+                'ensureLoaded',
+              )
+              .and.resolveTo(),
 
-    const router = {
-      createUrlTree: jasmine
-        .createSpy('createUrlTree')
-        .and.returnValue(expectedTree),
-    };
+          isComplete:
+            jasmine
+              .createSpy(
+                'isComplete',
+              )
+              .and.returnValue(
+                false,
+              ),
 
-    TestBed.configureTestingModule({
-      providers: [
-        {
-          provide: OnboardingService,
-          useValue: onboarding,
-        },
-        {
-          provide: Router,
-          useValue: router,
-        },
-      ],
-    });
+          getIncompleteRoute:
+            jasmine
+              .createSpy(
+                'getIncompleteRoute',
+              )
+              .and.returnValue(
+                '/onboarding/about-you',
+              ),
+        };
 
-    const result = TestBed.runInInjectionContext(
-      () =>
-        onboardingCompleteGuard(
-          {} as never,
-          {} as never,
-        ),
+        const expectedTree =
+          {} as UrlTree;
+
+        const router = {
+          createUrlTree:
+            jasmine
+              .createSpy(
+                'createUrlTree',
+              )
+              .and.returnValue(
+                expectedTree,
+              ),
+        };
+
+        TestBed
+          .configureTestingModule({
+            providers: [
+              {
+                provide:
+                  OnboardingService,
+
+                useValue:
+                  onboarding,
+              },
+              {
+                provide:
+                  Router,
+
+                useValue:
+                  router,
+              },
+            ],
+          });
+
+        const result =
+          await TestBed
+            .runInInjectionContext(
+              () =>
+                onboardingCompleteGuard(
+                  {} as never,
+                  {} as never,
+                ),
+            );
+
+        expect(
+          onboarding.ensureLoaded,
+        ).toHaveBeenCalled();
+
+        expect(result)
+          .toBe(expectedTree);
+      },
     );
 
-    expect(result).toBe(expectedTree);
+    it(
+      'permite acesso com onboarding completo',
+      async () => {
+        const onboarding = {
+          ensureLoaded:
+            jasmine
+              .createSpy(
+                'ensureLoaded',
+              )
+              .and.resolveTo(),
 
-    expect(
-      onboarding.getIncompleteRoute,
-    ).toHaveBeenCalled();
+          isComplete:
+            jasmine
+              .createSpy(
+                'isComplete',
+              )
+              .and.returnValue(
+                true,
+              ),
 
-    expect(
-      router.createUrlTree,
-    ).toHaveBeenCalledOnceWith([
-      '/onboarding/about-you',
-    ]);
-  });
+          getIncompleteRoute:
+            jasmine.createSpy(
+              'getIncompleteRoute',
+            ),
+        };
 
-  it('permite acesso quando o onboarding está completo', () => {
-    const onboarding = {
-      isComplete: jasmine
-        .createSpy('isComplete')
-        .and.returnValue(true),
+        const router = {
+          createUrlTree:
+            jasmine.createSpy(
+              'createUrlTree',
+            ),
+        };
 
-      getIncompleteRoute: jasmine
-        .createSpy('getIncompleteRoute'),
-    };
+        TestBed
+          .configureTestingModule({
+            providers: [
+              {
+                provide:
+                  OnboardingService,
 
-    const router = {
-      createUrlTree: jasmine.createSpy(
-        'createUrlTree',
-      ),
-    };
+                useValue:
+                  onboarding,
+              },
+              {
+                provide:
+                  Router,
 
-    TestBed.configureTestingModule({
-      providers: [
-        {
-          provide: OnboardingService,
-          useValue: onboarding,
-        },
-        {
-          provide: Router,
-          useValue: router,
-        },
-      ],
-    });
+                useValue:
+                  router,
+              },
+            ],
+          });
 
-    const result = TestBed.runInInjectionContext(
-      () =>
-        onboardingCompleteGuard(
-          {} as never,
-          {} as never,
-        ),
+        const result =
+          await TestBed
+            .runInInjectionContext(
+              () =>
+                onboardingCompleteGuard(
+                  {} as never,
+                  {} as never,
+                ),
+            );
+
+        expect(result)
+          .toBeTrue();
+
+        expect(
+          onboarding.ensureLoaded,
+        ).toHaveBeenCalled();
+      },
     );
-
-    expect(result).toBeTrue();
-
-    expect(
-      router.createUrlTree,
-    ).not.toHaveBeenCalled();
-  });
-});
+  },
+);

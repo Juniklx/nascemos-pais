@@ -28,6 +28,8 @@ export class SleepPage {
   readonly babyName = this.onboarding.babyName;
   readonly activeSleep = this.sleepService.activeSleep;
   readonly storageError = this.sleepService.storageError;
+  readonly isSaving = this.sleepService.isSaving;
+
   readonly finishedSleep = signal<Sleep | null>(null);
 
   readonly displayedSleep = computed(
@@ -39,7 +41,10 @@ export class SleepPage {
 
     return this.formatDuration(
       sleep
-        ? this.sleepService.duration(sleep, this.now())
+        ? this.sleepService.duration(
+            sleep,
+            this.now(),
+          )
         : 0,
     );
   });
@@ -54,16 +59,22 @@ export class SleepPage {
     });
   }
 
-  start(): void {
+  async start(): Promise<void> {
     this.finishedSleep.set(null);
-    this.sleepService.start();
-    this.now.set(Date.now());
+
+    const sleep =
+      await this.sleepService.start();
+
+    if (sleep !== null) {
+      this.now.set(Date.now());
+    }
   }
 
-  finish(): void {
-    const finished = this.sleepService.finish();
+  async finish(): Promise<void> {
+    const finished =
+      await this.sleepService.finish();
 
-    if (finished) {
+    if (finished !== null) {
       this.finishedSleep.set(finished);
       this.now.set(Date.now());
     }
@@ -75,13 +86,17 @@ export class SleepPage {
     );
 
     const hours = Math.floor(totalSeconds / 3600);
+
     const minutes = Math.floor(
       (totalSeconds % 3600) / 60,
     );
+
     const seconds = totalSeconds % 60;
 
     return [hours, minutes, seconds]
-      .map((value) => String(value).padStart(2, '0'))
+      .map((value) =>
+        String(value).padStart(2, '0'),
+      )
       .join(':');
   }
 }

@@ -20,10 +20,15 @@ import { trimmedRequired } from '../../../core/validators/onboarding.validators'
   styleUrl: './about-you.css',
 })
 export class AboutYou {
+
+
   private readonly router = inject(Router);
 
   private readonly onboarding =
     inject(OnboardingService);
+
+  readonly isLoading =
+    this.onboarding.isLoading;
 
   readonly storageError =
     this.onboarding.storageError;
@@ -53,18 +58,24 @@ export class AboutYou {
     return this.form.controls.consent;
   }
 
-  continue(): void {
+  async continue(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.onboarding.setCaregiverName(
-      this.name.value,
-      this.consent.value,
-    );
+    const saved =
+      await this.onboarding
+        .setCaregiverName(
+          this.name.value,
+          this.consent.value,
+        );
 
-    this.router.navigate([
+    if (!saved) {
+      return;
+    }
+
+    await this.router.navigate([
       '/onboarding/about-baby',
     ]);
   }

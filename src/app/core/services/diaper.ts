@@ -1,243 +1,273 @@
-import { Injectable, signal } from '@angular/core';
+import {
+  Injectable,
+  inject,
+  signal,
+} from '@angular/core';
 
 import type {
   Diaper,
   DiaperType,
 } from '../models/diaper';
 
+import {
+  ActivityPersistenceService,
+} from './activity-persistence';
+
 @Injectable({
   providedIn: 'root',
 })
 export class DiaperService {
-  private readonly storageKey = 'nascemos-pais:diapers:v1';
-  private readonly storageErrorState = signal<string | null>(null);
-  private canWriteToStorage = true;
+  private readonly persistence =
+    inject(
+      ActivityPersistenceService,
+    );
 
-  private readonly diapersState = signal<readonly Diaper[]>(
-    this.loadDiapers(),
-  );
+  private readonly savingState =
+    signal(false);
 
-  readonly diapers = this.diapersState.asReadonly();
-  readonly storageError = this.storageErrorState.asReadonly();
+  readonly diapers =
+    this.persistence.diapers;
 
-  register(type: DiaperType): Diaper {
-    const diaper: Diaper = {
-      id: crypto.randomUUID(),
-      type,
-      recordedAt: Date.now(),
-    };
+  readonly storageError =
+    this.persistence.error;
 
-    this.updateDiapers((diapers) => [
-      diaper,
-      ...diapers,
-    ]);
+  readonly isReady =
+    this.persistence.isReady;
 
-    return diaper;
+  readonly isLoading =
+    this.persistence.isLoading;
+
+  readonly isSaving =
+    this.savingState.asReadonly();
+
+  ensureLoaded():
+    Promise<void> {
+    return this.persistence
+      .load()
+      .then(() => undefined);
   }
 
-  label(type: DiaperType): string {
+  async register(
+    type: DiaperType,
+  ): Promise<Diaper | null> {
+    if (
+      !(await this.prepareWrite())
+    ) {
+      return null;
+    }
+
+    if (this.savingState()) {
+      return null;
+    }
+
+    const diaper:
+      Diaper = {
+        id:
+          crypto.randomUUID(),
+
+        type,
+
+        recordedAt:
+          Date.now(),
+      };
+
+    this.savingState.set(
+      true,
+    );
+
+    try {
+      await this.persistence
+        .saveDiaper(
+          diaper,
+        );
+
+      return diaper;
+    } catch {
+      return null;
+    } finally {
+      this.savingState.set(
+        false,
+      );
+    }
+  }
+
+  label(
+    type: DiaperType,
+  ): string {
     switch (type) {
       case 'wet':
         return 'Molhada';
+
       case 'dirty':
         return 'Suja';
+
       case 'both':
         return 'Ambas';
     }
   }
 
-  update(record: Diaper): boolean {
-    const current = this.diapersState().find(
-      (diaper) => diaper.id === record.id,
-    );
+  async update(
+    record: Diaper,
+  ): Promise<boolean> {
+    if (
+      !(await this.prepareWrite())
+    ) {
+      return false;
+    }
+
+    const current =
+      this.diapers()
+        .find(
+          (diaper) =>
+            diaper.id ===
+            record.id,
+        );
 
     if (!current) {
       return false;
     }
 
-    let validated: Diaper;
+    let validated:
+      Diaper;
 
     try {
-      validated = this.parseDiaper(record);
+      validated =
+        this.parseDiaper(
+          record,
+        );
     } catch {
       return false;
     }
 
-    this.updateDiapers((diapers) =>
-      diapers.map((diaper) =>
-        diaper.id === validated.id
-          ? validated
-          : diaper,
-      ),
+    if (this.savingState()) {
+      return false;
+    }
+
+    this.savingState.set(
+      true,
     );
 
-    return true;
+    try {
+      await this.persistence
+        .saveDiaper(
+          validated,
+        );
+
+      return true;
+    } catch {
+      return false;
+    } finally {
+      this.savingState.set(
+        false,
+      );
+    }
   }
 
-  remove(id: string): boolean {
-    const exists = this.diapersState().some(
-      (diaper) => diaper.id === id,
-    );
+  async remove(
+    id: string,
+  ): Promise<boolean> {
+    if (
+      !(await this.prepareWrite())
+    ) {
+      return false;
+    }
+
+    const exists =
+      this.diapers()
+        .some(
+          (diaper) =>
+            diaper.id === id,
+        );
 
     if (!exists) {
       return false;
     }
 
-    this.updateDiapers((diapers) =>
-      diapers.filter((diaper) => diaper.id !== id),
-    );
-
-    return true;
-  }
-
-  private updateDiapers(
-    update: (
-      current: readonly Diaper[],
-    ) => readonly Diaper[],
-  ): void {
-    const previous = this.diapersState();
-    const requested = update(previous);
-    const stored = this.readStoredDiapers();
-
-    const changedIds = new Set<string>();
-
-    const removedIds = new Set(
-      previous
-        .filter(
-          (previousDiaper) =>
-            !requested.some(
-              (diaper) =>
-                diaper.id === previousDiaper.id,
-            ),
-        )
-        .map((diaper) => diaper.id),
-    );
-
-    for (const diaper of requested) {
-      const previousDiaper = previous.find(
-        (item) => item.id === diaper.id,
-      );
-
-      if (
-        previousDiaper === undefined ||
-        JSON.stringify(previousDiaper) !==
-        JSON.stringify(diaper)
-      ) {
-        changedIds.add(diaper.id);
-      }
+    if (this.savingState()) {
+      return false;
     }
 
-    const merged = stored.filter(
-      (diaper) =>
-        !changedIds.has(diaper.id) &&
-        !removedIds.has(diaper.id),
+    this.savingState.set(
+      true,
     );
-
-    for (const diaper of requested) {
-      if (changedIds.has(diaper.id)) {
-        merged.push(diaper);
-      }
-    }
-
-    merged.sort(
-      (a, b) => b.recordedAt - a.recordedAt,
-    );
-
-    this.diapersState.set(merged);
-
-    if (!this.canWriteToStorage) {
-      return;
-    }
 
     try {
-      localStorage.setItem(
-        this.storageKey,
-        JSON.stringify(merged),
-      );
+      await this.persistence
+        .deleteDiaper(
+          id,
+        );
 
-      this.storageErrorState.set(null);
+      return true;
     } catch {
-      this.storageErrorState.set(
-        'Não foi possível salvar. O registro está apenas nesta sessão.',
+      return false;
+    } finally {
+      this.savingState.set(
+        false,
       );
     }
   }
 
-  private readStoredDiapers(): Diaper[] {
+  private async prepareWrite():
+    Promise<boolean> {
     try {
-      const saved = localStorage.getItem(
-        this.storageKey,
-      );
+      await this.ensureLoaded();
 
-      if (saved === null) {
-        return [...this.diapersState()];
-      }
-
-      const parsed: unknown = JSON.parse(saved);
-
-      if (!Array.isArray(parsed)) {
-        return [...this.diapersState()];
-      }
-
-      return parsed.map((item: unknown) =>
-        this.parseDiaper(item),
+      return (
+        this.persistence
+          .isReady()
       );
     } catch {
-      return [...this.diapersState()];
+      return false;
     }
   }
 
-  private loadDiapers(): readonly Diaper[] {
-    try {
-      const saved = localStorage.getItem(
-        this.storageKey,
-      );
-
-      if (saved === null) {
-        return [];
-      }
-
-      const parsed: unknown = JSON.parse(saved);
-
-      if (!Array.isArray(parsed)) {
-        throw new Error('Formato inválido.');
-      }
-
-      return parsed.map((item: unknown) =>
-        this.parseDiaper(item),
-      );
-    } catch {
-      this.canWriteToStorage = false;
-
-      this.storageErrorState.set(
-        'Não foi possível recuperar os registros de fralda.',
-      );
-
-      return [];
-    }
-  }
-
-  private parseDiaper(value: unknown): Diaper {
+  private parseDiaper(
+    value: unknown,
+  ): Diaper {
     if (
-      typeof value !== 'object' ||
+      typeof value !==
+        'object' ||
       value === null ||
-      Array.isArray(value)
+      Array.isArray(
+        value,
+      )
     ) {
-      throw new Error('Registro inválido.');
+      throw new Error(
+        'Registro inválido.',
+      );
     }
 
-    const item = value as Record<string, unknown>;
-    const id = item['id'];
-    const type = item['type'];
-    const recordedAt = item['recordedAt'];
+    const item =
+      value as Record<
+        string,
+        unknown
+      >;
+
+    const id =
+      item['id'];
+
+    const type =
+      item['type'];
+
+    const recordedAt =
+      item['recordedAt'];
 
     if (
-      typeof id !== 'string' ||
-      id.trim().length === 0 ||
-      !this.isDiaperType(type) ||
-      !this.isTimestamp(recordedAt)
+      typeof id !==
+        'string' ||
+      id.trim().length ===
+        0 ||
+      id.includes('/') ||
+      !this.isDiaperType(
+        type,
+      ) ||
+      !this.isTimestamp(
+        recordedAt,
+      )
     ) {
-      throw new Error('Dados de fralda inválidos.');
+      throw new Error(
+        'Dados de fralda inválidos.',
+      );
     }
 
     return {
@@ -249,20 +279,30 @@ export class DiaperService {
 
   private isDiaperType(
     value: unknown,
-  ): value is DiaperType {
+  ): value is
+    DiaperType {
     return (
-      value === 'wet' ||
-      value === 'dirty' ||
-      value === 'both'
+      value ===
+        'wet' ||
+      value ===
+        'dirty' ||
+      value ===
+        'both'
     );
   }
 
-  private isTimestamp(value: unknown): value is number {
+  private isTimestamp(
+    value: unknown,
+  ): value is number {
     return (
-      typeof value === 'number' &&
-      Number.isSafeInteger(value) &&
+      typeof value ===
+        'number' &&
+      Number.isSafeInteger(
+        value,
+      ) &&
       value >= 0 &&
-      value <= 8_640_000_000_000_000
+      value <=
+        8_640_000_000_000_000
     );
   }
 }

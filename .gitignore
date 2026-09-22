@@ -44,3 +44,7 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Firebase Emulator
+firebase-debug.log
+firestore-debug.log

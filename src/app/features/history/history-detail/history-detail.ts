@@ -22,24 +22,35 @@ import type {
   FeedingSide,
 } from '../../../core/models/feeding';
 
-import type { Sleep } from '../../../core/models/sleep';
-import { DiaperService } from '../../../core/services/diaper';
-import { FeedingService } from '../../../core/services/feeding';
-import { SleepService } from '../../../core/services/sleep';
+import type {
+  Sleep,
+} from '../../../core/models/sleep';
+
+import {
+  DiaperService,
+} from '../../../core/services/diaper';
+
+import {
+  FeedingService,
+} from '../../../core/services/feeding';
+
+import {
+  SleepService,
+} from '../../../core/services/sleep';
 
 type HistoryActivity =
   | {
-    kind: 'feeding';
-    record: Feeding;
-  }
+      kind: 'feeding';
+      record: Feeding;
+    }
   | {
-    kind: 'sleep';
-    record: Sleep;
-  }
+      kind: 'sleep';
+      record: Sleep;
+    }
   | {
-    kind: 'diaper';
-    record: Diaper;
-  };
+      kind: 'diaper';
+      record: Diaper;
+    };
 
 type FeedingSideSelection =
   | 'keep'
@@ -48,90 +59,202 @@ type FeedingSideSelection =
   | 'none';
 
 @Component({
-  selector: 'app-history-detail',
-  imports: [RouterLink],
-  templateUrl: './history-detail.html',
-  styleUrl: './history-detail.css',
+  selector:
+    'app-history-detail',
+
+  imports: [
+    RouterLink,
+  ],
+
+  templateUrl:
+    './history-detail.html',
+
+  styleUrl:
+    './history-detail.css',
 })
 export class HistoryDetail {
-  private readonly route = inject(ActivatedRoute);
-  private readonly feedingService = inject(FeedingService);
-  private readonly sleepService = inject(SleepService);
-  private readonly diaperService = inject(DiaperService);
-  private readonly router = inject(Router);
+  private readonly route =
+    inject(
+      ActivatedRoute,
+    );
 
-  readonly confirmingDelete = signal(false);
-  readonly deleteError = signal<string | null>(null);
-  readonly editing = signal(false);
-  readonly editError = signal<string | null>(null);
+  private readonly feedingService =
+    inject(
+      FeedingService,
+    );
 
-  readonly startedAtInput = signal('');
-  readonly endedAtInput = signal('');
+  private readonly sleepService =
+    inject(
+      SleepService,
+    );
+
+  private readonly diaperService =
+    inject(
+      DiaperService,
+    );
+
+  private readonly router =
+    inject(
+      Router,
+    );
+
+  readonly confirmingDelete =
+    signal(false);
+
+  readonly deleteError =
+    signal<string | null>(
+      null,
+    );
+
+  readonly editing =
+    signal(false);
+
+  readonly editError =
+    signal<string | null>(
+      null,
+    );
+
+  readonly startedAtInput =
+    signal('');
+
+  readonly endedAtInput =
+    signal('');
 
   readonly feedingSideInput =
-    signal<FeedingSideSelection>('keep');
+    signal<FeedingSideSelection>(
+      'keep',
+    );
 
   readonly diaperTypeInput =
-    signal<DiaperType>('wet');
+    signal<DiaperType>(
+      'wet',
+    );
+
+  readonly isSaving =
+    computed(
+      () =>
+        this.feedingService
+          .isSaving() ||
+        this.sleepService
+          .isSaving() ||
+        this.diaperService
+          .isSaving(),
+    );
+
   private readonly type =
-    this.route.snapshot.paramMap.get('type');
+    this.route
+      .snapshot
+      .paramMap
+      .get('type');
 
   private readonly id =
-    this.route.snapshot.paramMap.get('id');
+    this.route
+      .snapshot
+      .paramMap
+      .get('id');
 
-  readonly activity = computed<HistoryActivity | null>(() => {
-    if (!this.id) {
-      return null;
-    }
+  readonly activity =
+    computed<
+      HistoryActivity | null
+    >(
+      () => {
+        if (!this.id) {
+          return null;
+        }
 
-    switch (this.type) {
-      case 'feeding': {
-        const record = this.feedingService
-          .feedings()
-          .find((feeding) => feeding.id === this.id);
+        switch (
+          this.type
+        ) {
+          case 'feeding': {
+            const record =
+              this.feedingService
+                .feedings()
+                .find(
+                  (feeding) =>
+                    feeding.id ===
+                    this.id,
+                );
 
-        return record
-          ? { kind: 'feeding', record }
-          : null;
-      }
+            return record
+              ? {
+                  kind:
+                    'feeding',
 
-      case 'sleep': {
-        const record = this.sleepService
-          .sleeps()
-          .find((sleep) => sleep.id === this.id);
+                  record,
+                }
+              : null;
+          }
 
-        return record
-          ? { kind: 'sleep', record }
-          : null;
-      }
+          case 'sleep': {
+            const record =
+              this.sleepService
+                .sleeps()
+                .find(
+                  (sleep) =>
+                    sleep.id ===
+                    this.id,
+                );
 
-      case 'diaper': {
-        const record = this.diaperService
-          .diapers()
-          .find((diaper) => diaper.id === this.id);
+            return record
+              ? {
+                  kind:
+                    'sleep',
 
-        return record
-          ? { kind: 'diaper', record }
-          : null;
-      }
+                  record,
+                }
+              : null;
+          }
 
-      default:
-        return null;
-    }
-  });
+          case 'diaper': {
+            const record =
+              this.diaperService
+                .diapers()
+                .find(
+                  (diaper) =>
+                    diaper.id ===
+                    this.id,
+                );
+
+            return record
+              ? {
+                  kind:
+                    'diaper',
+
+                  record,
+                }
+              : null;
+          }
+
+          default:
+            return null;
+        }
+      },
+    );
 
   requestDelete(): void {
-    this.deleteError.set(null);
-    this.confirmingDelete.set(true);
+    this.deleteError.set(
+      null,
+    );
+
+    this.confirmingDelete.set(
+      true,
+    );
   }
 
   cancelDelete(): void {
-    this.deleteError.set(null);
-    this.confirmingDelete.set(false);
+    this.deleteError.set(
+      null,
+    );
+
+    this.confirmingDelete.set(
+      false,
+    );
   }
 
-  confirmDelete(): void {
-    const activity = this.activity();
+  async confirmDelete():
+    Promise<void> {
+    const activity =
+      this.activity();
 
     if (!activity) {
       this.deleteError.set(
@@ -141,55 +264,90 @@ export class HistoryDetail {
       return;
     }
 
-    let removed = false;
+    this.deleteError.set(
+      null,
+    );
 
-    switch (activity.kind) {
+    let removed =
+      false;
+
+    switch (
+      activity.kind
+    ) {
       case 'feeding':
         removed =
-          this.feedingService.removeCompleted(
-            activity.record.id,
-          );
+          await this.feedingService
+            .removeCompleted(
+              activity
+                .record
+                .id,
+            );
         break;
 
       case 'sleep':
         removed =
-          this.sleepService.removeCompleted(
-            activity.record.id,
-          );
+          await this.sleepService
+            .removeCompleted(
+              activity
+                .record
+                .id,
+            );
         break;
 
       case 'diaper':
         removed =
-          this.diaperService.remove(
-            activity.record.id,
-          );
+          await this.diaperService
+            .remove(
+              activity
+                .record
+                .id,
+            );
         break;
     }
 
     if (!removed) {
       this.deleteError.set(
-        'Não foi possível excluir o registro.',
+        this.syncError() ??
+          'Não foi possível excluir o registro.',
       );
 
       return;
     }
 
-    void this.router.navigate(['/history']);
+    this.confirmingDelete.set(
+      false,
+    );
+
+    await this.router.navigate([
+      '/history',
+    ]);
   }
 
   startEditing(): void {
-    const activity = this.activity();
+    const activity =
+      this.activity();
 
     if (!activity) {
       return;
     }
 
-    this.confirmingDelete.set(false);
-    this.editError.set(null);
+    this.confirmingDelete.set(
+      false,
+    );
 
-    switch (activity.kind) {
+    this.editError.set(
+      null,
+    );
+
+    switch (
+      activity.kind
+    ) {
       case 'feeding':
-        if (activity.record.endedAt === null) {
+        if (
+          activity.record
+            .endedAt ===
+          null
+        ) {
           this.editError.set(
             'Somente mamadas concluídas podem ser editadas.',
           );
@@ -199,21 +357,30 @@ export class HistoryDetail {
 
         this.startedAtInput.set(
           this.toDateTimeInput(
-            activity.record.startedAt,
+            activity.record
+              .startedAt,
           ),
         );
 
         this.endedAtInput.set(
           this.toDateTimeInput(
-            activity.record.endedAt,
+            activity.record
+              .endedAt,
           ),
         );
 
-        this.feedingSideInput.set('keep');
+        this.feedingSideInput.set(
+          'keep',
+        );
+
         break;
 
       case 'sleep':
-        if (activity.record.endedAt === null) {
+        if (
+          activity.record
+            .endedAt ===
+          null
+        ) {
           this.editError.set(
             'Somente períodos de sono concluídos podem ser editados.',
           );
@@ -223,53 +390,82 @@ export class HistoryDetail {
 
         this.startedAtInput.set(
           this.toDateTimeInput(
-            activity.record.startedAt,
+            activity.record
+              .startedAt,
           ),
         );
 
         this.endedAtInput.set(
           this.toDateTimeInput(
-            activity.record.endedAt,
+            activity.record
+              .endedAt,
           ),
         );
+
         break;
 
       case 'diaper':
         this.startedAtInput.set(
           this.toDateTimeInput(
-            activity.record.recordedAt,
+            activity.record
+              .recordedAt,
           ),
         );
 
-        this.endedAtInput.set('');
-        this.diaperTypeInput.set(
-          activity.record.type,
+        this.endedAtInput.set(
+          '',
         );
+
+        this.diaperTypeInput.set(
+          activity.record
+            .type,
+        );
+
         break;
     }
 
-    this.editing.set(true);
+    this.editing.set(
+      true,
+    );
   }
 
   cancelEditing(): void {
-    this.editError.set(null);
-    this.editing.set(false);
+    this.editError.set(
+      null,
+    );
+
+    this.editing.set(
+      false,
+    );
   }
 
-  onStartedAtInput(event: Event): void {
+  onStartedAtInput(
+    event: Event,
+  ): void {
     this.startedAtInput.set(
-      this.readControlValue(event),
+      this.readControlValue(
+        event,
+      ),
     );
   }
 
-  onEndedAtInput(event: Event): void {
+  onEndedAtInput(
+    event: Event,
+  ): void {
     this.endedAtInput.set(
-      this.readControlValue(event),
+      this.readControlValue(
+        event,
+      ),
     );
   }
 
-  onFeedingSideInput(event: Event): void {
-    const value = this.readControlValue(event);
+  onFeedingSideInput(
+    event: Event,
+  ): void {
+    const value =
+      this.readControlValue(
+        event,
+      );
 
     if (
       value === 'keep' ||
@@ -277,26 +473,38 @@ export class HistoryDetail {
       value === 'right' ||
       value === 'none'
     ) {
-      this.feedingSideInput.set(value);
+      this.feedingSideInput.set(
+        value,
+      );
     }
   }
 
-  onDiaperTypeInput(event: Event): void {
-    const value = this.readControlValue(event);
+  onDiaperTypeInput(
+    event: Event,
+  ): void {
+    const value =
+      this.readControlValue(
+        event,
+      );
 
     if (
       value === 'wet' ||
       value === 'dirty' ||
       value === 'both'
     ) {
-      this.diaperTypeInput.set(value);
+      this.diaperTypeInput.set(
+        value,
+      );
     }
   }
 
-  saveEditing(event: Event): void {
+  async saveEditing(
+    event: Event,
+  ): Promise<void> {
     event.preventDefault();
 
-    const activity = this.activity();
+    const activity =
+      this.activity();
 
     if (!activity) {
       this.editError.set(
@@ -306,170 +514,328 @@ export class HistoryDetail {
       return;
     }
 
-    this.editError.set(null);
+    this.editError.set(
+      null,
+    );
 
-    let saved = false;
+    let saved =
+      false;
 
-    switch (activity.kind) {
+    switch (
+      activity.kind
+    ) {
       case 'feeding':
-        saved = this.saveFeeding(activity.record);
+        saved =
+          await this.saveFeeding(
+            activity.record,
+          );
         break;
 
       case 'sleep':
-        saved = this.saveSleep(activity.record);
+        saved =
+          await this.saveSleep(
+            activity.record,
+          );
         break;
 
       case 'diaper':
-        saved = this.saveDiaper(activity.record);
+        saved =
+          await this.saveDiaper(
+            activity.record,
+          );
         break;
     }
 
-    if (!saved && this.editError() === null) {
+    if (
+      !saved &&
+      this.editError() ===
+        null
+    ) {
       this.editError.set(
-        'Não foi possível salvar as alterações.',
+        this.syncError() ??
+          'Não foi possível salvar as alterações.',
       );
 
       return;
     }
 
     if (saved) {
-      this.editing.set(false);
+      this.editing.set(
+        false,
+      );
     }
   }
 
-  feedingDuration(record: Feeding): number {
-    return this.feedingService.durations(record).total;
+  feedingDuration(
+    record: Feeding,
+  ): number {
+    return (
+      this.feedingService
+        .durations(
+          record,
+        )
+        .total
+    );
   }
 
-  feedingLeftDuration(record: Feeding): number {
-    return this.feedingService.durations(record).left;
+  feedingLeftDuration(
+    record: Feeding,
+  ): number {
+    return (
+      this.feedingService
+        .durations(
+          record,
+        )
+        .left
+    );
   }
 
-  feedingRightDuration(record: Feeding): number {
-    return this.feedingService.durations(record).right;
+  feedingRightDuration(
+    record: Feeding,
+  ): number {
+    return (
+      this.feedingService
+        .durations(
+          record,
+        )
+        .right
+    );
   }
 
-  feedingUnspecifiedDuration(record: Feeding): number {
+  feedingUnspecifiedDuration(
+    record: Feeding,
+  ): number {
     const durations =
-      this.feedingService.durations(record);
+      this.feedingService
+        .durations(
+          record,
+        );
 
-    return durations.unspecified + durations.untracked;
-  }
-
-  sleepDuration(record: Sleep): number {
-    return this.sleepService.duration(record);
-  }
-
-  diaperLabel(record: Diaper): string {
-    return this.diaperService.label(record.type);
-  }
-
-  formatDateTime(timestamp: number): string {
-    return new Intl.DateTimeFormat('pt-BR', {
-      dateStyle: 'long',
-      timeStyle: 'short',
-    }).format(new Date(timestamp));
-  }
-
-  formatDuration(milliseconds: number): string {
-    const totalSeconds = Math.max(
-      0,
-      Math.floor(milliseconds / 1000),
+    return (
+      durations.unspecified +
+      durations.untracked
     );
+  }
 
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor(
-      (totalSeconds % 3600) / 60,
-    );
-    const seconds = totalSeconds % 60;
+  sleepDuration(
+    record: Sleep,
+  ): number {
+    return this.sleepService
+      .duration(
+        record,
+      );
+  }
 
-    const parts: string[] = [];
+  diaperLabel(
+    record: Diaper,
+  ): string {
+    return this.diaperService
+      .label(
+        record.type,
+      );
+  }
+
+  formatDateTime(
+    timestamp: number,
+  ): string {
+    return new Intl
+      .DateTimeFormat(
+        'pt-BR',
+        {
+          dateStyle:
+            'long',
+
+          timeStyle:
+            'short',
+        },
+      )
+      .format(
+        new Date(
+          timestamp,
+        ),
+      );
+  }
+
+  formatDuration(
+    milliseconds: number,
+  ): string {
+    const totalSeconds =
+      Math.max(
+        0,
+
+        Math.floor(
+          milliseconds /
+            1000,
+        ),
+      );
+
+    const hours =
+      Math.floor(
+        totalSeconds /
+          3600,
+      );
+
+    const minutes =
+      Math.floor(
+        (
+          totalSeconds %
+          3600
+        ) /
+          60,
+      );
+
+    const seconds =
+      totalSeconds % 60;
+
+    const parts:
+      string[] = [];
 
     if (hours > 0) {
-      parts.push(`${hours}h`);
+      parts.push(
+        `${hours}h`,
+      );
     }
 
     if (minutes > 0) {
-      parts.push(`${minutes}min`);
+      parts.push(
+        `${minutes}min`,
+      );
     }
 
-    if (seconds > 0 || parts.length === 0) {
-      parts.push(`${seconds}s`);
+    if (
+      seconds > 0 ||
+      parts.length === 0
+    ) {
+      parts.push(
+        `${seconds}s`,
+      );
     }
 
-    return parts.join(' ');
+    return parts.join(
+      ' ',
+    );
   }
-  private saveFeeding(record: Feeding): boolean {
-    if (record.endedAt === null) {
+
+  private async saveFeeding(
+    record: Feeding,
+  ): Promise<boolean> {
+    if (
+      record.endedAt ===
+      null
+    ) {
       return false;
     }
 
-    const range = this.readDateRange();
+    const range =
+      this.readDateRange();
 
     if (!range) {
       return false;
     }
 
-    const selection = this.feedingSideInput();
+    const selection =
+      this.feedingSideInput();
 
-    let periods: readonly FeedingPeriod[] | null;
-    let side: FeedingSide | null;
+    let periods:
+      readonly FeedingPeriod[] |
+      null;
 
-    if (selection === 'keep') {
-      periods = this.resizeFeedingPeriods(
-        record,
-        range.startedAt,
-        range.endedAt,
-      );
+    let side:
+      FeedingSide | null;
+
+    if (
+      selection ===
+      'keep'
+    ) {
+      periods =
+        this.resizeFeedingPeriods(
+          record,
+          range.startedAt,
+          range.endedAt,
+        );
 
       side =
-        periods && periods.length > 0
-          ? periods[periods.length - 1].side
+        periods &&
+        periods.length > 0
+          ? periods[
+              periods.length -
+                1
+            ].side
           : record.side;
     } else {
       side =
-        selection === 'none'
+        selection ===
+        'none'
           ? null
           : selection;
 
       periods = [
         {
-          startedAt: range.startedAt,
-          endedAt: range.endedAt,
+          startedAt:
+            range.startedAt,
+
+          endedAt:
+            range.endedAt,
+
           side,
         },
       ];
     }
 
-    return this.feedingService.updateCompleted({
-      ...record,
-      startedAt: range.startedAt,
-      endedAt: range.endedAt,
-      side,
-      periods,
-    });
+    return (
+      await this.feedingService
+        .updateCompleted({
+          ...record,
+
+          startedAt:
+            range.startedAt,
+
+          endedAt:
+            range.endedAt,
+
+          side,
+
+          periods,
+        })
+    );
   }
 
-  private saveSleep(record: Sleep): boolean {
-    const range = this.readDateRange();
+  private async saveSleep(
+    record: Sleep,
+  ): Promise<boolean> {
+    const range =
+      this.readDateRange();
 
     if (!range) {
       return false;
     }
 
-    return this.sleepService.updateCompleted({
-      ...record,
-      startedAt: range.startedAt,
-      endedAt: range.endedAt,
-    });
+    return (
+      await this.sleepService
+        .updateCompleted({
+          ...record,
+
+          startedAt:
+            range.startedAt,
+
+          endedAt:
+            range.endedAt,
+        })
+    );
   }
 
-  private saveDiaper(record: Diaper): boolean {
-    const recordedAt = this.parseDateTimeInput(
-      this.startedAtInput(),
-    );
+  private async saveDiaper(
+    record: Diaper,
+  ): Promise<boolean> {
+    const recordedAt =
+      this.parseDateTimeInput(
+        this.startedAtInput(),
+      );
 
-    if (recordedAt === null) {
+    if (
+      recordedAt ===
+      null
+    ) {
       this.editError.set(
         'Informe uma data e um horário válidos.',
       );
@@ -477,7 +843,10 @@ export class HistoryDetail {
       return false;
     }
 
-    if (recordedAt > Date.now()) {
+    if (
+      recordedAt >
+      Date.now()
+    ) {
       this.editError.set(
         'O horário do registro não pode estar no futuro.',
       );
@@ -485,26 +854,49 @@ export class HistoryDetail {
       return false;
     }
 
-    return this.diaperService.update({
-      ...record,
-      recordedAt,
-      type: this.diaperTypeInput(),
-    });
+    return (
+      await this.diaperService
+        .update({
+          ...record,
+
+          recordedAt,
+
+          type:
+            this.diaperTypeInput(),
+        })
+    );
+  }
+
+  private syncError():
+    string | null {
+    return (
+      this.feedingService
+        .storageError() ??
+      this.sleepService
+        .storageError() ??
+      this.diaperService
+        .storageError()
+    );
   }
 
   private readDateRange(): {
     startedAt: number;
     endedAt: number;
   } | null {
-    const startedAt = this.parseDateTimeInput(
-      this.startedAtInput(),
-    );
+    const startedAt =
+      this.parseDateTimeInput(
+        this.startedAtInput(),
+      );
 
-    const endedAt = this.parseDateTimeInput(
-      this.endedAtInput(),
-    );
+    const endedAt =
+      this.parseDateTimeInput(
+        this.endedAtInput(),
+      );
 
-    if (startedAt === null || endedAt === null) {
+    if (
+      startedAt === null ||
+      endedAt === null
+    ) {
       this.editError.set(
         'Informe a data e o horário de início e fim.',
       );
@@ -512,7 +904,10 @@ export class HistoryDetail {
       return null;
     }
 
-    if (endedAt < startedAt) {
+    if (
+      endedAt <
+      startedAt
+    ) {
       this.editError.set(
         'O horário final não pode ser anterior ao início.',
       );
@@ -520,7 +915,12 @@ export class HistoryDetail {
       return null;
     }
 
-    if (startedAt > Date.now() || endedAt > Date.now()) {
+    if (
+      startedAt >
+        Date.now() ||
+      endedAt >
+        Date.now()
+    ) {
       this.editError.set(
         'Os horários não podem estar no futuro.',
       );
@@ -528,63 +928,105 @@ export class HistoryDetail {
       return null;
     }
 
-    return { startedAt, endedAt };
+    return {
+      startedAt,
+      endedAt,
+    };
   }
 
   private resizeFeedingPeriods(
     record: Feeding,
     startedAt: number,
     endedAt: number,
-  ): readonly FeedingPeriod[] | null {
+  ):
+    readonly FeedingPeriod[] |
+    null {
     if (
-      record.periods === null ||
-      record.periods.length === 0 ||
-      record.endedAt === null
+      record.periods ===
+        null ||
+      record.periods
+        .length === 0 ||
+      record.endedAt ===
+        null
     ) {
       return null;
     }
 
-    const previousDuration = Math.max(
-      1,
-      record.endedAt - record.startedAt,
-    );
+    const previousDuration =
+      Math.max(
+        1,
 
-    const nextDuration = endedAt - startedAt;
+        record.endedAt -
+          record.startedAt,
+      );
 
-    let cursor = startedAt;
+    const nextDuration =
+      endedAt -
+      startedAt;
 
-    return record.periods.map((period, index) => {
-      const isLast =
-        index === record.periods!.length - 1;
+    let cursor =
+      startedAt;
 
-      const previousEnd =
-        period.endedAt ?? record.endedAt!;
+    return record.periods
+      .map(
+        (
+          period,
+          index,
+        ) => {
+          const isLast =
+            index ===
+            record.periods!
+              .length -
+              1;
 
-      const relativeEnd =
-        (previousEnd - record.startedAt) /
-        previousDuration;
+          const previousEnd =
+            period.endedAt ??
+            record.endedAt!;
 
-      const calculatedEnd =
-        startedAt +
-        Math.round(relativeEnd * nextDuration);
+          const relativeEnd =
+            (
+              previousEnd -
+              record.startedAt
+            ) /
+            previousDuration;
 
-      const periodEnd = isLast
-        ? endedAt
-        : Math.min(
-          endedAt,
-          Math.max(cursor, calculatedEnd),
-        );
+          const calculatedEnd =
+            startedAt +
+            Math.round(
+              relativeEnd *
+                nextDuration,
+            );
 
-      const resized: FeedingPeriod = {
-        startedAt: cursor,
-        endedAt: periodEnd,
-        side: period.side,
-      };
+          const periodEnd =
+            isLast
+              ? endedAt
+              : Math.min(
+                  endedAt,
 
-      cursor = periodEnd;
+                  Math.max(
+                    cursor,
+                    calculatedEnd,
+                  ),
+                );
 
-      return resized;
-    });
+          const resized:
+            FeedingPeriod = {
+              startedAt:
+                cursor,
+
+              endedAt:
+                periodEnd,
+
+              side:
+                period.side,
+            };
+
+          cursor =
+            periodEnd;
+
+          return resized;
+        },
+      );
   }
 
   private parseDateTimeInput(
@@ -594,38 +1036,70 @@ export class HistoryDetail {
       return null;
     }
 
-    const timestamp = new Date(value).getTime();
+    const timestamp =
+      new Date(
+        value,
+      ).getTime();
 
-    return Number.isFinite(timestamp)
+    return Number.isFinite(
+      timestamp,
+    )
       ? timestamp
       : null;
   }
 
-  private toDateTimeInput(timestamp: number): string {
-    const date = new Date(timestamp);
+  private toDateTimeInput(
+    timestamp: number,
+  ): string {
+    const date =
+      new Date(
+        timestamp,
+      );
 
-    const pad = (value: number): string =>
-      value.toString().padStart(2, '0');
+    const pad =
+      (
+        value: number,
+      ): string =>
+        value
+          .toString()
+          .padStart(
+            2,
+            '0',
+          );
 
     return [
       date.getFullYear(),
       '-',
-      pad(date.getMonth() + 1),
+      pad(
+        date.getMonth() +
+          1,
+      ),
       '-',
-      pad(date.getDate()),
+      pad(
+        date.getDate(),
+      ),
       'T',
-      pad(date.getHours()),
+      pad(
+        date.getHours(),
+      ),
       ':',
-      pad(date.getMinutes()),
+      pad(
+        date.getMinutes(),
+      ),
     ].join('');
   }
 
-  private readControlValue(event: Event): string {
-    const target = event.target;
+  private readControlValue(
+    event: Event,
+  ): string {
+    const target =
+      event.target;
 
     if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLSelectElement
+      target instanceof
+        HTMLInputElement ||
+      target instanceof
+        HTMLSelectElement
     ) {
       return target.value;
     }
