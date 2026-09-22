@@ -3,9 +3,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     function isOwner(userId) {
-      return request.auth != null
+      return isAuthenticated()
         && request.auth.uid == userId;
+    }
+
+    function isBabyMember(babyId) {
+      return isAuthenticated()
+        && exists(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(request.auth.uid)
+        );
+    }
+
+    function isBabyOwner(babyId) {
+      return isBabyMember(babyId)
+        && get(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(request.auth.uid)
+        ).data.role == 'owner';
+    }
+
+    function isCreatingInitialOwner(
+      babyId,
+      memberId
+    ) {
+      return isAuthenticated()
+        && memberId == request.auth.uid
+        && request.resource.data.role == 'owner'
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)
+        ).data.createdByUid == request.auth.uid;
     }
 
     function isValidTimestamp(value) {
@@ -74,6 +104,48 @@ service cloud.firestore {
           !('recordsMigratedAt' in data)
           || data.recordsMigratedAt is string
         );
+    }
+
+    function isValidBaby(data) {
+      return data.keys().hasOnly([
+          'name',
+          'birthDate',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'name',
+          'birthDate',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && data.birthDate is string
+        && data.birthDate.size() == 10
+        && data.createdByUid is string
+        && data.createdByUid.size() > 0
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidBabyMember(data) {
+      return data.keys().hasOnly([
+          'role',
+          'joinedAt'
+        ])
+        && data.keys().hasAll([
+          'role',
+          'joinedAt'
+        ])
+        && (
+          data.role == 'owner'
+          || data.role == 'caregiver'
+        )
+        && data.joinedAt is string;
     }
 
     function isValidFeeding(data, feedingId) {
@@ -148,6 +220,12 @@ service cloud.firestore {
         && isValidTimestamp(data.recordedAt);
     }
 
+    /*
+     * Estrutura legada.
+     *
+     * Continua ativa durante a migração
+     * para a estrutura baseada em bebê.
+     */
     match /users/{userId} {
       allow read:
         if isOwner(userId);
@@ -204,6 +282,154 @@ service cloud.firestore {
 
         allow delete:
           if isOwner(userId);
+      }
+    }
+
+    /*
+     * Nova estrutura compartilhada.
+     */
+    match /babies/{babyId} {
+      allow create:
+        if isAuthenticated()
+        && isValidBaby(
+          request.resource.data
+        )
+        && request.resource.data.createdByUid
+          == request.auth.uid;
+
+      allow read:
+        if isBabyMember(
+          babyId
+        );
+
+      allow update:
+        if isBabyOwner(
+          babyId
+        )
+        && isValidBaby(
+          request.resource.data
+        )
+        && request.resource.data.createdByUid
+          == resource.data.createdByUid
+        && request.resource.data.createdAt
+          == resource.data.createdAt;
+
+      /*
+       * Exclusão completa do bebê ainda
+       * não faz parte deste MVP.
+       */
+      allow delete:
+        if false;
+
+      match /members/{memberId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create:
+          if isValidBabyMember(
+            request.resource.data
+          )
+          && (
+            isCreatingInitialOwner(
+              babyId,
+              memberId
+            )
+            ||
+            (
+              isBabyOwner(
+                babyId
+              )
+              && request.resource.data.role
+                == 'caregiver'
+            )
+          );
+
+        /*
+         * Por enquanto o papel não é alterado.
+         * Um responsável pode ser removido
+         * e convidado novamente.
+         */
+        allow update:
+          if false;
+
+        allow delete:
+          if (
+            isBabyOwner(
+              babyId
+            )
+            && memberId != request.auth.uid
+            && resource.data.role == 'caregiver'
+          )
+          ||
+          (
+            memberId == request.auth.uid
+            && resource.data.role == 'caregiver'
+          );
+      }
+
+      match /feedings/{feedingId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create, update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidFeeding(
+            request.resource.data,
+            feedingId
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          );
+      }
+
+      match /sleeps/{sleepId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create, update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidSleep(
+            request.resource.data,
+            sleepId
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          );
+      }
+
+      match /diapers/{diaperId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create, update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidDiaper(
+            request.resource.data,
+            diaperId
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          );
       }
     }
   }
