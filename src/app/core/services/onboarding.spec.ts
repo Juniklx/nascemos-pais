@@ -35,23 +35,23 @@ describe(
 
     let auth: {
       user:
-        ReturnType<
-          typeof signal<User | null>
-        >['asReadonly'] extends
-          () => infer T
-            ? T
-            : never;
+      ReturnType<
+        typeof signal<User | null>
+      >['asReadonly'] extends
+      () => infer T
+      ? T
+      : never;
 
       waitUntilReady:
-        jasmine.Spy;
+      jasmine.Spy;
     };
 
     let persistence: {
       load:
-        jasmine.Spy;
+      jasmine.Spy;
 
       save:
-        jasmine.Spy;
+      jasmine.Spy;
     };
 
     const completeData = {
@@ -368,6 +368,45 @@ describe(
         ).toContain(
           'Não foi possível salvar',
         );
+      },
+    );
+
+    it(
+      'não permite salvar se o perfil não puder ser carregado',
+      async () => {
+        persistence.load
+          .and.rejectWith(
+            new Error(
+              'Firestore indisponível',
+            ),
+          );
+
+        await service
+          .ensureLoaded();
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
+
+        expect(
+          service.storageError(),
+        ).toContain(
+          'Não foi possível carregar',
+        );
+
+        const saved =
+          await service
+            .setCaregiverName(
+              'Marcelo',
+              true,
+            );
+
+        expect(saved)
+          .toBeFalse();
+
+        expect(
+          persistence.save,
+        ).not.toHaveBeenCalled();
       },
     );
   },

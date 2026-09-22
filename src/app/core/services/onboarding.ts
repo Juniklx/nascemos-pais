@@ -200,20 +200,28 @@ export class OnboardingService {
 
     await this.ensureLoaded();
 
+    if (
+      !this.readyState() ||
+      this.loadedUid !==
+      this.auth.user()?.uid
+    ) {
+      return false;
+    }
+
     const data:
       OnboardingData = {
-        ...this.currentData(),
+      ...this.currentData(),
 
-        caregiverName:
-          normalizedName,
+      caregiverName:
+        normalizedName,
 
-        consentGiven: true,
+      consentGiven: true,
 
-        consentAt:
-          this.consentAt() ??
-          new Date()
-            .toISOString(),
-      };
+      consentAt:
+        this.consentAt() ??
+        new Date()
+          .toISOString(),
+    };
 
     return this.saveData(
       data,
@@ -239,6 +247,14 @@ export class OnboardingService {
     }
 
     await this.ensureLoaded();
+
+    if (
+      !this.readyState() ||
+      this.loadedUid !==
+      this.auth.user()?.uid
+    ) {
+      return false;
+    }
 
     return this.saveData({
       ...this.currentData(),
@@ -269,6 +285,14 @@ export class OnboardingService {
     }
 
     await this.ensureLoaded();
+
+    if (
+      !this.readyState() ||
+      this.loadedUid !==
+      this.auth.user()?.uid
+    ) {
+      return false;
+    }
 
     return this.saveData({
       ...this.currentData(),
@@ -353,8 +377,8 @@ export class OnboardingService {
         this.emptyData,
       );
 
-      this.loadedUid = uid;
-      this.readyState.set(true);
+      this.loadedUid = null;
+      this.readyState.set(false);
 
       this.errorState.set(
         'Não foi possível carregar seus dados da nuvem. Verifique sua conexão e tente novamente.',
