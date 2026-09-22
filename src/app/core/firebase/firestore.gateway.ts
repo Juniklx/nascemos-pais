@@ -30,6 +30,17 @@ export class FirestoreGateway {
   private readonly firestore =
     inject(FIREBASE_FIRESTORE);
 
+  createId(
+    collectionPath: string,
+  ): string {
+    return doc(
+      collection(
+        this.firestore,
+        collectionPath,
+      ),
+    ).id;
+  }
+
   async get(
     path: string,
   ): Promise<DocumentData | null> {
