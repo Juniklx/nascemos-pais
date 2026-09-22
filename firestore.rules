@@ -26,6 +26,81 @@ service cloud.firestore {
         ).data.role == 'owner';
     }
 
+    function isValidInviteId(inviteId) {
+        return inviteId is string
+          && inviteId.size() >= 32
+          && inviteId.size() <= 128;
+      }
+
+      function isAcceptingInviteForBaby(
+      babyId,
+      memberId
+    ) {
+      let invite =
+        get(
+          /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
+        ).data;
+
+      let acceptedInvite =
+        getAfter(
+          /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
+        ).data;
+
+      let profile =
+        getAfter(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data;
+
+      return isAuthenticated()
+        && memberId
+          == request.auth.uid
+
+        && 'inviteId'
+          in request.resource.data
+
+        && isValidInviteId(
+          request.resource.data.inviteId
+        )
+
+        /*
+        * Estado anterior do convite.
+        */
+        && invite.status
+          == 'pending'
+
+        && invite.babyId
+          == babyId
+
+        && invite.createdByUid
+          != request.auth.uid
+
+        && invite.expiresAt
+          > request.time
+
+        /*
+        * Estado final obrigatório no
+        * mesmo batch/transaction.
+        */
+        && acceptedInvite.status
+          == 'accepted'
+
+        && acceptedInvite.acceptedByUid
+          == request.auth.uid
+
+        && acceptedInvite.acceptedAt
+          == request.time
+
+        && acceptedInvite.babyId
+          == babyId
+
+        /*
+        * O perfil deve passar a apontar
+        * para o mesmo bebê no mesmo lote.
+        */
+        && profile.activeBabyId
+          == babyId;
+    }
+
     function isCreatingInitialOwner(
       babyId,
       memberId
@@ -157,7 +232,8 @@ service cloud.firestore {
     function isValidBabyMember(data) {
       return data.keys().hasOnly([
           'role',
-          'joinedAt'
+          'joinedAt',
+          'inviteId'
         ])
         && data.keys().hasAll([
           'role',
@@ -167,7 +243,129 @@ service cloud.firestore {
           data.role == 'owner'
           || data.role == 'caregiver'
         )
-        && data.joinedAt is string;
+        && data.joinedAt is string
+        && (
+          !('inviteId' in data)
+          || isValidInviteId(
+            data.inviteId
+          )
+        );
+    }
+
+    function isValidPendingInvite(data) {
+      return data.keys().hasOnly([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status'
+        ])
+        && data.keys().hasAll([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status'
+        ])
+        && data.babyId is string
+        && data.babyId.size() > 0
+        && data.babyId.size() <= 128
+        && data.createdByUid is string
+        && data.createdByUid == request.auth.uid
+        && data.createdAt is timestamp
+        && data.expiresAt is timestamp
+        && data.status == 'pending'
+        && data.createdAt <= request.time
+        && data.expiresAt > request.time
+        && data.expiresAt
+          <= request.time
+            + duration.value(
+              24,
+              'h'
+            );
+    }
+
+    function isValidInviteAcceptance(
+      inviteId
+    ) {
+      let acceptedMember =
+        getAfter(
+          /databases/$(database)/documents/babies/$(resource.data.babyId)/members/$(request.auth.uid)
+        ).data;
+
+      return isAuthenticated()
+
+        && isValidInviteId(
+          inviteId
+        )
+
+        && resource.data.status
+          == 'pending'
+
+        && resource.data.expiresAt
+          > request.time
+
+        && request.auth.uid
+          != resource.data.createdByUid
+
+        && request.resource.data.keys().hasOnly([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status',
+          'acceptedByUid',
+          'acceptedAt'
+        ])
+
+        && request.resource.data.keys().hasAll([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status',
+          'acceptedByUid',
+          'acceptedAt'
+        ])
+
+        /*
+        * Dados originais do convite
+        * permanecem imutáveis.
+        */
+        && request.resource.data.babyId
+          == resource.data.babyId
+
+        && request.resource.data.createdByUid
+          == resource.data.createdByUid
+
+        && request.resource.data.createdAt
+          == resource.data.createdAt
+
+        && request.resource.data.expiresAt
+          == resource.data.expiresAt
+
+        /*
+        * Única transição válida:
+        * pending -> accepted.
+        */
+        && request.resource.data.status
+          == 'accepted'
+
+        && request.resource.data.acceptedByUid
+          == request.auth.uid
+
+        && request.resource.data.acceptedAt
+          == request.time
+
+        /*
+        * O responsável precisa ser criado
+        * no mesmo batch/transaction.
+        */
+        && acceptedMember.role
+          == 'caregiver'
+
+        && acceptedMember.inviteId
+          == inviteId;
     }
 
     function isValidFeeding(data, feedingId) {
@@ -310,6 +508,79 @@ service cloud.firestore {
     /*
      * Nova estrutura compartilhada.
      */
+
+    /*
+    * Convites de compartilhamento.
+    *
+    * O ID do documento é o token secreto.
+    * Convites não podem ser listados.
+    */
+    match /babyInvites/{inviteId} {
+      /*
+      * Quem possui o token pode consultar
+      * um convite pendente, desde que esteja
+      * autenticado.
+      *
+      * Depois de consumido, somente quem
+      * criou ou aceitou pode consultá-lo.
+      */
+      allow get:
+        if isAuthenticated()
+        && (
+          resource.data.status
+            == 'pending'
+          ||
+          resource.data.createdByUid
+            == request.auth.uid
+          ||
+          (
+            resource.data.status
+              == 'accepted'
+            && resource.data.acceptedByUid
+              == request.auth.uid
+          )
+        );
+
+      /*
+      * Impede enumeração de convites.
+      */
+      allow list:
+        if false;
+
+      allow create:
+        if isAuthenticated()
+        && isValidInviteId(
+          inviteId
+        )
+        && isValidPendingInvite(
+          request.resource.data
+        )
+        && isBabyOwner(
+          request.resource.data.babyId
+        );
+
+      /*
+      * A única atualização permitida é
+      * pending -> accepted.
+      */
+      allow update:
+        if isValidInviteAcceptance(
+          inviteId
+        );
+
+      /*
+      * O proprietário pode revogar um
+      * convite ainda não utilizado.
+      */
+      allow delete:
+        if isAuthenticated()
+        && resource.data.status
+          == 'pending'
+        && isBabyOwner(
+          resource.data.babyId
+        );
+    }
+
     match /babies/{babyId} {
       allow create:
         if isAuthenticated()
@@ -350,23 +621,63 @@ service cloud.firestore {
           );
 
         allow create:
-          if isValidBabyMember(
-            request.resource.data
-          )
-          && (
-            isCreatingInitialOwner(
+        if isValidBabyMember(
+          request.resource.data
+        )
+        && (
+          /*
+          * Aceitação através de convite.
+          *
+          * Este caso vem primeiro para não
+          * executar desnecessariamente as
+          * verificações de proprietário.
+          */
+          (
+            request.resource.data.role
+              == 'caregiver'
+            && 'inviteId'
+              in request.resource.data
+            && isAcceptingInviteForBaby(
               babyId,
               memberId
             )
-            ||
-            (
-              isBabyOwner(
-                babyId
-              )
-              && request.resource.data.role
-                == 'caregiver'
+          )
+
+          ||
+
+          /*
+          * Primeiro proprietário durante
+          * a criação do bebê.
+          */
+          (
+            !(
+              'inviteId'
+              in request.resource.data
             )
-          );
+            && isCreatingInitialOwner(
+              babyId,
+              memberId
+            )
+          )
+
+          ||
+
+          /*
+          * O proprietário também pode
+          * adicionar um cuidador diretamente.
+          */
+          (
+            !(
+              'inviteId'
+              in request.resource.data
+            )
+            && isBabyOwner(
+              babyId
+            )
+            && request.resource.data.role
+              == 'caregiver'
+          )
+        );
 
         /*
          * Por enquanto o papel não é alterado.

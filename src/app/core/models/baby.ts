@@ -27,6 +27,16 @@ export interface BabyMember {
 
   readonly joinedAt:
     string;
+
+  /*
+   * Presente apenas quando o responsável
+   * entrou através de um convite.
+   *
+   * O convite já estará consumido, portanto
+   * não poderá ser reutilizado.
+   */
+  readonly inviteId?:
+    string;
 }
 
 export interface CreateBabyInput {

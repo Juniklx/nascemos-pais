@@ -10,7 +10,17 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 
-import { deleteDoc, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  writeBatch,
+} from 'firebase/firestore';
 
 const projectId = 'nascemos-pais';
 
@@ -21,6 +31,8 @@ const userB = 'user-b';
 const userC = 'user-c';
 
 const sharedBaby = 'baby-shared';
+
+const inviteToken = 'invite-token-12345678901234567890123456789012';
 
 const rules = readFileSync('firestore.rules', 'utf8');
 
@@ -70,6 +82,18 @@ beforeEach(async () => {
       consentAt: '2026-01-02T00:00:00.000Z',
     });
 
+    await setDoc(doc(db, `users/${userC}`), {
+      caregiverName: 'Conta C',
+
+      babyName: 'Bebê C',
+
+      babyBirthDate: '2026-01-03',
+
+      consentGiven: true,
+
+      consentAt: '2026-01-03T00:00:00.000Z',
+    });
+
     await setDoc(doc(db, `users/${userB}/diapers/diaper-b`), {
       id: 'diaper-b',
 
@@ -115,6 +139,64 @@ beforeEach(async () => {
 after(async () => {
   await testEnv.cleanup();
 });
+
+async function createPendingInvite(token = inviteToken) {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+
+  await assertSucceeds(
+    setDoc(doc(db, `babyInvites/${token}`), {
+      babyId: sharedBaby,
+
+      createdByUid: userA,
+
+      createdAt: serverTimestamp(),
+
+      expiresAt,
+
+      status: 'pending',
+    }),
+  );
+}
+
+function createAcceptanceBatch(db, token = inviteToken) {
+  const batch = writeBatch(db);
+
+  batch.set(
+    doc(db, `babyInvites/${token}`),
+    {
+      status: 'accepted',
+
+      acceptedByUid: userC,
+
+      acceptedAt: serverTimestamp(),
+    },
+    {
+      merge: true,
+    },
+  );
+
+  batch.set(doc(db, `babies/${sharedBaby}/members/${userC}`), {
+    role: 'caregiver',
+
+    joinedAt: new Date().toISOString(),
+
+    inviteId: token,
+  });
+
+  batch.set(
+    doc(db, `users/${userC}`),
+    {
+      activeBabyId: sharedBaby,
+    },
+    {
+      merge: true,
+    },
+  );
+
+  return batch;
+}
 
 test('nega leitura sem autenticação', async () => {
   const db = testEnv.unauthenticatedContext().firestore();
@@ -280,37 +362,231 @@ test('permite criar bebê e proprietário no mesmo lote', async () => {
   await assertSucceeds(batch.commit());
 });
 
-test(
-  'permite concluir migração do bebê no próprio perfil',
-  async () => {
-    const db =
-      testEnv
-        .authenticatedContext(
-          userA,
-        )
-        .firestore();
+test('permite concluir migração do bebê no próprio perfil', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
 
-    await assertSucceeds(
-      setDoc(
-        doc(
-          db,
-          `users/${userA}`,
-        ),
-        {
-          activeBabyId:
-            sharedBaby,
+  await assertSucceeds(
+    setDoc(
+      doc(db, `users/${userA}`),
+      {
+        activeBabyId: sharedBaby,
 
-          babyMigrationVersion:
-            1,
+        babyMigrationVersion: 1,
 
-          babyMigratedAt:
-            '2026-01-01T00:00:00.000Z',
-        },
-        {
-          merge:
-            true,
-        },
-      ),
-    );
-  },
-);
+        babyMigratedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        merge: true,
+      },
+    ),
+  );
+});
+
+test('permite proprietário criar convite', async () => {
+  await createPendingInvite();
+
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const snapshot = await assertSucceeds(getDoc(doc(db, `babyInvites/${inviteToken}`)));
+
+  assert.equal(snapshot.exists(), true);
+
+  assert.equal(snapshot.data().status, 'pending');
+
+  assert.equal(snapshot.data().babyId, sharedBaby);
+});
+
+test('nega responsável criando convite', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  const token = `${inviteToken}-b`;
+
+  await assertFails(
+    setDoc(doc(db, `babyInvites/${token}`), {
+      babyId: sharedBaby,
+
+      createdByUid: userB,
+
+      createdAt: serverTimestamp(),
+
+      expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+
+      status: 'pending',
+    }),
+  );
+});
+
+test('nega listagem de convites', async () => {
+  await createPendingInvite();
+
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(getDocs(collection(db, 'babyInvites')));
+});
+
+test('nega usuário adicionando a si próprio sem convite', async () => {
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `babies/${sharedBaby}/members/${userC}`), {
+      role: 'caregiver',
+
+      joinedAt: new Date().toISOString(),
+    }),
+  );
+});
+
+test('permite aceitar convite em operação atômica', async () => {
+  await createPendingInvite();
+
+  const caregiverDb = testEnv.authenticatedContext(userC).firestore();
+
+  const batch = createAcceptanceBatch(caregiverDb);
+
+  await assertSucceeds(batch.commit());
+
+  const membership = await assertSucceeds(
+    getDoc(doc(caregiverDb, `babies/${sharedBaby}/members/${userC}`)),
+  );
+
+  assert.equal(membership.exists(), true);
+
+  assert.equal(membership.data().role, 'caregiver');
+
+  assert.equal(membership.data().inviteId, inviteToken);
+
+  const invite = await assertSucceeds(getDoc(doc(caregiverDb, `babyInvites/${inviteToken}`)));
+
+  assert.equal(invite.data().status, 'accepted');
+
+  assert.equal(invite.data().acceptedByUid, userC);
+
+  const profile = await assertSucceeds(getDoc(doc(caregiverDb, `users/${userC}`)));
+
+  assert.equal(profile.data().activeBabyId, sharedBaby);
+
+  const baby = await assertSucceeds(getDoc(doc(caregiverDb, `babies/${sharedBaby}`)));
+
+  assert.equal(baby.exists(), true);
+});
+
+test('nega aceitação de convite expirado', async () => {
+  const expiredToken = `${inviteToken}-expired`;
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+
+    const now = Date.now();
+
+    await setDoc(doc(db, `babyInvites/${expiredToken}`), {
+      babyId: sharedBaby,
+
+      createdByUid: userA,
+
+      createdAt: Timestamp.fromMillis(now - 2 * 60 * 60 * 1000),
+
+      expiresAt: Timestamp.fromMillis(now - 1000),
+
+      status: 'pending',
+    });
+  });
+
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  const batch = createAcceptanceBatch(db, expiredToken);
+
+  await assertFails(batch.commit());
+
+  await assertFails(getDoc(doc(db, `babies/${sharedBaby}`)));
+});
+
+test('nega reutilização de convite já aceito', async () => {
+  await createPendingInvite();
+
+  const caregiverDb = testEnv.authenticatedContext(userC).firestore();
+
+  const firstBatch = createAcceptanceBatch(caregiverDb);
+
+  await assertSucceeds(firstBatch.commit());
+
+  /*
+   * O proprietário remove userC.
+   */
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  await assertSucceeds(deleteDoc(doc(ownerDb, `babies/${sharedBaby}/members/${userC}`)));
+
+  /*
+   * Mesmo possuindo o token antigo,
+   * userC não pode utilizá-lo novamente,
+   * pois o convite já está accepted.
+   */
+  const secondBatch = createAcceptanceBatch(caregiverDb);
+
+  await assertFails(secondBatch.commit());
+
+  /*
+   * Conferimos como administrador que
+   * o segundo batch não recriou o vínculo.
+   */
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const adminDb = context.firestore();
+
+    const membership = await getDoc(doc(adminDb, `babies/${sharedBaby}/members/${userC}`));
+
+    assert.equal(membership.exists(), false);
+
+    const invite = await getDoc(doc(adminDb, `babyInvites/${inviteToken}`));
+
+    assert.equal(invite.exists(), true);
+
+    assert.equal(invite.data().status, 'accepted');
+
+    assert.equal(invite.data().acceptedByUid, userC);
+  });
+});
+
+test('nega consumir convite sem criar vínculo de responsável', async () => {
+  await createPendingInvite();
+
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  /*
+   * Tentamos alterar somente o convite.
+   * Não criamos members/{userC} e não
+   * atualizamos activeBabyId.
+   */
+  await assertFails(
+    setDoc(
+      doc(db, `babyInvites/${inviteToken}`),
+      {
+        status: 'accepted',
+
+        acceptedByUid: userC,
+
+        acceptedAt: serverTimestamp(),
+      },
+      {
+        merge: true,
+      },
+    ),
+  );
+
+  /*
+   * O convite precisa continuar pendente.
+   */
+  const invite = await assertSucceeds(getDoc(doc(db, `babyInvites/${inviteToken}`)));
+
+  assert.equal(invite.data().status, 'pending');
+
+  /*
+   * E nenhum vínculo pode ter sido criado.
+   */
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const adminDb = context.firestore();
+
+    const membership = await getDoc(doc(adminDb, `babies/${sharedBaby}/members/${userC}`));
+
+    assert.equal(membership.exists(), false);
+  });
+});
