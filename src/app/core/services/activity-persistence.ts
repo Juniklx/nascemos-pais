@@ -25,6 +25,14 @@ import {
 } from './auth';
 
 import {
+  BabyContextService,
+} from './baby-context';
+
+import {
+  BabyDataRepository,
+} from './baby-data.repository';
+
+import {
   UserDataRepository,
 } from './user-data.repository';
 
@@ -43,6 +51,9 @@ interface ActivityState {
   readonly uid:
     string | null;
 
+  readonly babyId:
+    string | null;
+
   readonly snapshot:
     ActivitySnapshot;
 
@@ -54,6 +65,14 @@ interface ActivityState {
 
   readonly error:
     string | null;
+}
+
+interface ActivityLoadResult {
+  readonly babyId:
+    string;
+
+  readonly snapshot:
+    ActivitySnapshot;
 }
 
 const EMPTY_SNAPSHOT:
@@ -70,8 +89,26 @@ export class ActivityPersistenceService {
   private readonly auth =
     inject(AuthService);
 
+  private readonly babyContext =
+    inject(
+      BabyContextService,
+    );
+
+  private readonly babies =
+    inject(
+      BabyDataRepository,
+    );
+
+  /*
+   * O repositório de usuário continua
+   * existindo temporariamente apenas
+   * para finalizar a migração dos
+   * registros antigos.
+   */
   private readonly repository =
-    inject(UserDataRepository);
+    inject(
+      UserDataRepository,
+    );
 
   private readonly feedingKey =
     'nascemos-pais:feedings:v2';
@@ -88,6 +125,7 @@ export class ActivityPersistenceService {
   private readonly state =
     signal<ActivityState>({
       uid: null,
+      babyId: null,
       snapshot:
         EMPTY_SNAPSHOT,
       ready: false,
@@ -99,7 +137,7 @@ export class ActivityPersistenceService {
     string | null = null;
 
   private loadPromise:
-    Promise<ActivitySnapshot> | null =
+    Promise<ActivityLoadResult> | null =
       null;
 
   readonly snapshot =
@@ -109,12 +147,19 @@ export class ActivityPersistenceService {
           this.auth.user()?.uid ??
           null;
 
+        const babyId =
+          this.babyContext
+            .activeBabyId();
+
         const state =
           this.state();
 
         if (
           uid === null ||
-          state.uid !== uid
+          babyId === null ||
+          state.uid !== uid ||
+          state.babyId !==
+            babyId
         ) {
           return EMPTY_SNAPSHOT;
         }
@@ -150,12 +195,19 @@ export class ActivityPersistenceService {
         this.auth.user()?.uid ??
         null;
 
+      const babyId =
+        this.babyContext
+          .activeBabyId();
+
       const state =
         this.state();
 
       return (
         uid !== null &&
+        babyId !== null &&
         state.uid === uid &&
+        state.babyId ===
+          babyId &&
         state.ready
       );
     });
@@ -182,12 +234,25 @@ export class ActivityPersistenceService {
         this.auth.user()?.uid ??
         null;
 
+      const babyId =
+        this.babyContext
+          .activeBabyId();
+
       const state =
         this.state();
 
       if (
         uid === null ||
         state.uid !== uid
+      ) {
+        return null;
+      }
+
+      if (
+        state.babyId !==
+          null &&
+        state.babyId !==
+          babyId
       ) {
         return null;
       }
@@ -206,6 +271,7 @@ export class ActivityPersistenceService {
     if (!uid) {
       this.state.set({
         uid: null,
+        babyId: null,
         snapshot:
           EMPTY_SNAPSHOT,
         ready: false,
@@ -218,11 +284,18 @@ export class ActivityPersistenceService {
       );
     }
 
+    const activeBabyId =
+      this.babyContext
+        .activeBabyId();
+
     const current =
       this.state();
 
     if (
+      activeBabyId !== null &&
       current.uid === uid &&
+      current.babyId ===
+        activeBabyId &&
       current.ready
     ) {
       return current.snapshot;
@@ -232,11 +305,15 @@ export class ActivityPersistenceService {
       this.loadingUid === uid &&
       this.loadPromise !== null
     ) {
-      return this.loadPromise;
+      const result =
+        await this.loadPromise;
+
+      return result.snapshot;
     }
 
     this.state.set({
       uid,
+      babyId: null,
       snapshot:
         EMPTY_SNAPSHOT,
       ready: false,
@@ -248,7 +325,9 @@ export class ActivityPersistenceService {
       uid;
 
     const promise =
-      this.loadForUser(uid);
+      this.loadForUser(
+        uid,
+      );
 
     this.loadPromise =
       promise;
@@ -257,19 +336,23 @@ export class ActivityPersistenceService {
       const result =
         await promise;
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        result.babyId,
       );
 
       this.state.set({
         uid,
-        snapshot: result,
+        babyId:
+          result.babyId,
+        snapshot:
+          result.snapshot,
         ready: true,
         loading: false,
         error: null,
       });
 
-      return result;
+      return result.snapshot;
     } catch (error) {
       if (
         this.auth
@@ -278,6 +361,7 @@ export class ActivityPersistenceService {
       ) {
         this.state.set({
           uid,
+          babyId: null,
           snapshot:
             EMPTY_SNAPSHOT,
           ready: false,
@@ -309,25 +393,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .saveRecord(
+          babyId,
           'feedings',
           feeding,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -341,6 +432,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -352,25 +444,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .deleteRecord(
+          babyId,
           'feedings',
           id,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -386,6 +485,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -397,25 +497,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .saveRecord(
+          babyId,
           'sleeps',
           sleep,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -429,6 +536,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -440,25 +548,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .deleteRecord(
+          babyId,
           'sleeps',
           id,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -474,6 +589,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -485,25 +601,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .saveRecord(
+          babyId,
           'diapers',
           diaper,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -517,6 +640,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -528,25 +652,32 @@ export class ActivityPersistenceService {
   ): Promise<void> {
     const {
       uid,
+      babyId,
       snapshot,
     } =
       this.requireReadyState();
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
 
     try {
-      await this.repository
+      await this.babies
         .deleteRecord(
+          babyId,
           'diapers',
           id,
         );
 
-      this.assertSameUser(
+      this.assertSameContext(
         uid,
+        babyId,
       );
 
       this.updateSnapshot(
         uid,
+        babyId,
         {
           ...snapshot,
 
@@ -562,6 +693,7 @@ export class ActivityPersistenceService {
     } catch (error) {
       this.setSyncError(
         uid,
+        babyId,
       );
 
       throw error;
@@ -572,16 +704,109 @@ export class ActivityPersistenceService {
     const uid =
       this.auth.user()?.uid;
 
-    if (!uid) {
+    const babyId =
+      this.babyContext
+        .activeBabyId();
+
+    if (
+      !uid ||
+      !babyId
+    ) {
       return;
     }
 
-    this.clearError(uid);
+    this.clearError(
+      uid,
+      babyId,
+    );
   }
 
   private async loadForUser(
     uid: string,
-  ): Promise<ActivitySnapshot> {
+  ): Promise<ActivityLoadResult> {
+    /*
+     * Primeiro finalizamos a migração
+     * antiga do localStorage para
+     * users/{uid}.
+     *
+     * Depois BabyMigrationService pode
+     * copiar o conjunto completo para
+     * babies/{babyId}.
+     */
+    await this
+      .ensureLegacyRecordsMigrated(
+        uid,
+      );
+
+    this.assertSameUser(
+      uid,
+    );
+
+    await this.babyContext
+      .ensureLoaded();
+
+    this.assertSameUser(
+      uid,
+    );
+
+    const babyId =
+      this.requireActiveBabyId();
+
+    this.assertSameContext(
+      uid,
+      babyId,
+    );
+
+    const [
+      rawFeedings,
+      rawSleeps,
+      rawDiapers,
+    ] =
+      await Promise.all([
+        this.babies
+          .listRecords<Feeding>(
+            babyId,
+            'feedings',
+          ),
+
+        this.babies
+          .listRecords<Sleep>(
+            babyId,
+            'sleeps',
+          ),
+
+        this.babies
+          .listRecords<Diaper>(
+            babyId,
+            'diapers',
+          ),
+      ]);
+
+    this.assertSameContext(
+      uid,
+      babyId,
+    );
+
+    return {
+      babyId,
+
+      snapshot:
+        this.normalizeSnapshot({
+          feedings:
+            rawFeedings,
+
+          sleeps:
+            rawSleeps,
+
+          diapers:
+            rawDiapers,
+        }),
+    };
+  }
+
+  private async ensureLegacyRecordsMigrated(
+    uid: string,
+  ): Promise<void> {
     const profile =
       await this.repository
         .readProfile<
@@ -599,6 +824,16 @@ export class ActivityPersistenceService {
       throw new Error(
         'Perfil do usuário não encontrado.',
       );
+    }
+
+    if (
+      profile[
+        'recordsMigrationVersion'
+      ] === 1
+    ) {
+      this.removeLegacyData();
+
+      return;
     }
 
     const [
@@ -638,16 +873,6 @@ export class ActivityPersistenceService {
         diapers:
           rawDiapers,
       });
-
-    if (
-      profile[
-        'recordsMigrationVersion'
-      ] === 1
-    ) {
-      this.removeLegacyData();
-
-      return cloud;
-    }
 
     const legacy =
       this.readLegacySnapshot();
@@ -734,8 +959,6 @@ export class ActivityPersistenceService {
     );
 
     this.removeLegacyData();
-
-    return merged;
   }
 
   private upsertFeeding(
@@ -797,11 +1020,13 @@ export class ActivityPersistenceService {
 
   private updateSnapshot(
     uid: string,
+    babyId: string,
     snapshot:
       ActivitySnapshot,
   ): void {
-    this.assertSameUser(
+    this.assertSameContext(
       uid,
+      babyId,
     );
 
     const current =
@@ -809,6 +1034,8 @@ export class ActivityPersistenceService {
 
     if (
       current.uid !== uid ||
+      current.babyId !==
+        babyId ||
       !current.ready
     ) {
       throw new Error(
@@ -829,17 +1056,25 @@ export class ActivityPersistenceService {
 
   private requireReadyState(): {
     readonly uid: string;
+
+    readonly babyId: string;
+
     readonly snapshot:
       ActivitySnapshot;
   } {
     const uid =
       this.requireUid();
 
+    const babyId =
+      this.requireActiveBabyId();
+
     const current =
       this.state();
 
     if (
       current.uid !== uid ||
+      current.babyId !==
+        babyId ||
       !current.ready
     ) {
       throw new Error(
@@ -849,6 +1084,7 @@ export class ActivityPersistenceService {
 
     return {
       uid,
+      babyId,
       snapshot:
         current.snapshot,
     };
@@ -856,12 +1092,15 @@ export class ActivityPersistenceService {
 
   private clearError(
     uid: string,
+    babyId: string,
   ): void {
     const current =
       this.state();
 
     if (
-      current.uid !== uid
+      current.uid !== uid ||
+      current.babyId !==
+        babyId
     ) {
       return;
     }
@@ -874,11 +1113,15 @@ export class ActivityPersistenceService {
 
   private setSyncError(
     uid: string,
+    babyId: string,
   ): void {
     if (
       this.auth
         .user()?.uid !==
-      uid
+        uid ||
+      this.babyContext
+        .activeBabyId() !==
+        babyId
     ) {
       return;
     }
@@ -887,7 +1130,9 @@ export class ActivityPersistenceService {
       this.state();
 
     if (
-      current.uid !== uid
+      current.uid !== uid ||
+      current.babyId !==
+        babyId
     ) {
       return;
     }
@@ -1311,7 +1556,7 @@ export class ActivityPersistenceService {
     for (
       let index = 0;
       index <
-      rawPeriods.length;
+        rawPeriods.length;
       index++
     ) {
       const raw =
@@ -1657,6 +1902,40 @@ export class ActivityPersistenceService {
     }
 
     return uid;
+  }
+
+  private requireActiveBabyId():
+    string {
+    const babyId =
+      this.babyContext
+        .activeBabyId();
+
+    if (!babyId) {
+      throw new Error(
+        'Bebê ativo não encontrado.',
+      );
+    }
+
+    return babyId;
+  }
+
+  private assertSameContext(
+    uid: string,
+    babyId: string,
+  ): void {
+    this.assertSameUser(
+      uid,
+    );
+
+    if (
+      this.babyContext
+        .activeBabyId() !==
+      babyId
+    ) {
+      throw new Error(
+        'O bebê ativo mudou durante a operação.',
+      );
+    }
   }
 
   private assertSameUser(

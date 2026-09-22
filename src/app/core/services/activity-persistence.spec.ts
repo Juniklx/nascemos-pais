@@ -19,6 +19,14 @@ import {
 } from './auth';
 
 import {
+  BabyContextService,
+} from './baby-context';
+
+import {
+  BabyDataRepository,
+} from './baby-data.repository';
+
+import {
   UserDataRepository,
 } from './user-data.repository';
 
@@ -45,30 +53,57 @@ describe(
         typeof signal<User | null>
       >;
 
+    let activeBabyId:
+      ReturnType<
+        typeof signal<string | null>
+      >;
+
     let repository: {
       readProfile:
-        jasmine.Spy;
+      jasmine.Spy;
 
       listRecords:
-        jasmine.Spy;
+      jasmine.Spy;
 
       saveRecords:
-        jasmine.Spy;
+      jasmine.Spy;
 
       saveProfile:
-        jasmine.Spy;
+      jasmine.Spy;
 
       saveRecord:
-        jasmine.Spy;
+      jasmine.Spy;
 
       deleteRecord:
-        jasmine.Spy;
+      jasmine.Spy;
+    };
+
+    let babies: {
+      listRecords:
+      jasmine.Spy;
+
+      saveRecord:
+      jasmine.Spy;
+
+      deleteRecord:
+      jasmine.Spy;
+    };
+
+    let babyContext: {
+      ensureLoaded:
+      jasmine.Spy;
     };
 
     const feeding = {
-      id: 'feeding-1',
-      startedAt: 1000,
-      endedAt: null,
+      id:
+        'feeding-1',
+
+      startedAt:
+        1000,
+
+      endedAt:
+        null,
+
       side:
         'left' as const,
 
@@ -87,53 +122,133 @@ describe(
     };
 
     const sleep = {
-      id: 'sleep-1',
-      startedAt: 2000,
-      endedAt: 3000,
+      id:
+        'sleep-1',
+
+      startedAt:
+        2000,
+
+      endedAt:
+        3000,
     };
 
     const diaper = {
-      id: 'diaper-1',
+      id:
+        'diaper-1',
+
       type:
         'wet' as const,
-      recordedAt: 4000,
+
+      recordedAt:
+        4000,
     };
 
-    function mockCloud(
+    function mockLegacyCloud(
       value: {
-        feedings?: readonly unknown[];
-        sleeps?: readonly unknown[];
-        diapers?: readonly unknown[];
+        feedings?:
+        readonly unknown[];
+
+        sleeps?:
+        readonly unknown[];
+
+        diapers?:
+        readonly unknown[];
       } = {},
     ): void {
       repository
         .listRecords
         .and.callFake(
           async (
-            collection,
+            collectionName:
+              string,
           ) => {
             switch (
-              collection
+            collectionName
             ) {
               case 'feedings':
                 return [
-                  ...(value
-                    .feedings ??
-                    []),
+                  ...(
+                    value
+                      .feedings ??
+                    []
+                  ),
                 ];
 
               case 'sleeps':
                 return [
-                  ...(value
-                    .sleeps ??
-                    []),
+                  ...(
+                    value
+                      .sleeps ??
+                    []
+                  ),
                 ];
 
               case 'diapers':
                 return [
-                  ...(value
-                    .diapers ??
-                    []),
+                  ...(
+                    value
+                      .diapers ??
+                    []
+                  ),
+                ];
+
+              default:
+                return [];
+            }
+          },
+        );
+    }
+
+    function mockBabyCloud(
+      value: {
+        feedings?:
+        readonly unknown[];
+
+        sleeps?:
+        readonly unknown[];
+
+        diapers?:
+        readonly unknown[];
+      } = {},
+    ): void {
+      babies
+        .listRecords
+        .and.callFake(
+          async (
+            _babyId:
+              string,
+
+            collectionName:
+              string,
+          ) => {
+            switch (
+            collectionName
+            ) {
+              case 'feedings':
+                return [
+                  ...(
+                    value
+                      .feedings ??
+                    []
+                  ),
+                ];
+
+              case 'sleeps':
+                return [
+                  ...(
+                    value
+                      .sleeps ??
+                    []
+                  ),
+                ];
+
+              case 'diapers':
+                return [
+                  ...(
+                    value
+                      .diapers ??
+                    []
+                  ),
                 ];
 
               default:
@@ -154,6 +269,11 @@ describe(
           } as User,
         );
 
+      activeBabyId =
+        signal<string | null>(
+          'baby-a',
+        );
+
       repository =
         jasmine
           .createSpyObj(
@@ -168,11 +288,32 @@ describe(
             ],
           );
 
+      babies =
+        jasmine
+          .createSpyObj(
+            'BabyDataRepository',
+            [
+              'listRecords',
+              'saveRecord',
+              'deleteRecord',
+            ],
+          );
+
+      babyContext = {
+        ensureLoaded:
+          jasmine.createSpy(
+            'ensureLoaded',
+          ),
+      };
+
       repository
         .readProfile
-        .and.resolveTo({});
+        .and.resolveTo({
+          recordsMigrationVersion:
+            1,
+        });
 
-      mockCloud();
+      mockLegacyCloud();
 
       repository
         .saveRecords
@@ -188,6 +329,20 @@ describe(
 
       repository
         .deleteRecord
+        .and.resolveTo();
+
+      mockBabyCloud();
+
+      babies
+        .saveRecord
+        .and.resolveTo();
+
+      babies
+        .deleteRecord
+        .and.resolveTo();
+
+      babyContext
+        .ensureLoaded
         .and.resolveTo();
 
       TestBed
@@ -216,6 +371,29 @@ describe(
 
             {
               provide:
+                BabyContextService,
+
+              useValue: {
+                activeBabyId:
+                  activeBabyId
+                    .asReadonly(),
+
+                ensureLoaded:
+                  babyContext
+                    .ensureLoaded,
+              },
+            },
+
+            {
+              provide:
+                BabyDataRepository,
+
+              useValue:
+                babies,
+            },
+
+            {
+              provide:
                 UserDataRepository,
 
               useValue:
@@ -238,8 +416,12 @@ describe(
     });
 
     it(
-      'migra registros locais preservando os IDs e registros ativos',
+      'migra registros locais antes de carregar os registros do bebê',
       async () => {
+        repository
+          .readProfile
+          .and.resolveTo({});
+
         localStorage
           .setItem(
             feedingKey,
@@ -264,28 +446,38 @@ describe(
             ]),
           );
 
+        /*
+         * No ambiente real,
+         * BabyMigrationService copia
+         * estes registros para o bebê
+         * durante ensureLoaded().
+         */
+        mockBabyCloud({
+          feedings: [
+            feeding,
+          ],
+
+          sleeps: [
+            sleep,
+          ],
+
+          diapers: [
+            diaper,
+          ],
+        });
+
         const result =
           await service
             .load();
-
-        expect(
-          result.feedings,
-        ).toEqual([
-          feeding,
-        ]);
-
-        expect(
-          result
-            .feedings[0]
-            .endedAt,
-        ).toBeNull();
 
         expect(
           repository
             .saveRecords,
         ).toHaveBeenCalledWith(
           'feedings',
-          [feeding],
+          [
+            feeding,
+          ],
         );
 
         expect(
@@ -293,7 +485,9 @@ describe(
             .saveRecords,
         ).toHaveBeenCalledWith(
           'sleeps',
-          [sleep],
+          [
+            sleep,
+          ],
         );
 
         expect(
@@ -301,7 +495,9 @@ describe(
             .saveRecords,
         ).toHaveBeenCalledWith(
           'diapers',
-          [diaper],
+          [
+            diaper,
+          ],
         );
 
         expect(
@@ -314,6 +510,39 @@ describe(
                 1,
             }),
         );
+
+        expect(
+          babyContext
+            .ensureLoaded,
+        ).toHaveBeenCalledTimes(
+          1,
+        );
+
+        expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'feedings',
+        );
+
+        expect(
+          result.feedings,
+        ).toEqual([
+          feeding,
+        ]);
+
+        expect(
+          result.sleeps,
+        ).toEqual([
+          sleep,
+        ]);
+
+        expect(
+          result.diapers,
+        ).toEqual([
+          diaper,
+        ]);
 
         expect(
           localStorage
@@ -339,7 +568,7 @@ describe(
     );
 
     it(
-      'não remigra dados locais depois que a migração foi concluída',
+      'não remigra dados locais depois que a migração legada foi concluída',
       async () => {
         repository
           .readProfile
@@ -348,7 +577,7 @@ describe(
               1,
           });
 
-        mockCloud({
+        mockBabyCloud({
           feedings: [
             feeding,
           ],
@@ -368,6 +597,7 @@ describe(
             JSON.stringify([
               {
                 ...feeding,
+
                 id:
                   'stale',
               },
@@ -393,6 +623,14 @@ describe(
           .toHaveBeenCalled();
 
         expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'feedings',
+        );
+
+        expect(
           localStorage
             .getItem(
               feedingKey,
@@ -402,8 +640,12 @@ describe(
     );
 
     it(
-      'mantém os dados locais quando a migração falha',
+      'mantém os dados locais quando a migração legada falha',
       async () => {
+        repository
+          .readProfile
+          .and.resolveTo({});
+
         localStorage
           .setItem(
             feedingKey,
@@ -439,6 +681,12 @@ describe(
           .toHaveBeenCalled();
 
         expect(
+          babyContext
+            .ensureLoaded,
+        ).not
+          .toHaveBeenCalled();
+
+        expect(
           service.isReady(),
         ).toBeFalse();
 
@@ -449,8 +697,12 @@ describe(
     );
 
     it(
-      'converte mamadas da versão antiga sem períodos',
+      'converte mamadas da versão antiga antes da migração para o bebê',
       async () => {
+        repository
+          .readProfile
+          .and.resolveTo({});
+
         localStorage
           .setItem(
             legacyFeedingKey,
@@ -471,14 +723,7 @@ describe(
             ]),
           );
 
-        const result =
-          await service
-            .load();
-
-        expect(
-          result
-            .feedings[0],
-        ).toEqual({
+        const converted = {
           id:
             'legacy-feeding',
 
@@ -489,17 +734,48 @@ describe(
             2000,
 
           side:
-            'right',
+            'right' as const,
 
           periods:
             null,
+        };
+
+        mockBabyCloud({
+          feedings: [
+            converted,
+          ],
         });
+
+        const result =
+          await service
+            .load();
+
+        expect(
+          repository
+            .saveRecords,
+        ).toHaveBeenCalledWith(
+          'feedings',
+          [
+            converted,
+          ],
+        );
+
+        expect(
+          result
+            .feedings[0],
+        ).toEqual(
+          converted,
+        );
       },
     );
 
     it(
       'não apaga armazenamento local inválido',
       async () => {
+        repository
+          .readProfile
+          .and.resolveTo({});
+
         localStorage
           .setItem(
             feedingKey,
@@ -526,6 +802,12 @@ describe(
           .toHaveBeenCalled();
 
         expect(
+          babyContext
+            .ensureLoaded,
+        ).not
+          .toHaveBeenCalled();
+
+        expect(
           service.error(),
         ).toContain(
           'não foram apagados',
@@ -534,16 +816,9 @@ describe(
     );
 
     it(
-      'expõe os registros carregados por sinais reativos',
+      'carrega os registros do bebê ativo por sinais reativos',
       async () => {
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
-
-        mockCloud({
+        mockBabyCloud({
           feedings: [
             feeding,
           ],
@@ -593,19 +868,36 @@ describe(
         ).toEqual([
           diaper,
         ]);
+
+        expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'feedings',
+        );
+
+        expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'sleeps',
+        );
+
+        expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'diapers',
+        );
       },
     );
 
     it(
-      'mantém o estado atualizado depois de salvar um registro',
+      'salva mamada no bebê ativo e atualiza o estado',
       async () => {
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
-
         await service
           .load();
 
@@ -615,12 +907,19 @@ describe(
           );
 
         expect(
-          repository
+          babies
             .saveRecord,
         ).toHaveBeenCalledOnceWith(
+          'baby-a',
           'feedings',
           feeding,
         );
+
+        expect(
+          repository
+            .saveRecord,
+        ).not
+          .toHaveBeenCalled();
 
         expect(
           service
@@ -642,16 +941,57 @@ describe(
     );
 
     it(
-      'remove do estado depois de excluir um registro',
+      'salva sono e fralda no bebê ativo',
       async () => {
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
+        await service
+          .load();
 
-        mockCloud({
+        await service
+          .saveSleep(
+            sleep,
+          );
+
+        await service
+          .saveDiaper(
+            diaper,
+          );
+
+        expect(
+          babies
+            .saveRecord,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'sleeps',
+          sleep,
+        );
+
+        expect(
+          babies
+            .saveRecord,
+        ).toHaveBeenCalledWith(
+          'baby-a',
+          'diapers',
+          diaper,
+        );
+
+        expect(
+          service.sleeps(),
+        ).toEqual([
+          sleep,
+        ]);
+
+        expect(
+          service.diapers(),
+        ).toEqual([
+          diaper,
+        ]);
+      },
+    );
+
+    it(
+      'remove registro do bebê ativo e atualiza o estado',
+      async () => {
+        mockBabyCloud({
           feedings: [
             feeding,
           ],
@@ -661,8 +1001,7 @@ describe(
           .load();
 
         expect(
-          service
-            .feedings(),
+          service.feedings(),
         ).toEqual([
           feeding,
         ]);
@@ -673,34 +1012,33 @@ describe(
           );
 
         expect(
-          repository
+          babies
             .deleteRecord,
         ).toHaveBeenCalledOnceWith(
+          'baby-a',
           'feedings',
           feeding.id,
         );
 
         expect(
-          service
-            .feedings(),
+          repository
+            .deleteRecord,
+        ).not
+          .toHaveBeenCalled();
+
+        expect(
+          service.feedings(),
         ).toEqual([]);
       },
     );
 
     it(
-      'não altera o estado quando uma gravação na nuvem falha',
+      'não altera o estado quando uma gravação no bebê falha',
       async () => {
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
-
         await service
           .load();
 
-        repository
+        babies
           .saveRecord
           .and.rejectWith(
             new Error(
@@ -716,8 +1054,7 @@ describe(
         ).toBeRejected();
 
         expect(
-          service
-            .feedings(),
+          service.feedings(),
         ).toEqual([]);
 
         expect(
@@ -733,10 +1070,10 @@ describe(
     );
 
     it(
-      'permite tentar novamente depois de uma falha de carregamento',
+      'permite tentar novamente depois de falha ao carregar o contexto do bebê',
       async () => {
-        repository
-          .readProfile
+        babyContext
+          .ensureLoaded
           .and.rejectWith(
             new Error(
               'Firestore indisponível',
@@ -755,14 +1092,11 @@ describe(
           service.error(),
         ).not.toBeNull();
 
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
+        babyContext
+          .ensureLoaded
+          .and.resolveTo();
 
-        mockCloud({
+        mockBabyCloud({
           feedings: [
             feeding,
           ],
@@ -791,14 +1125,7 @@ describe(
     it(
       'não expõe registros da conta anterior depois da troca de usuário',
       async () => {
-        repository
-          .readProfile
-          .and.resolveTo({
-            recordsMigrationVersion:
-              1,
-          });
-
-        mockCloud({
+        mockBabyCloud({
           feedings: [
             feeding,
           ],
@@ -808,8 +1135,7 @@ describe(
           .load();
 
         expect(
-          service
-            .feedings(),
+          service.feedings(),
         ).toEqual([
           feeding,
         ]);
@@ -821,19 +1147,20 @@ describe(
           } as User,
         );
 
+        activeBabyId.set(
+          null,
+        );
+
         expect(
-          service
-            .feedings(),
+          service.feedings(),
         ).toEqual([]);
 
         expect(
-          service
-            .sleeps(),
+          service.sleeps(),
         ).toEqual([]);
 
         expect(
-          service
-            .diapers(),
+          service.diapers(),
         ).toEqual([]);
 
         expect(
@@ -844,7 +1171,11 @@ describe(
           service.error(),
         ).toBeNull();
 
-        mockCloud();
+        activeBabyId.set(
+          'baby-b',
+        );
+
+        mockBabyCloud();
 
         await service
           .load();
@@ -854,10 +1185,57 @@ describe(
         ).toBeTrue();
 
         expect(
-          service
-            .feedings(),
+          service.feedings(),
         ).toEqual([]);
+
+        expect(
+          babies
+            .listRecords,
+        ).toHaveBeenCalledWith(
+          'baby-b',
+          'feedings',
+        );
+      },
+    );
+
+    it(
+      'não expõe registros do bebê anterior quando o bebê ativo muda',
+      async () => {
+        mockBabyCloud({
+          feedings: [
+            feeding,
+          ],
+        });
+
+        await service
+          .load();
+
+        expect(
+          service.feedings(),
+        ).toEqual([
+          feeding,
+        ]);
+
+        activeBabyId.set(
+          'baby-b',
+        );
+
+        expect(
+          service.feedings(),
+        ).toEqual([]);
+
+        expect(
+          service.sleeps(),
+        ).toEqual([]);
+
+        expect(
+          service.diapers(),
+        ).toEqual([]);
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
       },
     );
   },
-);    
+);
