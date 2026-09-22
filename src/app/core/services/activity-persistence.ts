@@ -137,64 +137,220 @@ export class ActivityPersistenceService {
     }
   }
 
-  saveFeeding(
+  async saveFeeding(
     feeding: Feeding,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .saveRecord(
         'feedings',
         feeding,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        feedings: [
+          feeding,
+
+          ...this.snapshot
+            .feedings
+            .filter(
+              (item) =>
+                item.id !==
+                feeding.id,
+            ),
+        ].sort(
+          (a, b) =>
+            b.startedAt -
+            a.startedAt,
+        ),
+      };
+    }
   }
 
-  deleteFeeding(
+  async deleteFeeding(
     id: string,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .deleteRecord(
         'feedings',
         id,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        feedings:
+          this.snapshot
+            .feedings
+            .filter(
+              (feeding) =>
+                feeding.id !== id,
+            ),
+      };
+    }
   }
 
-  saveSleep(
+  async saveSleep(
     sleep: Sleep,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .saveRecord(
         'sleeps',
         sleep,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        sleeps: [
+          sleep,
+
+          ...this.snapshot
+            .sleeps
+            .filter(
+              (item) =>
+                item.id !==
+                sleep.id,
+            ),
+        ].sort(
+          (a, b) =>
+            b.startedAt -
+            a.startedAt,
+        ),
+      };
+    }
   }
 
-  deleteSleep(
+  async deleteSleep(
     id: string,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .deleteRecord(
         'sleeps',
         id,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        sleeps:
+          this.snapshot
+            .sleeps
+            .filter(
+              (sleep) =>
+                sleep.id !== id,
+            ),
+      };
+    }
   }
 
-  saveDiaper(
+  async saveDiaper(
     diaper: Diaper,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .saveRecord(
         'diapers',
         diaper,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        diapers: [
+          diaper,
+
+          ...this.snapshot
+            .diapers
+            .filter(
+              (item) =>
+                item.id !==
+                diaper.id,
+            ),
+        ].sort(
+          (a, b) =>
+            b.recordedAt -
+            a.recordedAt,
+        ),
+      };
+    }
   }
 
-  deleteDiaper(
+  async deleteDiaper(
     id: string,
   ): Promise<void> {
-    return this.repository
+    const uid =
+      this.requireUid();
+
+    await this.repository
       .deleteRecord(
         'diapers',
         id,
       );
+
+    this.assertSameUser(uid);
+
+    if (
+      this.loadedUid === uid &&
+      this.snapshot !== null
+    ) {
+      this.snapshot = {
+        ...this.snapshot,
+
+        diapers:
+          this.snapshot
+            .diapers
+            .filter(
+              (diaper) =>
+                diaper.id !== id,
+            ),
+      };
+    }
   }
 
   private async loadForUser(
@@ -993,6 +1149,20 @@ export class ActivityPersistenceService {
     } catch {
       return null;
     }
+  }
+
+  private requireUid():
+    string {
+    const uid =
+      this.auth.user()?.uid;
+
+    if (!uid) {
+      throw new Error(
+        'Usuário não autenticado.',
+      );
+    }
+
+    return uid;
   }
 
   private assertSameUser(

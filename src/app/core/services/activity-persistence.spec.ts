@@ -120,6 +120,14 @@ describe(
         .saveProfile
         .and.resolveTo();
 
+      repository
+        .saveRecord
+        .and.resolveTo();
+
+      repository
+        .deleteRecord
+        .and.resolveTo();
+
       TestBed.configureTestingModule({
         providers: [
           ActivityPersistenceService,
@@ -269,7 +277,7 @@ describe(
               collection,
             ) => {
               switch (
-              collection
+                collection
               ) {
                 case 'feedings':
                   return [
@@ -424,6 +432,101 @@ describe(
         expect(
           repository.saveProfile,
         ).not.toHaveBeenCalled();
+      },
+    );
+
+    it(
+      'mantém o cache atualizado depois de salvar um registro',
+      async () => {
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        await service.load();
+
+        await service
+          .saveFeeding(
+            feeding,
+          );
+
+        const result =
+          await service.load();
+
+        expect(
+          repository.saveRecord,
+        ).toHaveBeenCalledOnceWith(
+          'feedings',
+          feeding,
+        );
+
+        expect(
+          result.feedings,
+        ).toEqual([
+          feeding,
+        ]);
+      },
+    );
+
+    it(
+      'remove do cache depois de excluir um registro',
+      async () => {
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        repository
+          .listRecords
+          .and.callFake(
+            async (
+              collection,
+            ) => {
+              switch (
+                collection
+              ) {
+                case 'feedings':
+                  return [
+                    feeding,
+                  ];
+
+                default:
+                  return [];
+              }
+            },
+          );
+
+        const initial =
+          await service.load();
+
+        expect(
+          initial.feedings,
+        ).toEqual([
+          feeding,
+        ]);
+
+        await service
+          .deleteFeeding(
+            feeding.id,
+          );
+
+        const result =
+          await service.load();
+
+        expect(
+          repository.deleteRecord,
+        ).toHaveBeenCalledOnceWith(
+          'feedings',
+          feeding.id,
+        );
+
+        expect(
+          result.feedings,
+        ).toEqual([]);
       },
     );
   },
