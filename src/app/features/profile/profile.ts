@@ -1,23 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
-import {
-  Router,
-  RouterLink,
-} from '@angular/router';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { ThemeService } from '../../core/services/theme';
 import { OnboardingService } from '../../core/services/onboarding';
-import {
-  trimmedRequired,
-  validBirthDate,
-} from '../../core/validators/onboarding.validators';
-import {
-  AuthService,
-} from '../../core/services/auth';
+import { trimmedRequired, validBirthDate } from '../../core/validators/onboarding.validators';
+import { AuthService } from '../../core/services/auth';
+import { BabyContextService } from '../../core/services/baby-context';
+
+import { BabyInviteRepository } from '../../core/services/baby-invite.repository';
 
 @Component({
   selector: 'app-profile',
@@ -26,23 +16,29 @@ import {
   styleUrl: './profile.css',
 })
 export class ProfilePage {
-  private readonly onboarding =
-    inject(OnboardingService);
+  private readonly onboarding = inject(OnboardingService);
 
-  private readonly router =
-    inject(Router);
+  private readonly router = inject(Router);
 
-  readonly auth =
-    inject(AuthService);
+  private readonly babyContext = inject(BabyContextService);
 
-  readonly theme =
-    inject(ThemeService);
+  private readonly invites = inject(BabyInviteRepository);
 
-  readonly storageError =
-    this.onboarding.storageError;
+  readonly auth = inject(AuthService);
 
-  readonly message =
-    signal('');
+  readonly theme = inject(ThemeService);
+
+  readonly storageError = this.onboarding.storageError;
+
+  readonly message = signal('');
+
+  readonly isBabyOwner = this.babyContext.isOwner;
+
+  readonly inviteLink = signal('');
+
+  readonly inviteMessage = signal('');
+
+  readonly inviteLoading = signal(false);
 
   readonly fields = [
     {
@@ -69,27 +65,18 @@ export class ProfilePage {
   ] as const;
 
   readonly form = new FormGroup({
-    caregiverName: new FormControl(
-      this.onboarding.caregiverName(),
-      {
-        nonNullable: true,
-        validators: [trimmedRequired],
-      },
-    ),
-    babyName: new FormControl(
-      this.onboarding.babyName(),
-      {
-        nonNullable: true,
-        validators: [trimmedRequired],
-      },
-    ),
-    babyBirthDate: new FormControl(
-      this.onboarding.babyBirthDate(),
-      {
-        nonNullable: true,
-        validators: [Validators.required, validBirthDate],
-      },
-    ),
+    caregiverName: new FormControl(this.onboarding.caregiverName(), {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    babyName: new FormControl(this.onboarding.babyName(), {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    babyBirthDate: new FormControl(this.onboarding.babyBirthDate(), {
+      nonNullable: true,
+      validators: [Validators.required, validBirthDate],
+    }),
   });
 
   get today(): string {
@@ -103,6 +90,61 @@ export class ProfilePage {
 
   clearMessage(): void {
     this.message.set('');
+  }
+
+  async generateInvite(): Promise<void> {
+    this.inviteMessage.set('');
+    this.inviteLink.set('');
+
+    if (!this.isBabyOwner()) {
+      this.inviteMessage.set('Somente o proprietário do bebê pode convidar responsáveis.');
+
+      return;
+    }
+
+    const babyId = this.babyContext.activeBabyId();
+
+    if (!babyId) {
+      this.inviteMessage.set('Não foi possível identificar o bebê ativo.');
+
+      return;
+    }
+
+    this.inviteLoading.set(true);
+
+    try {
+      const invite = await this.invites.createInvite(babyId);
+
+      const link = `${window.location.origin}/invite/${invite.id}`;
+
+      this.inviteLink.set(link);
+
+      this.inviteMessage.set(
+        'Convite criado. Ele é válido por 24 horas e pode ser usado uma única vez.',
+      );
+    } catch {
+      this.inviteMessage.set('Não foi possível criar o convite. Tente novamente.');
+    } finally {
+      this.inviteLoading.set(false);
+    }
+  }
+
+  async copyInvite(): Promise<void> {
+    const link = this.inviteLink();
+
+    if (!link) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+
+      this.inviteMessage.set('Link copiado.');
+    } catch {
+      this.inviteMessage.set(
+        'Não foi possível copiar automaticamente. Selecione o link e copie manualmente.',
+      );
+    }
   }
 
   async save(): Promise<void> {
@@ -123,15 +165,10 @@ export class ProfilePage {
       babyBirthDate: values.babyBirthDate,
     };
 
-    const saved =
-      await this.onboarding
-        .updateProfile(data);
+    const saved = await this.onboarding.updateProfile(data);
 
     if (!saved) {
-      this.message.set(
-        this.storageError() ??
-        'Não foi possível atualizar o perfil.',
-      );
+      this.message.set(this.storageError() ?? 'Não foi possível atualizar o perfil.');
 
       return;
     }
@@ -141,15 +178,12 @@ export class ProfilePage {
   }
 
   async logout(): Promise<void> {
-    const success =
-      await this.auth.logout();
+    const success = await this.auth.logout();
 
     if (!success) {
       return;
     }
 
-    await this.router.navigate([
-      '/auth/login',
-    ]);
+    await this.router.navigate(['/auth/login']);
   }
 }
