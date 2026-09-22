@@ -46,25 +46,42 @@ describe(
       >;
 
     let repository: {
-      readProfile: jasmine.Spy;
-      listRecords: jasmine.Spy;
-      saveRecords: jasmine.Spy;
-      saveProfile: jasmine.Spy;
-      saveRecord: jasmine.Spy;
-      deleteRecord: jasmine.Spy;
+      readProfile:
+        jasmine.Spy;
+
+      listRecords:
+        jasmine.Spy;
+
+      saveRecords:
+        jasmine.Spy;
+
+      saveProfile:
+        jasmine.Spy;
+
+      saveRecord:
+        jasmine.Spy;
+
+      deleteRecord:
+        jasmine.Spy;
     };
 
     const feeding = {
       id: 'feeding-1',
       startedAt: 1000,
       endedAt: null,
-      side: 'left' as const,
+      side:
+        'left' as const,
 
       periods: [
         {
-          startedAt: 1000,
-          endedAt: null,
-          side: 'left' as const,
+          startedAt:
+            1000,
+
+          endedAt:
+            null,
+
+          side:
+            'left' as const,
         },
       ],
     };
@@ -77,9 +94,54 @@ describe(
 
     const diaper = {
       id: 'diaper-1',
-      type: 'wet' as const,
+      type:
+        'wet' as const,
       recordedAt: 4000,
     };
+
+    function mockCloud(
+      value: {
+        feedings?: readonly unknown[];
+        sleeps?: readonly unknown[];
+        diapers?: readonly unknown[];
+      } = {},
+    ): void {
+      repository
+        .listRecords
+        .and.callFake(
+          async (
+            collection,
+          ) => {
+            switch (
+              collection
+            ) {
+              case 'feedings':
+                return [
+                  ...(value
+                    .feedings ??
+                    []),
+                ];
+
+              case 'sleeps':
+                return [
+                  ...(value
+                    .sleeps ??
+                    []),
+                ];
+
+              case 'diapers':
+                return [
+                  ...(value
+                    .diapers ??
+                    []),
+                ];
+
+              default:
+                return [];
+            }
+          },
+        );
+    }
 
     beforeEach(() => {
       localStorage.clear();
@@ -87,30 +149,30 @@ describe(
       user =
         signal<User | null>(
           {
-            uid: 'user-a',
+            uid:
+              'user-a',
           } as User,
         );
 
       repository =
-        jasmine.createSpyObj(
-          'UserDataRepository',
-          [
-            'readProfile',
-            'listRecords',
-            'saveRecords',
-            'saveProfile',
-            'saveRecord',
-            'deleteRecord',
-          ],
-        );
+        jasmine
+          .createSpyObj(
+            'UserDataRepository',
+            [
+              'readProfile',
+              'listRecords',
+              'saveRecords',
+              'saveProfile',
+              'saveRecord',
+              'deleteRecord',
+            ],
+          );
 
       repository
         .readProfile
         .and.resolveTo({});
 
-      repository
-        .listRecords
-        .and.resolveTo([]);
+      mockCloud();
 
       repository
         .saveRecords
@@ -128,36 +190,39 @@ describe(
         .deleteRecord
         .and.resolveTo();
 
-      TestBed.configureTestingModule({
-        providers: [
-          ActivityPersistenceService,
+      TestBed
+        .configureTestingModule({
+          providers: [
+            ActivityPersistenceService,
 
-          {
-            provide:
-              AuthService,
+            {
+              provide:
+                AuthService,
 
-            useValue: {
-              user:
-                user.asReadonly(),
+              useValue: {
+                user:
+                  user
+                    .asReadonly(),
 
-              waitUntilReady:
-                jasmine
-                  .createSpy(
-                    'waitUntilReady',
-                  )
-                  .and.resolveTo(),
+                waitUntilReady:
+                  jasmine
+                    .createSpy(
+                      'waitUntilReady',
+                    )
+                    .and
+                    .resolveTo(),
+              },
             },
-          },
 
-          {
-            provide:
-              UserDataRepository,
+            {
+              provide:
+                UserDataRepository,
 
-            useValue:
-              repository,
-          },
-        ],
-      });
+              useValue:
+                repository,
+            },
+          ],
+        });
 
       service =
         TestBed.inject(
@@ -175,29 +240,33 @@ describe(
     it(
       'migra registros locais preservando os IDs e registros ativos',
       async () => {
-        localStorage.setItem(
-          feedingKey,
-          JSON.stringify([
-            feeding,
-          ]),
-        );
+        localStorage
+          .setItem(
+            feedingKey,
+            JSON.stringify([
+              feeding,
+            ]),
+          );
 
-        localStorage.setItem(
-          sleepKey,
-          JSON.stringify([
-            sleep,
-          ]),
-        );
+        localStorage
+          .setItem(
+            sleepKey,
+            JSON.stringify([
+              sleep,
+            ]),
+          );
 
-        localStorage.setItem(
-          diaperKey,
-          JSON.stringify([
-            diaper,
-          ]),
-        );
+        localStorage
+          .setItem(
+            diaperKey,
+            JSON.stringify([
+              diaper,
+            ]),
+          );
 
         const result =
-          await service.load();
+          await service
+            .load();
 
         expect(
           result.feedings,
@@ -206,56 +275,65 @@ describe(
         ]);
 
         expect(
-          result.feedings[0]
+          result
+            .feedings[0]
             .endedAt,
         ).toBeNull();
 
         expect(
-          repository.saveRecords,
+          repository
+            .saveRecords,
         ).toHaveBeenCalledWith(
           'feedings',
           [feeding],
         );
 
         expect(
-          repository.saveRecords,
+          repository
+            .saveRecords,
         ).toHaveBeenCalledWith(
           'sleeps',
           [sleep],
         );
 
         expect(
-          repository.saveRecords,
+          repository
+            .saveRecords,
         ).toHaveBeenCalledWith(
           'diapers',
           [diaper],
         );
 
         expect(
-          repository.saveProfile,
+          repository
+            .saveProfile,
         ).toHaveBeenCalledWith(
-          jasmine.objectContaining({
-            recordsMigrationVersion:
-              1,
-          }),
+          jasmine
+            .objectContaining({
+              recordsMigrationVersion:
+                1,
+            }),
         );
 
         expect(
-          localStorage.getItem(
-            feedingKey,
-          ),
+          localStorage
+            .getItem(
+              feedingKey,
+            ),
         ).toBeNull();
 
         expect(
-          localStorage.getItem(
-            sleepKey,
-          ),
+          localStorage
+            .getItem(
+              sleepKey,
+            ),
         ).toBeNull();
 
         expect(
-          localStorage.getItem(
-            diaperKey,
-          ),
+          localStorage
+            .getItem(
+              diaperKey,
+            ),
         ).toBeNull();
       },
     );
@@ -270,61 +348,55 @@ describe(
               1,
           });
 
-        repository
-          .listRecords
-          .and.callFake(
-            async (
-              collection,
-            ) => {
-              switch (
-                collection
-              ) {
-                case 'feedings':
-                  return [
-                    feeding,
-                  ];
+        mockCloud({
+          feedings: [
+            feeding,
+          ],
 
-                case 'sleeps':
-                  return [
-                    sleep,
-                  ];
+          sleeps: [
+            sleep,
+          ],
 
-                case 'diapers':
-                  return [
-                    diaper,
-                  ];
+          diapers: [
+            diaper,
+          ],
+        });
 
-                default:
-                  return [];
-              }
-            },
+        localStorage
+          .setItem(
+            feedingKey,
+            JSON.stringify([
+              {
+                ...feeding,
+                id:
+                  'stale',
+              },
+            ]),
           );
 
-        localStorage.setItem(
-          feedingKey,
-          JSON.stringify([
-            {
-              ...feeding,
-              id: 'stale',
-            },
-          ]),
+        const result =
+          await service
+            .load();
+
+        expect(
+          result
+            .feedings[0]
+            .id,
+        ).toBe(
+          'feeding-1',
         );
 
-        const result =
-          await service.load();
+        expect(
+          repository
+            .saveRecords,
+        ).not
+          .toHaveBeenCalled();
 
         expect(
-          result.feedings[0].id,
-        ).toBe('feeding-1');
-
-        expect(
-          repository.saveRecords,
-        ).not.toHaveBeenCalled();
-
-        expect(
-          localStorage.getItem(
-            feedingKey,
-          ),
+          localStorage
+            .getItem(
+              feedingKey,
+            ),
         ).toBeNull();
       },
     );
@@ -332,12 +404,13 @@ describe(
     it(
       'mantém os dados locais quando a migração falha',
       async () => {
-        localStorage.setItem(
-          feedingKey,
-          JSON.stringify([
-            feeding,
-          ]),
-        );
+        localStorage
+          .setItem(
+            feedingKey,
+            JSON.stringify([
+              feeding,
+            ]),
+          );
 
         repository
           .saveRecords
@@ -352,44 +425,59 @@ describe(
         ).toBeRejected();
 
         expect(
-          localStorage.getItem(
-            feedingKey,
-          ),
-        ).not.toBeNull();
+          localStorage
+            .getItem(
+              feedingKey,
+            ),
+        ).not
+          .toBeNull();
 
         expect(
-          repository.saveProfile,
-        ).not.toHaveBeenCalled();
+          repository
+            .saveProfile,
+        ).not
+          .toHaveBeenCalled();
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
+
+        expect(
+          service.error(),
+        ).not.toBeNull();
       },
     );
 
     it(
       'converte mamadas da versão antiga sem períodos',
       async () => {
-        localStorage.setItem(
-          legacyFeedingKey,
-          JSON.stringify([
-            {
-              id:
-                'legacy-feeding',
+        localStorage
+          .setItem(
+            legacyFeedingKey,
+            JSON.stringify([
+              {
+                id:
+                  'legacy-feeding',
 
-              startedAt:
-                1000,
+                startedAt:
+                  1000,
 
-              endedAt:
-                2000,
+                endedAt:
+                  2000,
 
-              side:
-                'right',
-            },
-          ]),
-        );
+                side:
+                  'right',
+              },
+            ]),
+          );
 
         const result =
-          await service.load();
+          await service
+            .load();
 
         expect(
-          result.feedings[0],
+          result
+            .feedings[0],
         ).toEqual({
           id:
             'legacy-feeding',
@@ -412,31 +500,41 @@ describe(
     it(
       'não apaga armazenamento local inválido',
       async () => {
-        localStorage.setItem(
-          feedingKey,
-          '{inválido',
-        );
+        localStorage
+          .setItem(
+            feedingKey,
+            '{inválido',
+          );
 
         await expectAsync(
           service.load(),
         ).toBeRejected();
 
         expect(
-          localStorage.getItem(
-            feedingKey,
-          ),
+          localStorage
+            .getItem(
+              feedingKey,
+            ),
         ).toBe(
           '{inválido',
         );
 
         expect(
-          repository.saveProfile,
-        ).not.toHaveBeenCalled();
+          repository
+            .saveProfile,
+        ).not
+          .toHaveBeenCalled();
+
+        expect(
+          service.error(),
+        ).toContain(
+          'não foram apagados',
+        );
       },
     );
 
     it(
-      'mantém o cache atualizado depois de salvar um registro',
+      'expõe os registros carregados por sinais reativos',
       async () => {
         repository
           .readProfile
@@ -445,25 +543,98 @@ describe(
               1,
           });
 
-        await service.load();
+        mockCloud({
+          feedings: [
+            feeding,
+          ],
+
+          sleeps: [
+            sleep,
+          ],
+
+          diapers: [
+            diaper,
+          ],
+        });
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
+
+        await service
+          .load();
+
+        expect(
+          service.isReady(),
+        ).toBeTrue();
+
+        expect(
+          service.isLoading(),
+        ).toBeFalse();
+
+        expect(
+          service.error(),
+        ).toBeNull();
+
+        expect(
+          service.feedings(),
+        ).toEqual([
+          feeding,
+        ]);
+
+        expect(
+          service.sleeps(),
+        ).toEqual([
+          sleep,
+        ]);
+
+        expect(
+          service.diapers(),
+        ).toEqual([
+          diaper,
+        ]);
+      },
+    );
+
+    it(
+      'mantém o estado atualizado depois de salvar um registro',
+      async () => {
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        await service
+          .load();
 
         await service
           .saveFeeding(
             feeding,
           );
 
-        const result =
-          await service.load();
-
         expect(
-          repository.saveRecord,
+          repository
+            .saveRecord,
         ).toHaveBeenCalledOnceWith(
           'feedings',
           feeding,
         );
 
         expect(
-          result.feedings,
+          service
+            .feedings(),
+        ).toEqual([
+          feeding,
+        ]);
+
+        const cached =
+          await service
+            .load();
+
+        expect(
+          cached.feedings,
         ).toEqual([
           feeding,
         ]);
@@ -471,7 +642,7 @@ describe(
     );
 
     it(
-      'remove do cache depois de excluir um registro',
+      'remove do estado depois de excluir um registro',
       async () => {
         repository
           .readProfile
@@ -480,31 +651,18 @@ describe(
               1,
           });
 
-        repository
-          .listRecords
-          .and.callFake(
-            async (
-              collection,
-            ) => {
-              switch (
-                collection
-              ) {
-                case 'feedings':
-                  return [
-                    feeding,
-                  ];
+        mockCloud({
+          feedings: [
+            feeding,
+          ],
+        });
 
-                default:
-                  return [];
-              }
-            },
-          );
-
-        const initial =
-          await service.load();
+        await service
+          .load();
 
         expect(
-          initial.feedings,
+          service
+            .feedings(),
         ).toEqual([
           feeding,
         ]);
@@ -514,20 +672,192 @@ describe(
             feeding.id,
           );
 
-        const result =
-          await service.load();
-
         expect(
-          repository.deleteRecord,
+          repository
+            .deleteRecord,
         ).toHaveBeenCalledOnceWith(
           'feedings',
           feeding.id,
         );
 
         expect(
+          service
+            .feedings(),
+        ).toEqual([]);
+      },
+    );
+
+    it(
+      'não altera o estado quando uma gravação na nuvem falha',
+      async () => {
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        await service
+          .load();
+
+        repository
+          .saveRecord
+          .and.rejectWith(
+            new Error(
+              'Firestore indisponível',
+            ),
+          );
+
+        await expectAsync(
+          service
+            .saveFeeding(
+              feeding,
+            ),
+        ).toBeRejected();
+
+        expect(
+          service
+            .feedings(),
+        ).toEqual([]);
+
+        expect(
+          service.error(),
+        ).toContain(
+          'sincronizar',
+        );
+
+        expect(
+          service.isReady(),
+        ).toBeTrue();
+      },
+    );
+
+    it(
+      'permite tentar novamente depois de uma falha de carregamento',
+      async () => {
+        repository
+          .readProfile
+          .and.rejectWith(
+            new Error(
+              'Firestore indisponível',
+            ),
+          );
+
+        await expectAsync(
+          service.load(),
+        ).toBeRejected();
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
+
+        expect(
+          service.error(),
+        ).not.toBeNull();
+
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        mockCloud({
+          feedings: [
+            feeding,
+          ],
+        });
+
+        const result =
+          await service
+            .load();
+
+        expect(
           result.feedings,
+        ).toEqual([
+          feeding,
+        ]);
+
+        expect(
+          service.isReady(),
+        ).toBeTrue();
+
+        expect(
+          service.error(),
+        ).toBeNull();
+      },
+    );
+
+    it(
+      'não expõe registros da conta anterior depois da troca de usuário',
+      async () => {
+        repository
+          .readProfile
+          .and.resolveTo({
+            recordsMigrationVersion:
+              1,
+          });
+
+        mockCloud({
+          feedings: [
+            feeding,
+          ],
+        });
+
+        await service
+          .load();
+
+        expect(
+          service
+            .feedings(),
+        ).toEqual([
+          feeding,
+        ]);
+
+        user.set(
+          {
+            uid:
+              'user-b',
+          } as User,
+        );
+
+        expect(
+          service
+            .feedings(),
+        ).toEqual([]);
+
+        expect(
+          service
+            .sleeps(),
+        ).toEqual([]);
+
+        expect(
+          service
+            .diapers(),
+        ).toEqual([]);
+
+        expect(
+          service.isReady(),
+        ).toBeFalse();
+
+        expect(
+          service.error(),
+        ).toBeNull();
+
+        mockCloud();
+
+        await service
+          .load();
+
+        expect(
+          service.isReady(),
+        ).toBeTrue();
+
+        expect(
+          service
+            .feedings(),
         ).toEqual([]);
       },
     );
   },
-);
+);    

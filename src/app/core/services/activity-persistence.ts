@@ -1,6 +1,8 @@
 import {
   Injectable,
+  computed,
   inject,
+  signal,
 } from '@angular/core';
 
 import type {
@@ -37,6 +39,30 @@ export interface ActivitySnapshot {
     readonly Diaper[];
 }
 
+interface ActivityState {
+  readonly uid:
+    string | null;
+
+  readonly snapshot:
+    ActivitySnapshot;
+
+  readonly ready:
+    boolean;
+
+  readonly loading:
+    boolean;
+
+  readonly error:
+    string | null;
+}
+
+const EMPTY_SNAPSHOT:
+  ActivitySnapshot = {
+    feedings: [],
+    sleeps: [],
+    diapers: [],
+  };
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,11 +85,15 @@ export class ActivityPersistenceService {
   private readonly diaperKey =
     'nascemos-pais:diapers:v1';
 
-  private loadedUid:
-    string | null = null;
-
-  private snapshot:
-    ActivitySnapshot | null = null;
+  private readonly state =
+    signal<ActivityState>({
+      uid: null,
+      snapshot:
+        EMPTY_SNAPSHOT,
+      ready: false,
+      loading: false,
+      error: null,
+    });
 
   private loadingUid:
     string | null = null;
@@ -71,6 +101,99 @@ export class ActivityPersistenceService {
   private loadPromise:
     Promise<ActivitySnapshot> | null =
       null;
+
+  readonly snapshot =
+    computed<ActivitySnapshot>(
+      () => {
+        const uid =
+          this.auth.user()?.uid ??
+          null;
+
+        const state =
+          this.state();
+
+        if (
+          uid === null ||
+          state.uid !== uid
+        ) {
+          return EMPTY_SNAPSHOT;
+        }
+
+        return state.snapshot;
+      },
+    );
+
+  readonly feedings =
+    computed(
+      () =>
+        this.snapshot()
+          .feedings,
+    );
+
+  readonly sleeps =
+    computed(
+      () =>
+        this.snapshot()
+          .sleeps,
+    );
+
+  readonly diapers =
+    computed(
+      () =>
+        this.snapshot()
+          .diapers,
+    );
+
+  readonly isReady =
+    computed(() => {
+      const uid =
+        this.auth.user()?.uid ??
+        null;
+
+      const state =
+        this.state();
+
+      return (
+        uid !== null &&
+        state.uid === uid &&
+        state.ready
+      );
+    });
+
+  readonly isLoading =
+    computed(() => {
+      const uid =
+        this.auth.user()?.uid ??
+        null;
+
+      const state =
+        this.state();
+
+      return (
+        uid !== null &&
+        state.uid === uid &&
+        state.loading
+      );
+    });
+
+  readonly error =
+    computed(() => {
+      const uid =
+        this.auth.user()?.uid ??
+        null;
+
+      const state =
+        this.state();
+
+      if (
+        uid === null ||
+        state.uid !== uid
+      ) {
+        return null;
+      }
+
+      return state.error;
+    });
 
   async load():
     Promise<ActivitySnapshot> {
@@ -81,16 +204,28 @@ export class ActivityPersistenceService {
       this.auth.user()?.uid;
 
     if (!uid) {
+      this.state.set({
+        uid: null,
+        snapshot:
+          EMPTY_SNAPSHOT,
+        ready: false,
+        loading: false,
+        error: null,
+      });
+
       throw new Error(
         'Usuário não autenticado.',
       );
     }
 
+    const current =
+      this.state();
+
     if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
+      current.uid === uid &&
+      current.ready
     ) {
-      return this.snapshot;
+      return current.snapshot;
     }
 
     if (
@@ -100,39 +235,71 @@ export class ActivityPersistenceService {
       return this.loadPromise;
     }
 
-    this.loadedUid = null;
-    this.snapshot = null;
-    this.loadingUid = uid;
+    this.state.set({
+      uid,
+      snapshot:
+        EMPTY_SNAPSHOT,
+      ready: false,
+      loading: true,
+      error: null,
+    });
+
+    this.loadingUid =
+      uid;
 
     const promise =
       this.loadForUser(uid);
 
-    this.loadPromise = promise;
+    this.loadPromise =
+      promise;
 
     try {
       const result =
         await promise;
 
-      if (
-        this.auth.user()?.uid !==
-        uid
-      ) {
-        throw new Error(
-          'A sessão mudou durante o carregamento.',
-        );
-      }
+      this.assertSameUser(
+        uid,
+      );
 
-      this.loadedUid = uid;
-      this.snapshot = result;
+      this.state.set({
+        uid,
+        snapshot: result,
+        ready: true,
+        loading: false,
+        error: null,
+      });
 
       return result;
+    } catch (error) {
+      if (
+        this.auth
+          .user()?.uid ===
+        uid
+      ) {
+        this.state.set({
+          uid,
+          snapshot:
+            EMPTY_SNAPSHOT,
+          ready: false,
+          loading: false,
+          error:
+            this.loadErrorMessage(
+              error,
+            ),
+        });
+      }
+
+      throw error;
     } finally {
       if (
         this.loadPromise ===
         promise
       ) {
-        this.loadPromise = null;
-        this.loadingUid = null;
+        this.loadPromise =
+          null;
+
+        this.loadingUid =
+          null;
       }
     }
   }
@@ -140,217 +307,276 @@ export class ActivityPersistenceService {
   async saveFeeding(
     feeding: Feeding,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .saveRecord(
-        'feedings',
-        feeding,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .saveRecord(
+          'feedings',
+          feeding,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
-
-        feedings: [
-          feeding,
-
-          ...this.snapshot
-            .feedings
-            .filter(
-              (item) =>
-                item.id !==
-                feeding.id,
+          feedings:
+            this.upsertFeeding(
+              snapshot.feedings,
+              feeding,
             ),
-        ].sort(
-          (a, b) =>
-            b.startedAt -
-            a.startedAt,
-        ),
-      };
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
+
+      throw error;
     }
   }
 
   async deleteFeeding(
     id: string,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .deleteRecord(
-        'feedings',
-        id,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .deleteRecord(
+          'feedings',
+          id,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
+          feedings:
+            snapshot.feedings
+              .filter(
+                (feeding) =>
+                  feeding.id !==
+                  id,
+              ),
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
 
-        feedings:
-          this.snapshot
-            .feedings
-            .filter(
-              (feeding) =>
-                feeding.id !== id,
-            ),
-      };
+      throw error;
     }
   }
 
   async saveSleep(
     sleep: Sleep,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .saveRecord(
-        'sleeps',
-        sleep,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .saveRecord(
+          'sleeps',
+          sleep,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
-
-        sleeps: [
-          sleep,
-
-          ...this.snapshot
-            .sleeps
-            .filter(
-              (item) =>
-                item.id !==
-                sleep.id,
+          sleeps:
+            this.upsertSleep(
+              snapshot.sleeps,
+              sleep,
             ),
-        ].sort(
-          (a, b) =>
-            b.startedAt -
-            a.startedAt,
-        ),
-      };
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
+
+      throw error;
     }
   }
 
   async deleteSleep(
     id: string,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .deleteRecord(
-        'sleeps',
-        id,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .deleteRecord(
+          'sleeps',
+          id,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
+          sleeps:
+            snapshot.sleeps
+              .filter(
+                (sleep) =>
+                  sleep.id !==
+                  id,
+              ),
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
 
-        sleeps:
-          this.snapshot
-            .sleeps
-            .filter(
-              (sleep) =>
-                sleep.id !== id,
-            ),
-      };
+      throw error;
     }
   }
 
   async saveDiaper(
     diaper: Diaper,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .saveRecord(
-        'diapers',
-        diaper,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .saveRecord(
+          'diapers',
+          diaper,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
-
-        diapers: [
-          diaper,
-
-          ...this.snapshot
-            .diapers
-            .filter(
-              (item) =>
-                item.id !==
-                diaper.id,
+          diapers:
+            this.upsertDiaper(
+              snapshot.diapers,
+              diaper,
             ),
-        ].sort(
-          (a, b) =>
-            b.recordedAt -
-            a.recordedAt,
-        ),
-      };
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
+
+      throw error;
     }
   }
 
   async deleteDiaper(
     id: string,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const {
+      uid,
+      snapshot,
+    } =
+      this.requireReadyState();
 
-    await this.repository
-      .deleteRecord(
-        'diapers',
-        id,
+    this.clearError(uid);
+
+    try {
+      await this.repository
+        .deleteRecord(
+          'diapers',
+          id,
+        );
+
+      this.assertSameUser(
+        uid,
       );
 
-    this.assertSameUser(uid);
+      this.updateSnapshot(
+        uid,
+        {
+          ...snapshot,
 
-    if (
-      this.loadedUid === uid &&
-      this.snapshot !== null
-    ) {
-      this.snapshot = {
-        ...this.snapshot,
+          diapers:
+            snapshot.diapers
+              .filter(
+                (diaper) =>
+                  diaper.id !==
+                  id,
+              ),
+        },
+      );
+    } catch (error) {
+      this.setSyncError(
+        uid,
+      );
 
-        diapers:
-          this.snapshot
-            .diapers
-            .filter(
-              (diaper) =>
-                diaper.id !== id,
-            ),
-      };
+      throw error;
     }
+  }
+
+  clearSyncError(): void {
+    const uid =
+      this.auth.user()?.uid;
+
+    if (!uid) {
+      return;
+    }
+
+    this.clearError(uid);
   }
 
   private async loadForUser(
@@ -365,6 +591,10 @@ export class ActivityPersistenceService {
           >
         >();
 
+    this.assertSameUser(
+      uid,
+    );
+
     if (profile === null) {
       throw new Error(
         'Perfil do usuário não encontrado.',
@@ -375,24 +605,27 @@ export class ActivityPersistenceService {
       rawFeedings,
       rawSleeps,
       rawDiapers,
-    ] = await Promise.all([
-      this.repository
-        .listRecords<Feeding>(
-          'feedings',
-        ),
+    ] =
+      await Promise.all([
+        this.repository
+          .listRecords<Feeding>(
+            'feedings',
+          ),
 
-      this.repository
-        .listRecords<Sleep>(
-          'sleeps',
-        ),
+        this.repository
+          .listRecords<Sleep>(
+            'sleeps',
+          ),
 
-      this.repository
-        .listRecords<Diaper>(
-          'diapers',
-        ),
-    ]);
+        this.repository
+          .listRecords<Diaper>(
+            'diapers',
+          ),
+      ]);
 
-    this.assertSameUser(uid);
+    this.assertSameUser(
+      uid,
+    );
 
     const cloud =
       this.normalizeSnapshot({
@@ -429,49 +662,63 @@ export class ActivityPersistenceService {
       merged,
     );
 
-    /*
-     * Os IDs originais são usados como
-     * IDs dos documentos. Repetir uma
-     * migração interrompida não cria
-     * registros duplicados.
-     */
     if (
-      legacy.feedings.length > 0
+      legacy.feedings
+        .length > 0
     ) {
+      this.assertSameUser(
+        uid,
+      );
+
       await this.repository
         .saveRecords(
           'feedings',
           legacy.feedings,
         );
+
+      this.assertSameUser(
+        uid,
+      );
     }
 
     if (
-      legacy.sleeps.length > 0
+      legacy.sleeps
+        .length > 0
     ) {
+      this.assertSameUser(
+        uid,
+      );
+
       await this.repository
         .saveRecords(
           'sleeps',
           legacy.sleeps,
         );
+
+      this.assertSameUser(
+        uid,
+      );
     }
 
     if (
-      legacy.diapers.length > 0
+      legacy.diapers
+        .length > 0
     ) {
+      this.assertSameUser(
+        uid,
+      );
+
       await this.repository
         .saveRecords(
           'diapers',
           legacy.diapers,
         );
+
+      this.assertSameUser(
+        uid,
+      );
     }
 
-    this.assertSameUser(uid);
-
-    /*
-     * O marcador só é gravado depois
-     * que todas as coleções foram
-     * persistidas com sucesso.
-     */
     await this.repository
       .saveProfile({
         recordsMigrationVersion:
@@ -482,16 +729,195 @@ export class ActivityPersistenceService {
             .toISOString(),
       });
 
-    this.assertSameUser(uid);
+    this.assertSameUser(
+      uid,
+    );
 
-    /*
-     * O localStorage só é apagado
-     * depois da confirmação completa
-     * da migração.
-     */
     this.removeLegacyData();
 
     return merged;
+  }
+
+  private upsertFeeding(
+    feedings:
+      readonly Feeding[],
+    feeding: Feeding,
+  ): readonly Feeding[] {
+    return [
+      feeding,
+      ...feedings.filter(
+        (item) =>
+          item.id !==
+          feeding.id,
+      ),
+    ].sort(
+      (a, b) =>
+        b.startedAt -
+        a.startedAt,
+    );
+  }
+
+  private upsertSleep(
+    sleeps:
+      readonly Sleep[],
+    sleep: Sleep,
+  ): readonly Sleep[] {
+    return [
+      sleep,
+      ...sleeps.filter(
+        (item) =>
+          item.id !==
+          sleep.id,
+      ),
+    ].sort(
+      (a, b) =>
+        b.startedAt -
+        a.startedAt,
+    );
+  }
+
+  private upsertDiaper(
+    diapers:
+      readonly Diaper[],
+    diaper: Diaper,
+  ): readonly Diaper[] {
+    return [
+      diaper,
+      ...diapers.filter(
+        (item) =>
+          item.id !==
+          diaper.id,
+      ),
+    ].sort(
+      (a, b) =>
+        b.recordedAt -
+        a.recordedAt,
+    );
+  }
+
+  private updateSnapshot(
+    uid: string,
+    snapshot:
+      ActivitySnapshot,
+  ): void {
+    this.assertSameUser(
+      uid,
+    );
+
+    const current =
+      this.state();
+
+    if (
+      current.uid !== uid ||
+      !current.ready
+    ) {
+      throw new Error(
+        'Os registros ainda não foram carregados.',
+      );
+    }
+
+    this.validateConsistency(
+      snapshot,
+    );
+
+    this.state.set({
+      ...current,
+      snapshot,
+      error: null,
+    });
+  }
+
+  private requireReadyState(): {
+    readonly uid: string;
+    readonly snapshot:
+      ActivitySnapshot;
+  } {
+    const uid =
+      this.requireUid();
+
+    const current =
+      this.state();
+
+    if (
+      current.uid !== uid ||
+      !current.ready
+    ) {
+      throw new Error(
+        'Os registros ainda não foram carregados.',
+      );
+    }
+
+    return {
+      uid,
+      snapshot:
+        current.snapshot,
+    };
+  }
+
+  private clearError(
+    uid: string,
+  ): void {
+    const current =
+      this.state();
+
+    if (
+      current.uid !== uid
+    ) {
+      return;
+    }
+
+    this.state.set({
+      ...current,
+      error: null,
+    });
+  }
+
+  private setSyncError(
+    uid: string,
+  ): void {
+    if (
+      this.auth
+        .user()?.uid !==
+      uid
+    ) {
+      return;
+    }
+
+    const current =
+      this.state();
+
+    if (
+      current.uid !== uid
+    ) {
+      return;
+    }
+
+    this.state.set({
+      ...current,
+
+      error:
+        'Não foi possível sincronizar os registros com a nuvem. Tente novamente.',
+    });
+  }
+
+  private loadErrorMessage(
+    error: unknown,
+  ): string {
+    if (
+      error instanceof Error &&
+      error.message ===
+        'Os registros locais estão inválidos.'
+    ) {
+      return (
+        'Os registros salvos neste dispositivo estão inválidos. ' +
+        'Eles não foram apagados.'
+      );
+    }
+
+    return (
+      'Não foi possível carregar os registros. ' +
+      'Verifique sua conexão e tente novamente.'
+    );
   }
 
   private readLegacySnapshot():
@@ -500,11 +926,7 @@ export class ActivityPersistenceService {
       this.getStorage();
 
     if (storage === null) {
-      return {
-        feedings: [],
-        sleeps: [],
-        diapers: [],
-      };
+      return EMPTY_SNAPSHOT;
     }
 
     const currentFeedings =
@@ -528,8 +950,11 @@ export class ActivityPersistenceService {
           (value) =>
             this.parseFeeding(
               value,
-              currentFeedings === null &&
-                oldFeedings !== null,
+
+              currentFeedings ===
+                null &&
+                oldFeedings !==
+                  null,
             ),
         ),
 
@@ -538,8 +963,11 @@ export class ActivityPersistenceService {
           storage.getItem(
             this.sleepKey,
           ),
+
           (value) =>
-            this.parseSleep(value),
+            this.parseSleep(
+              value,
+            ),
         ),
 
       diapers:
@@ -547,15 +975,19 @@ export class ActivityPersistenceService {
           storage.getItem(
             this.diaperKey,
           ),
+
           (value) =>
-            this.parseDiaper(value),
+            this.parseDiaper(
+              value,
+            ),
         ),
     });
   }
 
   private parseStoredArray<T>(
     raw: string | null,
-    parse: (value: unknown) => T,
+    parse:
+      (value: unknown) => T,
   ): T[] {
     if (raw === null) {
       return [];
@@ -578,7 +1010,9 @@ export class ActivityPersistenceService {
       );
     }
 
-    return value.map(parse);
+    return value.map(
+      parse,
+    );
   }
 
   private normalizeSnapshot(
@@ -597,11 +1031,12 @@ export class ActivityPersistenceService {
       ActivitySnapshot = {
         feedings:
           value.feedings
-            .map((item) =>
-              this.parseFeeding(
-                item,
-                false,
-              ),
+            .map(
+              (item) =>
+                this.parseFeeding(
+                  item,
+                  false,
+                ),
             )
             .sort(
               (a, b) =>
@@ -611,10 +1046,11 @@ export class ActivityPersistenceService {
 
         sleeps:
           value.sleeps
-            .map((item) =>
-              this.parseSleep(
-                item,
-              ),
+            .map(
+              (item) =>
+                this.parseSleep(
+                  item,
+                ),
             )
             .sort(
               (a, b) =>
@@ -624,10 +1060,11 @@ export class ActivityPersistenceService {
 
         diapers:
           value.diapers
-            .map((item) =>
-              this.parseDiaper(
-                item,
-              ),
+            .map(
+              (item) =>
+                this.parseDiaper(
+                  item,
+                ),
             )
             .sort(
               (a, b) =>
@@ -644,8 +1081,10 @@ export class ActivityPersistenceService {
   }
 
   private mergeSnapshots(
-    cloud: ActivitySnapshot,
-    legacy: ActivitySnapshot,
+    cloud:
+      ActivitySnapshot,
+    legacy:
+      ActivitySnapshot,
   ): ActivitySnapshot {
     return this.normalizeSnapshot({
       feedings:
@@ -679,19 +1118,18 @@ export class ActivityPersistenceService {
     const records =
       new Map<string, T>();
 
-    for (const record of cloud) {
+    for (
+      const record of cloud
+    ) {
       records.set(
         record.id,
         record,
       );
     }
 
-    /*
-     * Durante uma migração ainda não
-     * concluída, o registro local é o
-     * que estamos tentando persistir.
-     */
-    for (const record of legacy) {
+    for (
+      const record of legacy
+    ) {
       records.set(
         record.id,
         record,
@@ -704,7 +1142,8 @@ export class ActivityPersistenceService {
   }
 
   private validateConsistency(
-    snapshot: ActivitySnapshot,
+    snapshot:
+      ActivitySnapshot,
   ): void {
     this.validateUniqueIds(
       snapshot.feedings,
@@ -719,17 +1158,22 @@ export class ActivityPersistenceService {
     );
 
     const activeFeedings =
-      snapshot.feedings.filter(
-        (feeding) =>
-          feeding.endedAt ===
-          null,
-      ).length;
+      snapshot.feedings
+        .filter(
+          (feeding) =>
+            feeding.endedAt ===
+            null,
+        )
+        .length;
 
     const activeSleeps =
-      snapshot.sleeps.filter(
-        (sleep) =>
-          sleep.endedAt === null,
-      ).length;
+      snapshot.sleeps
+        .filter(
+          (sleep) =>
+            sleep.endedAt ===
+            null,
+        )
+        .length;
 
     if (
       activeFeedings > 1 ||
@@ -769,7 +1213,11 @@ export class ActivityPersistenceService {
     value: unknown,
     legacy: boolean,
   ): Feeding {
-    if (!this.isObject(value)) {
+    if (
+      !this.isObject(
+        value,
+      )
+    ) {
       throw new Error(
         'Registro de mamada inválido.',
       );
@@ -790,7 +1238,8 @@ export class ActivityPersistenceService {
     if (
       typeof id !==
         'string' ||
-      id.trim().length === 0 ||
+      id.trim().length ===
+        0 ||
       id.includes('/') ||
       !this.isTimestamp(
         startedAt,
@@ -805,7 +1254,9 @@ export class ActivityPersistenceService {
             startedAt
         )
       ) ||
-      !this.isSide(side)
+      !this.isSide(
+        side,
+      )
     ) {
       throw new Error(
         'Registro de mamada inválido.',
@@ -829,7 +1280,10 @@ export class ActivityPersistenceService {
     const rawPeriods =
       value['periods'];
 
-    if (rawPeriods === null) {
+    if (
+      rawPeriods ===
+      null
+    ) {
       return {
         ...base,
         periods: null,
@@ -840,7 +1294,8 @@ export class ActivityPersistenceService {
       !Array.isArray(
         rawPeriods,
       ) ||
-      rawPeriods.length === 0
+      rawPeriods.length ===
+        0
     ) {
       throw new Error(
         'Períodos de mamada inválidos.',
@@ -855,30 +1310,44 @@ export class ActivityPersistenceService {
 
     for (
       let index = 0;
-      index < rawPeriods.length;
+      index <
+      rawPeriods.length;
       index++
     ) {
       const raw =
-        rawPeriods[index];
+        rawPeriods[
+          index
+        ];
 
-      if (!this.isObject(raw)) {
+      if (
+        !this.isObject(
+          raw,
+        )
+      ) {
         throw new Error(
           'Período de mamada inválido.',
         );
       }
 
       const periodStart =
-        raw['startedAt'];
+        raw[
+          'startedAt'
+        ];
 
       const periodEnd =
-        raw['endedAt'];
+        raw[
+          'endedAt'
+        ];
 
       const periodSide =
-        raw['side'];
+        raw[
+          'side'
+        ];
 
       const isLast =
         index ===
-        rawPeriods.length - 1;
+        rawPeriods.length -
+          1;
 
       if (
         !this.isTimestamp(
@@ -890,7 +1359,8 @@ export class ActivityPersistenceService {
           periodSide,
         ) ||
         !(
-          periodEnd === null ||
+          periodEnd ===
+            null ||
           (
             this.isTimestamp(
               periodEnd,
@@ -917,7 +1387,8 @@ export class ActivityPersistenceService {
 
       if (
         !isLast &&
-        periodEnd === null
+        periodEnd ===
+          null
       ) {
         throw new Error(
           'Período de mamada aberto em posição inválida.',
@@ -963,7 +1434,11 @@ export class ActivityPersistenceService {
   private parseSleep(
     value: unknown,
   ): Sleep {
-    if (!this.isObject(value)) {
+    if (
+      !this.isObject(
+        value,
+      )
+    ) {
       throw new Error(
         'Registro de sono inválido.',
       );
@@ -981,7 +1456,8 @@ export class ActivityPersistenceService {
     if (
       typeof id !==
         'string' ||
-      id.trim().length === 0 ||
+      id.trim().length ===
+        0 ||
       id.includes('/') ||
       !this.isTimestamp(
         startedAt,
@@ -1012,7 +1488,11 @@ export class ActivityPersistenceService {
   private parseDiaper(
     value: unknown,
   ): Diaper {
-    if (!this.isObject(value)) {
+    if (
+      !this.isObject(
+        value,
+      )
+    ) {
       throw new Error(
         'Registro de fralda inválido.',
       );
@@ -1030,7 +1510,8 @@ export class ActivityPersistenceService {
     if (
       typeof id !==
         'string' ||
-      id.trim().length === 0 ||
+      id.trim().length ===
+        0 ||
       id.includes('/') ||
       !this.isDiaperType(
         type,
@@ -1061,7 +1542,9 @@ export class ActivityPersistenceService {
       typeof value ===
         'object' &&
       value !== null &&
-      !Array.isArray(value)
+      !Array.isArray(
+        value,
+      )
     );
   }
 
@@ -1086,18 +1569,24 @@ export class ActivityPersistenceService {
     FeedingSide | null {
     return (
       value === null ||
-      value === 'left' ||
-      value === 'right'
+      value ===
+        'left' ||
+      value ===
+        'right'
     );
   }
 
   private isDiaperType(
     value: unknown,
-  ): value is DiaperType {
+  ): value is
+    DiaperType {
     return (
-      value === 'wet' ||
-      value === 'dirty' ||
-      value === 'both'
+      value ===
+        'wet' ||
+      value ===
+        'dirty' ||
+      value ===
+        'both'
     );
   }
 
@@ -1106,7 +1595,9 @@ export class ActivityPersistenceService {
     const storage =
       this.getStorage();
 
-    if (storage === null) {
+    if (
+      storage === null
+    ) {
       return;
     }
 
@@ -1129,8 +1620,8 @@ export class ActivityPersistenceService {
     } catch {
       /*
        * A nuvem já é a fonte de verdade.
-       * Uma falha de limpeza local não deve
-       * invalidar a migração confirmada.
+       * Uma falha na limpeza local não
+       * invalida a migração confirmada.
        */
     }
   }
@@ -1145,7 +1636,10 @@ export class ActivityPersistenceService {
     }
 
     try {
-      return window.localStorage;
+      return (
+        window
+          .localStorage
+      );
     } catch {
       return null;
     }
@@ -1169,7 +1663,8 @@ export class ActivityPersistenceService {
     uid: string,
   ): void {
     if (
-      this.auth.user()?.uid !==
+      this.auth
+        .user()?.uid !==
       uid
     ) {
       throw new Error(
