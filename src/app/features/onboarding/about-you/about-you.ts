@@ -20,10 +20,15 @@ import { trimmedRequired } from '../../../core/validators/onboarding.validators'
   styleUrl: './about-you.css',
 })
 export class AboutYou {
+
+
   private readonly router = inject(Router);
 
   private readonly onboarding =
     inject(OnboardingService);
+
+  readonly isLoading =
+    this.onboarding.isLoading;
 
   readonly storageError =
     this.onboarding.storageError;

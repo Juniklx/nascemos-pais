@@ -20,6 +20,8 @@ import {
 })
 export class AboutBaby {
   private readonly onboarding = inject(OnboardingService);
+  readonly isLoading =
+    this.onboarding.isLoading;
   private readonly router = inject(Router);
   readonly storageError =
     this.onboarding.storageError;

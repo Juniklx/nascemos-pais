@@ -30,11 +30,7 @@
     <p>Um momento de conexão com {{ babyName() }}.</p>
     } @else {
     <p role="status">
-      @if (storageError()) {
-      O registro está apenas nesta sessão.
-      } @else {
-      O registro foi salvo neste navegador.
-      }
+      Registro salvo na nuvem.
     </p>
     }
 
@@ -108,17 +104,17 @@
 
       <div class="side-options">
         <button type="button" [class.is-selected]="feeding.side === null" [attr.aria-pressed]="feeding.side === null"
-          (click)="setSide(null)">
+          (click)="setSide(null)" [disabled]="isSaving()">
           Não informar
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'left'"
-          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')">
+          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving()">
           Esquerdo
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'right'"
-          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')">
+          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving()">
           Direito
         </button>
       </div>
@@ -134,8 +130,8 @@
       </p>
     </fieldset>
 
-    <button type="button" class="primary-button" (click)="finish()">
-      Finalizar mamada
+    <button type="button" class="primary-button" [disabled]="isSaving()" (click)="finish()">
+      {{ isSaving() ? 'Salvando...' : 'Finalizar mamada' }}
     </button>
 
     <p class="hint">
@@ -155,8 +151,8 @@
       Você pode informar o lado depois.
     </p>
 
-    <button type="button" class="primary-button" (click)="start()">
-      Iniciar mamada
+    <button type="button" class="primary-button" [disabled]="isSaving()" (click)="start()">
+      {{ isSaving() ? 'Salvando...' : 'Iniciar mamada' }}
     </button>
     }
   </section>

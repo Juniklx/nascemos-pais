@@ -94,8 +94,14 @@
       </div>
       }
 
-      <button class="continue-button" type="submit" [disabled]="form.invalid">
-        <span>Começar nossa rotina</span>
+      <button class="continue-button" type="submit" [disabled]="form.invalid || isLoading()">
+        <span>
+          {{
+          isLoading()
+          ? 'Salvando...'
+          : 'Começar nossa rotina'
+          }}
+        </span>
 
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12H19"></path>
