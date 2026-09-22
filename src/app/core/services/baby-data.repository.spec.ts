@@ -203,7 +203,7 @@ describe(
 
         expect(
           entries.length,
-        ).toBe(2);
+        ).toBe(3);
 
         expect(
           entries[0].path,
@@ -240,6 +240,19 @@ describe(
               'owner',
           }),
         );
+
+        expect(
+          entries[2].path,
+        ).toBe(
+          'users/user-a',
+        );
+
+        expect(
+          entries[2].data,
+        ).toEqual({
+          activeBabyId:
+            'baby-1',
+        });
       },
     );
 

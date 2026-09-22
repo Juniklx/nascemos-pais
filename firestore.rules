@@ -65,7 +65,10 @@ service cloud.firestore {
           'updatedAt',
           'legacyMigrationVersion',
           'recordsMigrationVersion',
-          'recordsMigratedAt'
+          'recordsMigratedAt',
+          'activeBabyId',
+          'babyMigrationVersion',
+          'babyMigratedAt'
         ])
         && data.keys().hasAll([
           'caregiverName',
@@ -103,6 +106,25 @@ service cloud.firestore {
         && (
           !('recordsMigratedAt' in data)
           || data.recordsMigratedAt is string
+        )
+        && (
+          !('activeBabyId' in data)
+          || (
+            data.activeBabyId is string
+            && data.activeBabyId.size() > 0
+            && data.activeBabyId.size() <= 128
+          )
+        )
+        && (
+          !('babyMigrationVersion' in data)
+          || (
+            data.babyMigrationVersion is int
+            && data.babyMigrationVersion == 1
+          )
+        )
+        && (
+          !('babyMigratedAt' in data)
+          || data.babyMigratedAt is string
         );
     }
 

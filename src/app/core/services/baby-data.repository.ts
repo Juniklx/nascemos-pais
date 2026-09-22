@@ -73,7 +73,8 @@ export class BabyDataRepository {
 
     const baby:
       Baby = {
-      id: babyId,
+      id:
+        babyId,
 
       name,
 
@@ -90,6 +91,16 @@ export class BabyDataRepository {
         now,
     };
 
+    /*
+     * A criação do bebê, o vínculo
+     * do proprietário e a referência
+     * activeBabyId são gravados no
+     * mesmo lote.
+     *
+     * Assim evitamos uma conta ficar
+     * apontando para um bebê incompleto
+     * em caso de falha no meio da operação.
+     */
     await this.firestore
       .batchSet([
         {
@@ -117,6 +128,18 @@ export class BabyDataRepository {
 
             joinedAt:
               now,
+          },
+        },
+
+        {
+          path:
+            this.userPath(
+              uid,
+            ),
+
+          data: {
+            activeBabyId:
+              babyId,
           },
         },
       ]);
@@ -345,6 +368,13 @@ export class BabyDataRepository {
       BabyRecordCollection,
     records: readonly T[],
   ): Promise<void> {
+    /*
+     * O UID é capturado uma única vez.
+     * Assim uma troca de sessão durante
+     * uma operação longa não pode fazer
+     * com que os lotes seguintes sejam
+     * executados em outra conta.
+     */
     const uid =
       this.requireUid();
 
@@ -367,7 +397,8 @@ export class BabyDataRepository {
       const chunk =
         records.slice(
           index,
-          index + chunkSize,
+          index +
+          chunkSize,
         );
 
       const entries =
@@ -400,6 +431,14 @@ export class BabyDataRepository {
         uid,
       );
     }
+  }
+
+  private userPath(
+    uid: string,
+  ): string {
+    return (
+      `users/${uid}`
+    );
   }
 
   private babyPath(

@@ -279,3 +279,38 @@ test('permite criar bebê e proprietário no mesmo lote', async () => {
 
   await assertSucceeds(batch.commit());
 });
+
+test(
+  'permite concluir migração do bebê no próprio perfil',
+  async () => {
+    const db =
+      testEnv
+        .authenticatedContext(
+          userA,
+        )
+        .firestore();
+
+    await assertSucceeds(
+      setDoc(
+        doc(
+          db,
+          `users/${userA}`,
+        ),
+        {
+          activeBabyId:
+            sharedBaby,
+
+          babyMigrationVersion:
+            1,
+
+          babyMigratedAt:
+            '2026-01-01T00:00:00.000Z',
+        },
+        {
+          merge:
+            true,
+        },
+      ),
+    );
+  },
+);
