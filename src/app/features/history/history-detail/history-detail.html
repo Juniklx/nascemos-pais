@@ -328,8 +328,8 @@
         Editar registro
       </button>
 
-      <button type="button" class="confirm-delete-button" [disabled]="isSaving()" (click)="confirmDelete()">
-        {{ isSaving() ? 'Excluindo...' : 'Sim, excluir' }}
+      <button type="button" class="delete-button" (click)="requestDelete()" [disabled]="isSaving()">
+        Excluir registro
       </button>
     </div>
     }
@@ -355,12 +355,12 @@
       }
 
       <div class="delete-confirmation__actions">
-        <button type="button" class="cancel-button" (click)="cancelDelete()">
+        <button type="button" class="cancel-button" (click)="cancelDelete()" [disabled]="isSaving()">
           Cancelar
         </button>
 
-        <button type="button" class="confirm-delete-button" (click)="confirmDelete()">
-          Sim, excluir
+        <button type="button" class="confirm-delete-button" (click)="confirmDelete()" [disabled]="isSaving()">
+          {{ isSaving() ? 'Excluindo...' : 'Sim, excluir' }}
         </button>
       </div>
     </div>
