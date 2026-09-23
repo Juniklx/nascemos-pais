@@ -870,3 +870,199 @@ test('nega responsável alterando o próprio papel', async () => {
     ),
   );
 });
+
+test('nega mamada aberta sem lock de atividade', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-open`), {
+      id: 'feeding-open',
+      startedAt: 1000,
+      endedAt: null,
+      side: 'left',
+      periods: null,
+    }),
+  );
+});
+
+test('permite iniciar mamada com lock no mesmo lote', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const batch = writeBatch(db);
+
+  batch.set(doc(db, `babies/${sharedBaby}/feedings/feeding-open`), {
+    id: 'feeding-open',
+    startedAt: 1000,
+    endedAt: null,
+    side: 'left',
+    periods: null,
+  });
+
+  batch.set(doc(db, `babies/${sharedBaby}/activeActivities/feeding`), {
+    recordId: 'feeding-open',
+  });
+
+  await assertSucceeds(batch.commit());
+});
+
+test('nega segunda mamada em andamento para o mesmo bebê', async () => {
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  const firstBatch = writeBatch(ownerDb);
+
+  firstBatch.set(doc(ownerDb, `babies/${sharedBaby}/feedings/feeding-one`), {
+    id: 'feeding-one',
+    startedAt: 1000,
+    endedAt: null,
+    side: 'left',
+    periods: null,
+  });
+
+  firstBatch.set(doc(ownerDb, `babies/${sharedBaby}/activeActivities/feeding`), {
+    recordId: 'feeding-one',
+  });
+
+  await assertSucceeds(firstBatch.commit());
+
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+  const secondBatch = writeBatch(caregiverDb);
+
+  secondBatch.set(doc(caregiverDb, `babies/${sharedBaby}/feedings/feeding-two`), {
+    id: 'feeding-two',
+    startedAt: 2000,
+    endedAt: null,
+    side: 'right',
+    periods: null,
+  });
+
+  secondBatch.set(doc(caregiverDb, `babies/${sharedBaby}/activeActivities/feeding`), {
+    recordId: 'feeding-two',
+  });
+
+  await assertFails(secondBatch.commit());
+});
+
+test('permite encerrar mamada e remover lock no mesmo lote', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const startBatch = writeBatch(db);
+
+  startBatch.set(doc(db, `babies/${sharedBaby}/feedings/feeding-open`), {
+    id: 'feeding-open',
+    startedAt: 1000,
+    endedAt: null,
+    side: 'left',
+    periods: null,
+  });
+
+  startBatch.set(doc(db, `babies/${sharedBaby}/activeActivities/feeding`), {
+    recordId: 'feeding-open',
+  });
+
+  await assertSucceeds(startBatch.commit());
+
+  const finishBatch = writeBatch(db);
+
+  finishBatch.set(
+    doc(db, `babies/${sharedBaby}/feedings/feeding-open`),
+    {
+      endedAt: 2000,
+    },
+    {
+      merge: true,
+    },
+  );
+
+  finishBatch.delete(
+    doc(db, `babies/${sharedBaby}/activeActivities/feeding`),
+  );
+
+  await assertSucceeds(finishBatch.commit());
+});
+
+test('nega remover lock enquanto mamada continua aberta', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const batch = writeBatch(db);
+
+  batch.set(doc(db, `babies/${sharedBaby}/feedings/feeding-open`), {
+    id: 'feeding-open',
+    startedAt: 1000,
+    endedAt: null,
+    side: 'left',
+    periods: null,
+  });
+
+  batch.set(doc(db, `babies/${sharedBaby}/activeActivities/feeding`), {
+    recordId: 'feeding-open',
+  });
+
+  await assertSucceeds(batch.commit());
+
+  await assertFails(
+    deleteDoc(
+      doc(db, `babies/${sharedBaby}/activeActivities/feeding`),
+    ),
+  );
+});
+
+test('nega sono aberto sem lock de atividade', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `babies/${sharedBaby}/sleeps/sleep-open`), {
+      id: 'sleep-open',
+      startedAt: 1000,
+      endedAt: null,
+    }),
+  );
+});
+
+test('permite iniciar sono com lock no mesmo lote', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const batch = writeBatch(db);
+
+  batch.set(doc(db, `babies/${sharedBaby}/sleeps/sleep-open`), {
+    id: 'sleep-open',
+    startedAt: 1000,
+    endedAt: null,
+  });
+
+  batch.set(doc(db, `babies/${sharedBaby}/activeActivities/sleep`), {
+    recordId: 'sleep-open',
+  });
+
+  await assertSucceeds(batch.commit());
+});
+
+test('nega segundo sono em andamento para o mesmo bebê', async () => {
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  const firstBatch = writeBatch(ownerDb);
+
+  firstBatch.set(doc(ownerDb, `babies/${sharedBaby}/sleeps/sleep-one`), {
+    id: 'sleep-one',
+    startedAt: 1000,
+    endedAt: null,
+  });
+
+  firstBatch.set(doc(ownerDb, `babies/${sharedBaby}/activeActivities/sleep`), {
+    recordId: 'sleep-one',
+  });
+
+  await assertSucceeds(firstBatch.commit());
+
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+  const secondBatch = writeBatch(caregiverDb);
+
+  secondBatch.set(doc(caregiverDb, `babies/${sharedBaby}/sleeps/sleep-two`), {
+    id: 'sleep-two',
+    startedAt: 2000,
+    endedAt: null,
+  });
+
+  secondBatch.set(doc(caregiverDb, `babies/${sharedBaby}/activeActivities/sleep`), {
+    recordId: 'sleep-two',
+  });
+
+  await assertFails(secondBatch.commit());
+});

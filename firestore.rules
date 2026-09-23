@@ -64,8 +64,7 @@ service cloud.firestore {
           'createdAt',
           'readAt'
         ])
-        && data.type
-          == 'baby-access-removed'
+        && data.type == 'baby-access-removed'
         && data.babyId is string
         && data.babyId.size() > 0
         && data.babyId.size() <= 128
@@ -99,12 +98,10 @@ service cloud.firestore {
         )
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
-        ).data.type
-          == 'baby-access-removed'
+        ).data.type == 'baby-access-removed'
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
-        ).data.babyId
-          == babyId
+        ).data.babyId == babyId
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.babyName
@@ -113,12 +110,10 @@ service cloud.firestore {
           ).data.name
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
-        ).data.createdAt
-          == request.time
+        ).data.createdAt == request.time
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
-        ).data.readAt
-          == null;
+        ).data.readAt == null;
     }
 
     function isValidInviteId(inviteId) {
@@ -152,10 +147,8 @@ service cloud.firestore {
         ).data;
 
       return isAuthenticated()
-        && memberId
-          == request.auth.uid
-        && 'inviteId'
-          in request.resource.data
+        && memberId == request.auth.uid
+        && 'inviteId' in request.resource.data
         && isValidInviteId(
           request.resource.data.inviteId
         )
@@ -163,27 +156,19 @@ service cloud.firestore {
         /*
          * Estado anterior do convite.
          */
-        && invite.status
-          == 'pending'
-        && invite.babyId
-          == babyId
-        && invite.createdByUid
-          != request.auth.uid
-        && invite.expiresAt
-          > request.time
+        && invite.status == 'pending'
+        && invite.babyId == babyId
+        && invite.createdByUid != request.auth.uid
+        && invite.expiresAt > request.time
 
         /*
          * Estado final obrigatório no
          * mesmo batch/transaction.
          */
-        && acceptedInvite.status
-          == 'accepted'
-        && acceptedInvite.acceptedByUid
-          == request.auth.uid
-        && acceptedInvite.acceptedAt
-          == request.time
-        && acceptedInvite.babyId
-          == babyId
+        && acceptedInvite.status == 'accepted'
+        && acceptedInvite.acceptedByUid == request.auth.uid
+        && acceptedInvite.acceptedAt == request.time
+        && acceptedInvite.babyId == babyId
 
         /*
          * Enquanto o MVP suporta somente um bebê
@@ -195,16 +180,14 @@ service cloud.firestore {
             'activeBabyId'
             in currentProfile
           )
-          || currentProfile.activeBabyId
-            == babyId
+          || currentProfile.activeBabyId == babyId
         )
 
         /*
          * O perfil deve passar a apontar
          * para o mesmo bebê no mesmo lote.
          */
-        && profile.activeBabyId
-          == babyId;
+        && profile.activeBabyId == babyId;
     }
 
     function isCreatingInitialOwner(
@@ -412,12 +395,9 @@ service cloud.firestore {
         && isValidInviteId(
           inviteId
         )
-        && resource.data.status
-          == 'pending'
-        && resource.data.expiresAt
-          > request.time
-        && request.auth.uid
-          != resource.data.createdByUid
+        && resource.data.status == 'pending'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid != resource.data.createdByUid
         && request.resource.data.keys().hasOnly([
           'babyId',
           'createdByUid',
@@ -441,34 +421,25 @@ service cloud.firestore {
          * Dados originais do convite
          * permanecem imutáveis.
          */
-        && request.resource.data.babyId
-          == resource.data.babyId
-        && request.resource.data.createdByUid
-          == resource.data.createdByUid
-        && request.resource.data.createdAt
-          == resource.data.createdAt
-        && request.resource.data.expiresAt
-          == resource.data.expiresAt
+        && request.resource.data.babyId == resource.data.babyId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.expiresAt == resource.data.expiresAt
 
         /*
          * Única transição válida:
          * pending -> accepted.
          */
-        && request.resource.data.status
-          == 'accepted'
-        && request.resource.data.acceptedByUid
-          == request.auth.uid
-        && request.resource.data.acceptedAt
-          == request.time
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.acceptedByUid == request.auth.uid
+        && request.resource.data.acceptedAt == request.time
 
         /*
          * O responsável precisa ser criado
          * no mesmo batch/transaction.
          */
-        && acceptedMember.role
-          == 'caregiver'
-        && acceptedMember.inviteId
-          == inviteId;
+        && acceptedMember.role == 'caregiver'
+        && acceptedMember.inviteId == inviteId;
     }
 
     function isValidFeeding(data, feedingId) {
@@ -544,6 +515,136 @@ service cloud.firestore {
     }
 
     /*
+     * Controle exclusivo das atividades
+     * que podem ficar em andamento.
+     */
+    function isValidActivityLock(data) {
+      return data.keys().hasOnly([
+          'recordId'
+        ])
+        && data.keys().hasAll([
+          'recordId'
+        ])
+        && data.recordId is string
+        && data.recordId.size() > 0
+        && data.recordId.size() <= 128;
+    }
+
+    function hasFeedingLockAfter(
+      babyId,
+      feedingId
+    ) {
+      return existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        ).data.recordId == feedingId;
+    }
+
+    function hasSleepLockAfter(
+      babyId,
+      sleepId
+    ) {
+      return existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        ).data.recordId == sleepId;
+    }
+
+    function isFeedingLockReleasedAfter(
+      babyId,
+      feedingId
+    ) {
+      return !exists(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        )
+        || get(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        ).data.recordId != feedingId
+        || !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        );
+    }
+
+    function isSleepLockReleasedAfter(
+      babyId,
+      sleepId
+    ) {
+      return !exists(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        )
+        || get(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        ).data.recordId != sleepId
+        || !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        );
+    }
+
+    function isValidFeedingLockAfter(
+      babyId,
+      data
+    ) {
+      return isValidActivityLock(
+          data
+        )
+        && existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        ).data.id == data.recordId
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        ).data.endedAt == null;
+    }
+
+    function isValidSleepLockAfter(
+      babyId,
+      data
+    ) {
+      return isValidActivityLock(
+          data
+        )
+        && existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        ).data.id == data.recordId
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        ).data.endedAt == null;
+    }
+
+    function isFeedingLockTargetClosedAfter(
+      babyId,
+      feedingId
+    ) {
+      return !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId)
+        )
+        || getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId)
+        ).data.endedAt != null;
+    }
+
+    function isSleepLockTargetClosedAfter(
+      babyId,
+      sleepId
+    ) {
+      return !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(sleepId)
+        )
+        || getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(sleepId)
+        ).data.endedAt != null;
+    }
+
+    /*
      * Estrutura legada.
      *
      * Continua ativa durante a migração
@@ -563,22 +664,11 @@ service cloud.firestore {
         if isOwner(userId);
 
       match /notifications/{notificationId} {
-        /*
-         * Somente o próprio usuário pode
-         * consultar suas notificações.
-         */
         allow read:
           if isOwner(
             userId
           );
 
-        /*
-         * O proprietário de um bebê pode
-         * criar ou renovar exclusivamente
-         * a notificação de acesso removido,
-         * desde que o vínculo do responsável
-         * seja apagado no mesmo batch.
-         */
         allow create:
           if isValidAccessRemovedNotification(
             request.resource.data,
@@ -586,16 +676,6 @@ service cloud.firestore {
             notificationId
           );
 
-        /*
-         * Há dois tipos de atualização:
-         *
-         * 1. o proprietário remove novamente
-         *    um responsável que havia sido
-         *    convidado outra vez;
-         *
-         * 2. o próprio destinatário marca
-         *    a mensagem como lida.
-         */
         allow update:
           if (
             isValidAccessRemovedNotification(
@@ -625,20 +705,13 @@ service cloud.firestore {
             ])
             && notificationId
               == 'baby-access-removed-' + resource.data.babyId
-            && resource.data.type
-              == 'baby-access-removed'
-            && request.resource.data.type
-              == resource.data.type
-            && request.resource.data.babyId
-              == resource.data.babyId
-            && request.resource.data.babyName
-              == resource.data.babyName
-            && request.resource.data.createdAt
-              == resource.data.createdAt
-            && resource.data.readAt
-              == null
-            && request.resource.data.readAt
-              == request.time
+            && resource.data.type == 'baby-access-removed'
+            && request.resource.data.type == resource.data.type
+            && request.resource.data.babyId == resource.data.babyId
+            && request.resource.data.babyName == resource.data.babyName
+            && request.resource.data.createdAt == resource.data.createdAt
+            && resource.data.readAt == null
+            && request.resource.data.readAt == request.time
           );
 
         allow delete:
@@ -692,44 +765,20 @@ service cloud.firestore {
     }
 
     /*
-     * Nova estrutura compartilhada.
-     */
-
-    /*
      * Convites de compartilhamento.
-     *
-     * O ID do documento é o token secreto.
-     * Convites não podem ser listados.
      */
     match /babyInvites/{inviteId} {
-      /*
-       * Quem possui o token pode consultar
-       * um convite pendente, desde que esteja
-       * autenticado.
-       *
-       * Depois de consumido, somente quem
-       * criou ou aceitou pode consultá-lo.
-       */
       allow get:
         if isAuthenticated()
         && (
-          resource.data.status
-            == 'pending'
-          ||
-          resource.data.createdByUid
-            == request.auth.uid
-          ||
-          (
-            resource.data.status
-              == 'accepted'
-            && resource.data.acceptedByUid
-              == request.auth.uid
+          resource.data.status == 'pending'
+          || resource.data.createdByUid == request.auth.uid
+          || (
+            resource.data.status == 'accepted'
+            && resource.data.acceptedByUid == request.auth.uid
           )
         );
 
-      /*
-       * Impede enumeração de convites.
-       */
       allow list:
         if false;
 
@@ -745,23 +794,14 @@ service cloud.firestore {
           request.resource.data.babyId
         );
 
-      /*
-       * A única atualização permitida é
-       * pending -> accepted.
-       */
       allow update:
         if isValidInviteAcceptance(
           inviteId
         );
 
-      /*
-       * O proprietário pode revogar um
-       * convite ainda não utilizado.
-       */
       allow delete:
         if isAuthenticated()
-        && resource.data.status
-          == 'pending'
+        && resource.data.status == 'pending'
         && isBabyOwner(
           resource.data.babyId
         );
@@ -773,8 +813,7 @@ service cloud.firestore {
         && isValidBaby(
           request.resource.data
         )
-        && request.resource.data.createdByUid
-          == request.auth.uid;
+        && request.resource.data.createdByUid == request.auth.uid;
 
       allow read:
         if isBabyMember(
@@ -811,32 +850,16 @@ service cloud.firestore {
             request.resource.data
           )
           && (
-            /*
-             * Aceitação através de convite.
-             *
-             * Novos responsáveis que entram
-             * via convite precisam registrar
-             * o nome no próprio vínculo.
-             */
             (
-              request.resource.data.role
-                == 'caregiver'
-              && 'inviteId'
-                in request.resource.data
-              && 'caregiverName'
-                in request.resource.data
+              request.resource.data.role == 'caregiver'
+              && 'inviteId' in request.resource.data
+              && 'caregiverName' in request.resource.data
               && isAcceptingInviteForBaby(
                 babyId,
                 memberId
               )
             )
-
             ||
-
-            /*
-             * Primeiro proprietário durante
-             * a criação do bebê.
-             */
             (
               !(
                 'inviteId'
@@ -847,13 +870,7 @@ service cloud.firestore {
                 memberId
               )
             )
-
             ||
-
-            /*
-             * O proprietário também pode
-             * adicionar um cuidador diretamente.
-             */
             (
               !(
                 'inviteId'
@@ -862,11 +879,14 @@ service cloud.firestore {
               && isBabyOwner(
                 babyId
               )
-              && request.resource.data.role
-                == 'caregiver'
+              && request.resource.data.role == 'caregiver'
             )
           );
 
+        /*
+         * Um responsável pode alterar somente
+         * o próprio nome exibido no vínculo.
+         */
         allow update:
           if isAuthenticated()
           && memberId == request.auth.uid
@@ -874,8 +894,7 @@ service cloud.firestore {
           && isValidBabyMember(
             request.resource.data
           )
-          && 'caregiverName'
-            in request.resource.data
+          && 'caregiverName' in request.resource.data
           && request.resource.data.diff(
             resource.data
           ).affectedKeys().hasOnly([
@@ -894,24 +913,176 @@ service cloud.firestore {
           );
       }
 
+      /*
+       * Documento exclusivo que representa
+       * uma mamada ou sono ainda em andamento.
+       *
+       * Há no máximo um documento de cada tipo.
+       */
+      match /activeActivities/{activityType} {
+        allow read:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            activityType == 'feeding'
+            || activityType == 'sleep'
+          );
+
+        allow create:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            (
+              activityType == 'feeding'
+              && isValidFeedingLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidSleepLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+          );
+
+        /*
+         * Um lock existente nunca pode trocar
+         * diretamente para outro registro.
+         *
+         * Primeiro a atividade atual precisa
+         * ser encerrada e o lock removido.
+         */
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && request.resource.data.recordId
+            == resource.data.recordId
+          && (
+            (
+              activityType == 'feeding'
+              && isValidFeedingLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidSleepLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+          );
+
+        /*
+         * O lock somente pode desaparecer se
+         * o registro correspondente tiver sido
+         * encerrado ou excluído na mesma operação.
+         */
+        allow delete:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            (
+              activityType == 'feeding'
+              && isValidActivityLock(
+                resource.data
+              )
+              && isFeedingLockTargetClosedAfter(
+                babyId,
+                resource.data.recordId
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidActivityLock(
+                resource.data
+              )
+              && isSleepLockTargetClosedAfter(
+                babyId,
+                resource.data.recordId
+              )
+            )
+          );
+      }
+
       match /feedings/{feedingId} {
         allow read:
           if isBabyMember(
             babyId
           );
 
-        allow create, update:
+        /*
+         * Uma mamada aberta só pode ser criada
+         * quando o lock do bebê aponta para ela.
+         */
+        allow create:
           if isBabyMember(
             babyId
           )
           && isValidFeeding(
             request.resource.data,
             feedingId
+          )
+          && (
+            request.resource.data.endedAt != null
+            || hasFeedingLockAfter(
+              babyId,
+              feedingId
+            )
+          );
+
+        /*
+         * Ao manter ou reabrir uma mamada,
+         * o lock precisa continuar apontando
+         * para o mesmo registro.
+         *
+         * Ao encerrar, o lock correspondente
+         * precisa ser removido.
+         */
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidFeeding(
+            request.resource.data,
+            feedingId
+          )
+          && (
+            (
+              request.resource.data.endedAt == null
+              && hasFeedingLockAfter(
+                babyId,
+                feedingId
+              )
+            )
+            ||
+            (
+              request.resource.data.endedAt != null
+              && isFeedingLockReleasedAfter(
+                babyId,
+                feedingId
+              )
+            )
           );
 
         allow delete:
           if isBabyMember(
             babyId
+          )
+          && isFeedingLockReleasedAfter(
+            babyId,
+            feedingId
           );
       }
 
@@ -921,18 +1092,55 @@ service cloud.firestore {
             babyId
           );
 
-        allow create, update:
+        allow create:
           if isBabyMember(
             babyId
           )
           && isValidSleep(
             request.resource.data,
             sleepId
+          )
+          && (
+            request.resource.data.endedAt != null
+            || hasSleepLockAfter(
+              babyId,
+              sleepId
+            )
+          );
+
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidSleep(
+            request.resource.data,
+            sleepId
+          )
+          && (
+            (
+              request.resource.data.endedAt == null
+              && hasSleepLockAfter(
+                babyId,
+                sleepId
+              )
+            )
+            ||
+            (
+              request.resource.data.endedAt != null
+              && isSleepLockReleasedAfter(
+                babyId,
+                sleepId
+              )
+            )
           );
 
         allow delete:
           if isBabyMember(
             babyId
+          )
+          && isSleepLockReleasedAfter(
+            babyId,
+            sleepId
           );
       }
 

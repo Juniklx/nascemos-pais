@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { DocumentData, serverTimestamp } from 'firebase/firestore';
-
 import { FirestoreGateway } from '../firebase/firestore.gateway';
 import { Baby, BabyMember, BabyMemberRole, CreateBabyInput } from '../models/baby';
 import { AuthService } from './auth';
@@ -237,7 +236,51 @@ export class BabyDataRepository {
     this.validateId(babyId);
     this.validateId(record.id);
 
-    await this.firestore.set(this.recordPath(babyId, collectionName, record.id), record, true);
+    const recordPath = this.recordPath(babyId, collectionName, record.id);
+    const lockPath = this.activityLockPath(babyId, collectionName);
+
+    if (lockPath === null) {
+      await this.firestore.set(recordPath, record, true);
+
+      this.assertSameUser(uid);
+
+      return;
+    }
+
+    await this.firestore.transaction(async (transaction) => {
+      const lock = await transaction.get(lockPath);
+
+      this.assertSameUser(uid);
+
+      const activeRecordId = this.parseActivityLock(lock);
+
+      if (record['endedAt'] === null) {
+        if (activeRecordId !== null && activeRecordId !== record.id) {
+          throw new Error(
+            collectionName === 'feedings'
+              ? 'Já existe uma mamada em andamento.'
+              : 'Já existe um sono em andamento.',
+          );
+        }
+
+        transaction.set(recordPath, record, true);
+        transaction.set(
+          lockPath,
+          {
+            recordId: record.id,
+          },
+          false,
+        );
+
+        return;
+      }
+
+      transaction.set(recordPath, record, true);
+
+      if (activeRecordId === record.id) {
+        transaction.delete(lockPath);
+      }
+    });
 
     this.assertSameUser(uid);
   }
@@ -252,7 +295,28 @@ export class BabyDataRepository {
     this.validateId(babyId);
     this.validateId(id);
 
-    await this.firestore.delete(this.recordPath(babyId, collectionName, id));
+    const recordPath = this.recordPath(babyId, collectionName, id);
+    const lockPath = this.activityLockPath(babyId, collectionName);
+
+    if (lockPath === null) {
+      await this.firestore.delete(recordPath);
+
+      this.assertSameUser(uid);
+
+      return;
+    }
+
+    await this.firestore.transaction(async (transaction) => {
+      const lock = await transaction.get(lockPath);
+
+      this.assertSameUser(uid);
+
+      transaction.delete(recordPath);
+
+      if (this.parseActivityLock(lock) === id) {
+        transaction.delete(lockPath);
+      }
+    });
 
     this.assertSameUser(uid);
   }
@@ -266,12 +330,26 @@ export class BabyDataRepository {
 
     this.validateId(babyId);
 
+    const timedCollection = this.activityLockPath(babyId, collectionName) !== null;
+
+    const activeRecords = timedCollection
+      ? records.filter((record) => record['endedAt'] === null)
+      : [];
+
+    const batchRecords = timedCollection
+      ? records.filter((record) => record['endedAt'] !== null)
+      : records;
+
+    if (activeRecords.length > 1) {
+      throw new Error('Os registros possuem atividades simultâneas inconsistentes.');
+    }
+
     const chunkSize = 400;
 
-    for (let index = 0; index < records.length; index += chunkSize) {
+    for (let index = 0; index < batchRecords.length; index += chunkSize) {
       this.assertSameUser(uid);
 
-      const chunk = records.slice(index, index + chunkSize);
+      const chunk = batchRecords.slice(index, index + chunkSize);
 
       const entries = chunk.map((record) => {
         this.validateId(record.id);
@@ -283,6 +361,12 @@ export class BabyDataRepository {
       });
 
       await this.firestore.batchSet(entries);
+
+      this.assertSameUser(uid);
+    }
+
+    for (const record of activeRecords) {
+      await this.saveRecord(babyId, collectionName, record);
 
       this.assertSameUser(uid);
     }
@@ -318,6 +402,32 @@ export class BabyDataRepository {
 
   private recordPath(babyId: string, collectionName: BabyRecordCollection, id: string): string {
     return `${this.collectionPath(babyId, collectionName)}/${id}`;
+  }
+
+  private activityLockPath(babyId: string, collectionName: BabyRecordCollection): string | null {
+    if (collectionName === 'feedings') {
+      return `${this.babyPath(babyId)}/activeActivities/feeding`;
+    }
+
+    if (collectionName === 'sleeps') {
+      return `${this.babyPath(babyId)}/activeActivities/sleep`;
+    }
+
+    return null;
+  }
+
+  private parseActivityLock(data: DocumentData | null): string | null {
+    if (data === null) {
+      return null;
+    }
+
+    const recordId = data['recordId'];
+
+    if (typeof recordId !== 'string' || recordId.trim().length === 0 || recordId.includes('/')) {
+      throw new Error('Controle de atividade inválido.');
+    }
+
+    return recordId;
   }
 
   private toBabyDocument(baby: Baby): DocumentData {
