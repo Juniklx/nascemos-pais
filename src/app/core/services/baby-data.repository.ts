@@ -305,6 +305,8 @@ export class BabyDataRepository {
 
     const inviteId = data['inviteId'];
 
+    const caregiverName = data['caregiverName'];
+
     if (
       uid.trim().length === 0 ||
       !this.isMemberRole(role) ||
@@ -313,21 +315,29 @@ export class BabyDataRepository {
         (typeof inviteId !== 'string' ||
           inviteId.length < 32 ||
           inviteId.length > 128 ||
-          inviteId.includes('/')))
+          inviteId.includes('/'))) ||
+      (caregiverName !== undefined &&
+        (typeof caregiverName !== 'string' ||
+          caregiverName.trim().length === 0 ||
+          caregiverName.trim().length > 80))
     ) {
       throw new Error('Responsável inválido.');
     }
 
     return {
       uid,
-
       role,
-
       joinedAt,
 
       ...(typeof inviteId === 'string'
         ? {
             inviteId,
+          }
+        : {}),
+
+      ...(typeof caregiverName === 'string'
+        ? {
+            caregiverName: caregiverName.trim(),
           }
         : {}),
     };

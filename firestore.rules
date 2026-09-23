@@ -27,12 +27,12 @@ service cloud.firestore {
     }
 
     function isValidInviteId(inviteId) {
-        return inviteId is string
-          && inviteId.size() >= 32
-          && inviteId.size() <= 128;
-      }
+      return inviteId is string
+        && inviteId.size() >= 32
+        && inviteId.size() <= 128;
+    }
 
-      function isAcceptingInviteForBaby(
+    function isAcceptingInviteForBaby(
       babyId,
       memberId
     ) {
@@ -63,8 +63,8 @@ service cloud.firestore {
         )
 
         /*
-        * Estado anterior do convite.
-        */
+         * Estado anterior do convite.
+         */
         && invite.status
           == 'pending'
 
@@ -78,9 +78,9 @@ service cloud.firestore {
           > request.time
 
         /*
-        * Estado final obrigatório no
-        * mesmo batch/transaction.
-        */
+         * Estado final obrigatório no
+         * mesmo batch/transaction.
+         */
         && acceptedInvite.status
           == 'accepted'
 
@@ -94,9 +94,9 @@ service cloud.firestore {
           == babyId
 
         /*
-        * O perfil deve passar a apontar
-        * para o mesmo bebê no mesmo lote.
-        */
+         * O perfil deve passar a apontar
+         * para o mesmo bebê no mesmo lote.
+         */
         && profile.activeBabyId
           == babyId;
     }
@@ -233,7 +233,8 @@ service cloud.firestore {
       return data.keys().hasOnly([
           'role',
           'joinedAt',
-          'inviteId'
+          'inviteId',
+          'caregiverName'
         ])
         && data.keys().hasAll([
           'role',
@@ -248,6 +249,14 @@ service cloud.firestore {
           !('inviteId' in data)
           || isValidInviteId(
             data.inviteId
+          )
+        )
+        && (
+          !('caregiverName' in data)
+          || (
+            data.caregiverName is string
+            && data.caregiverName.size() >= 1
+            && data.caregiverName.size() <= 80
           )
         );
     }
@@ -329,9 +338,9 @@ service cloud.firestore {
         ])
 
         /*
-        * Dados originais do convite
-        * permanecem imutáveis.
-        */
+         * Dados originais do convite
+         * permanecem imutáveis.
+         */
         && request.resource.data.babyId
           == resource.data.babyId
 
@@ -345,9 +354,9 @@ service cloud.firestore {
           == resource.data.expiresAt
 
         /*
-        * Única transição válida:
-        * pending -> accepted.
-        */
+         * Única transição válida:
+         * pending -> accepted.
+         */
         && request.resource.data.status
           == 'accepted'
 
@@ -358,9 +367,9 @@ service cloud.firestore {
           == request.time
 
         /*
-        * O responsável precisa ser criado
-        * no mesmo batch/transaction.
-        */
+         * O responsável precisa ser criado
+         * no mesmo batch/transaction.
+         */
         && acceptedMember.role
           == 'caregiver'
 
@@ -510,20 +519,20 @@ service cloud.firestore {
      */
 
     /*
-    * Convites de compartilhamento.
-    *
-    * O ID do documento é o token secreto.
-    * Convites não podem ser listados.
-    */
+     * Convites de compartilhamento.
+     *
+     * O ID do documento é o token secreto.
+     * Convites não podem ser listados.
+     */
     match /babyInvites/{inviteId} {
       /*
-      * Quem possui o token pode consultar
-      * um convite pendente, desde que esteja
-      * autenticado.
-      *
-      * Depois de consumido, somente quem
-      * criou ou aceitou pode consultá-lo.
-      */
+       * Quem possui o token pode consultar
+       * um convite pendente, desde que esteja
+       * autenticado.
+       *
+       * Depois de consumido, somente quem
+       * criou ou aceitou pode consultá-lo.
+       */
       allow get:
         if isAuthenticated()
         && (
@@ -542,8 +551,8 @@ service cloud.firestore {
         );
 
       /*
-      * Impede enumeração de convites.
-      */
+       * Impede enumeração de convites.
+       */
       allow list:
         if false;
 
@@ -560,18 +569,18 @@ service cloud.firestore {
         );
 
       /*
-      * A única atualização permitida é
-      * pending -> accepted.
-      */
+       * A única atualização permitida é
+       * pending -> accepted.
+       */
       allow update:
         if isValidInviteAcceptance(
           inviteId
         );
 
       /*
-      * O proprietário pode revogar um
-      * convite ainda não utilizado.
-      */
+       * O proprietário pode revogar um
+       * convite ainda não utilizado.
+       */
       allow delete:
         if isAuthenticated()
         && resource.data.status
@@ -621,63 +630,65 @@ service cloud.firestore {
           );
 
         allow create:
-        if isValidBabyMember(
-          request.resource.data
-        )
-        && (
-          /*
-          * Aceitação através de convite.
-          *
-          * Este caso vem primeiro para não
-          * executar desnecessariamente as
-          * verificações de proprietário.
-          */
-          (
-            request.resource.data.role
-              == 'caregiver'
-            && 'inviteId'
-              in request.resource.data
-            && isAcceptingInviteForBaby(
-              babyId,
-              memberId
-            )
+          if isValidBabyMember(
+            request.resource.data
           )
-
-          ||
-
-          /*
-          * Primeiro proprietário durante
-          * a criação do bebê.
-          */
-          (
-            !(
-              'inviteId'
-              in request.resource.data
+          && (
+            /*
+             * Aceitação através de convite.
+             *
+             * Novos responsáveis que entram
+             * via convite precisam registrar
+             * o nome no próprio vínculo.
+             */
+            (
+              request.resource.data.role
+                == 'caregiver'
+              && 'inviteId'
+                in request.resource.data
+              && 'caregiverName'
+                in request.resource.data
+              && isAcceptingInviteForBaby(
+                babyId,
+                memberId
+              )
             )
-            && isCreatingInitialOwner(
-              babyId,
-              memberId
-            )
-          )
 
-          ||
+            ||
 
-          /*
-          * O proprietário também pode
-          * adicionar um cuidador diretamente.
-          */
-          (
-            !(
-              'inviteId'
-              in request.resource.data
+            /*
+             * Primeiro proprietário durante
+             * a criação do bebê.
+             */
+            (
+              !(
+                'inviteId'
+                in request.resource.data
+              )
+              && isCreatingInitialOwner(
+                babyId,
+                memberId
+              )
             )
-            && isBabyOwner(
-              babyId
+
+            ||
+
+            /*
+             * O proprietário também pode
+             * adicionar um cuidador diretamente.
+             */
+            (
+              !(
+                'inviteId'
+                in request.resource.data
+              )
+              && isBabyOwner(
+                babyId
+              )
+              && request.resource.data.role
+                == 'caregiver'
             )
-            && request.resource.data.role
-              == 'caregiver'
-          )
-        );
+          );
 
         /*
          * Por enquanto o papel não é alterado.

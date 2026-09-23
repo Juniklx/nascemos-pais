@@ -165,4 +165,15 @@ describe('ProfilePage', () => {
 
     expect(page.members()).toEqual([caregiver]);
   });
+
+  it('exibe nome real do responsável', () => {
+    expect(
+      page.memberLabel({
+        uid: 'user-b',
+        role: 'caregiver',
+        joinedAt: '2026-01-02T00:00:00.000Z',
+        caregiverName: 'Ana',
+      }),
+    ).toBe('Ana');
+  });
 });

@@ -156,22 +156,21 @@ describe('BabyDataRepository', () => {
     expect(member?.role).toBe('caregiver');
   });
 
-  it('preserva convite no vínculo do responsável', async () => {
+  it('preserva convite e nome no vínculo do responsável', async () => {
     const inviteId = 'a'.repeat(64);
 
     firestore.get.and.resolveTo({
       role: 'caregiver',
-
       joinedAt: '2026-01-01T00:00:00.000Z',
-
       inviteId,
+      caregiverName: 'Ana',
     });
 
     const member = await repository.readMembership('baby-1');
 
     expect(member?.role).toBe('caregiver');
-
     expect(member?.inviteId).toBe(inviteId);
+    expect(member?.caregiverName).toBe('Ana');
   });
 
   it('lista registros dentro do bebê', async () => {

@@ -122,6 +122,20 @@ export class BabyInviteRepository {
 
     this.validateId(invite.babyId);
 
+    const profile = await this.firestore.get(this.userPath(uid));
+
+    this.assertSameUser(uid);
+
+    const caregiverName = profile?.['caregiverName'];
+
+    if (
+      typeof caregiverName !== 'string' ||
+      caregiverName.trim().length === 0 ||
+      caregiverName.trim().length > 80
+    ) {
+      throw new Error('Nome do responsável inválido.');
+    }
+
     const joinedAt = new Date().toISOString();
 
     /*
@@ -149,10 +163,9 @@ export class BabyInviteRepository {
 
         data: {
           role: 'caregiver',
-
           joinedAt,
-
           inviteId: normalizedToken,
+          caregiverName: caregiverName.trim(),
         },
       },
 
@@ -283,8 +296,8 @@ export class BabyInviteRepository {
   }
 
   private memberPath(babyId: string, uid: string): string {
-    return `babies/${babyId}/members/${uid}`;
-  }
+  return `babies/${babyId}/members/${uid}`;
+}
 
   private userPath(uid: string): string {
     return `users/${uid}`;

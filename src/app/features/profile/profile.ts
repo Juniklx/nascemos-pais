@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+
 import { ThemeService } from '../../core/services/theme';
 import { OnboardingService } from '../../core/services/onboarding';
 import { trimmedRequired, validBirthDate } from '../../core/validators/onboarding.validators';
@@ -8,7 +9,6 @@ import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
 import type { BabyMember } from '../../core/models/baby';
 import { BabyDataRepository } from '../../core/services/baby-data.repository';
-
 import { BabyInviteRepository } from '../../core/services/baby-invite.repository';
 
 @Component({
@@ -195,9 +195,11 @@ export class ProfilePage {
       return 'Você';
     }
 
-    const suffix = member.uid.slice(-6);
+    if (member.caregiverName) {
+      return member.caregiverName;
+    }
 
-    return `Responsável • ${suffix}`;
+    return 'Responsável';
   }
 
   async generateInvite(): Promise<void> {

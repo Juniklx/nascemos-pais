@@ -198,7 +198,19 @@ describe('BabyInviteRepository', () => {
   });
 
   it('aceita convite em um único lote', async () => {
-    firestore.get.and.resolveTo(pendingInvite());
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return {
+          caregiverName: 'Marcelo',
+        };
+      }
+
+      return null;
+    });
 
     const babyId = await repository.acceptInvite(token);
 
@@ -225,10 +237,9 @@ describe('BabyInviteRepository', () => {
     expect(entries[1].data).toEqual(
       jasmine.objectContaining({
         role: 'caregiver',
-
         inviteId: token,
-
         joinedAt: jasmine.any(String),
+        caregiverName: 'Marcelo',
       }),
     );
 
@@ -301,7 +312,19 @@ describe('BabyInviteRepository', () => {
   });
 
   it('detecta troca de sessão durante aceitação', async () => {
-    firestore.get.and.resolveTo(pendingInvite());
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return {
+          caregiverName: 'Marcelo',
+        };
+      }
+
+      return null;
+    });
 
     firestore.batchSet.and.callFake(async () => {
       user.set({
@@ -312,5 +335,27 @@ describe('BabyInviteRepository', () => {
     await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
       'A sessão mudou durante a operação.',
     );
+  });
+
+  it('não aceita convite sem nome válido do responsável', async () => {
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return {
+          caregiverName: '',
+        };
+      }
+
+      return null;
+    });
+
+    await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
+      'Nome do responsável inválido.',
+    );
+
+    expect(firestore.batchSet).not.toHaveBeenCalled();
   });
 });

@@ -179,10 +179,9 @@ function createAcceptanceBatch(db, token = inviteToken) {
 
   batch.set(doc(db, `babies/${sharedBaby}/members/${userC}`), {
     role: 'caregiver',
-
     joinedAt: new Date().toISOString(),
-
     inviteId: token,
+    caregiverName: 'Conta C',
   });
 
   batch.set(
@@ -468,6 +467,44 @@ test('permite aceitar convite em operação atômica', async () => {
   const baby = await assertSucceeds(getDoc(doc(caregiverDb, `babies/${sharedBaby}`)));
 
   assert.equal(baby.exists(), true);
+});
+
+test('nega aceitar convite sem nome do responsável no vínculo', async () => {
+  await createPendingInvite();
+
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  const batch = writeBatch(db);
+
+  batch.set(
+    doc(db, `babyInvites/${inviteToken}`),
+    {
+      status: 'accepted',
+      acceptedByUid: userC,
+      acceptedAt: serverTimestamp(),
+    },
+    {
+      merge: true,
+    },
+  );
+
+  batch.set(doc(db, `babies/${sharedBaby}/members/${userC}`), {
+    role: 'caregiver',
+    joinedAt: new Date().toISOString(),
+    inviteId: inviteToken,
+  });
+
+  batch.set(
+    doc(db, `users/${userC}`),
+    {
+      activeBabyId: sharedBaby,
+    },
+    {
+      merge: true,
+    },
+  );
+
+  await assertFails(batch.commit());
 });
 
 test('nega aceitação de convite expirado', async () => {

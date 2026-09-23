@@ -1,6 +1,4 @@
-export type BabyMemberRole =
-  | 'owner'
-  | 'caregiver';
+export type BabyMemberRole = 'owner' | 'caregiver';
 
 export interface Baby {
   readonly id: string;
@@ -9,34 +7,19 @@ export interface Baby {
 
   readonly birthDate: string;
 
-  readonly createdByUid:
-    string;
+  readonly createdByUid: string;
 
-  readonly createdAt:
-    string;
+  readonly createdAt: string;
 
-  readonly updatedAt:
-    string;
+  readonly updatedAt: string;
 }
 
 export interface BabyMember {
   readonly uid: string;
-
-  readonly role:
-    BabyMemberRole;
-
-  readonly joinedAt:
-    string;
-
-  /*
-   * Presente apenas quando o responsável
-   * entrou através de um convite.
-   *
-   * O convite já estará consumido, portanto
-   * não poderá ser reutilizado.
-   */
-  readonly inviteId?:
-    string;
+  readonly role: BabyMemberRole;
+  readonly joinedAt: string;
+  readonly inviteId?: string;
+  readonly caregiverName?: string;
 }
 
 export interface CreateBabyInput {
