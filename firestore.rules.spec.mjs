@@ -197,6 +197,22 @@ function createAcceptanceBatch(db, token = inviteToken) {
   return batch;
 }
 
+function createAccessRemovalBatch(db, memberId = userB) {
+  const batch = writeBatch(db);
+
+  batch.set(doc(db, `users/${memberId}/notifications/baby-access-removed-${sharedBaby}`), {
+    type: 'baby-access-removed',
+    babyId: sharedBaby,
+    babyName: 'Bebê compartilhado',
+    createdAt: serverTimestamp(),
+    readAt: null,
+  });
+
+  batch.delete(doc(db, `babies/${sharedBaby}/members/${memberId}`));
+
+  return batch;
+}
+
 test('nega leitura sem autenticação', async () => {
   const db = testEnv.unauthenticatedContext().firestore();
 
@@ -321,16 +337,62 @@ test('permite proprietário adicionar responsável', async () => {
   await assertSucceeds(getDoc(doc(caregiverDb, `babies/${sharedBaby}`)));
 });
 
-test('responsável removido perde acesso ao bebê', async () => {
+test('responsável removido recebe notificação e perde acesso ao bebê', async () => {
   const ownerDb = testEnv.authenticatedContext(userA).firestore();
 
-  await assertSucceeds(deleteDoc(doc(ownerDb, `babies/${sharedBaby}/members/${userB}`)));
+  const batch = createAccessRemovalBatch(ownerDb);
+
+  await assertSucceeds(batch.commit());
 
   const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+
+  const notification = await assertSucceeds(
+    getDoc(doc(caregiverDb, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`)),
+  );
+
+  assert.equal(notification.exists(), true);
+  assert.equal(notification.data().type, 'baby-access-removed');
+  assert.equal(notification.data().babyId, sharedBaby);
+  assert.equal(notification.data().babyName, 'Bebê compartilhado');
+  assert.equal(notification.data().readAt, null);
 
   await assertFails(getDoc(doc(caregiverDb, `babies/${sharedBaby}`)));
 
   await assertFails(getDoc(doc(caregiverDb, `babies/${sharedBaby}/diapers/shared-diaper`)));
+});
+
+test('nega proprietário removendo responsável sem notificação', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)));
+});
+
+test('nega notificação de remoção sem apagar o vínculo', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`), {
+      type: 'baby-access-removed',
+      babyId: sharedBaby,
+      babyName: 'Bebê compartilhado',
+      createdAt: serverTimestamp(),
+      readAt: null,
+    }),
+  );
+});
+
+test('nega responsável criando notificação de remoção', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`), {
+      type: 'baby-access-removed',
+      babyId: sharedBaby,
+      babyName: 'Bebê compartilhado',
+      createdAt: serverTimestamp(),
+      readAt: null,
+    }),
+  );
 });
 
 test('permite criar bebê e proprietário no mesmo lote', async () => {
@@ -547,11 +609,14 @@ test('nega reutilização de convite já aceito', async () => {
   await assertSucceeds(firstBatch.commit());
 
   /*
-   * O proprietário remove userC.
+   * O proprietário remove userC
+   * e cria a notificação no mesmo lote.
    */
   const ownerDb = testEnv.authenticatedContext(userA).firestore();
 
-  await assertSucceeds(deleteDoc(doc(ownerDb, `babies/${sharedBaby}/members/${userC}`)));
+  const removalBatch = createAccessRemovalBatch(ownerDb, userC);
+
+  await assertSucceeds(removalBatch.commit());
 
   /*
    * Mesmo possuindo o token antigo,
@@ -576,10 +641,16 @@ test('nega reutilização de convite já aceito', async () => {
     const invite = await getDoc(doc(adminDb, `babyInvites/${inviteToken}`));
 
     assert.equal(invite.exists(), true);
-
     assert.equal(invite.data().status, 'accepted');
-
     assert.equal(invite.data().acceptedByUid, userC);
+
+    const notification = await getDoc(
+      doc(adminDb, `users/${userC}/notifications/baby-access-removed-${sharedBaby}`),
+    );
+
+    assert.equal(notification.exists(), true);
+    assert.equal(notification.data().type, 'baby-access-removed');
+    assert.equal(notification.data().babyId, sharedBaby);
   });
 });
 

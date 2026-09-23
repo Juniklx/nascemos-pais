@@ -23,6 +23,22 @@ export interface FirestoreBatchEntry {
   data: DocumentData;
 }
 
+export interface FirestoreBatchSetOperation {
+  type: 'set';
+  path: string;
+  data: DocumentData;
+  merge?: boolean;
+}
+
+export interface FirestoreBatchDeleteOperation {
+  type: 'delete';
+  path: string;
+}
+
+export type FirestoreBatchOperation =
+  | FirestoreBatchSetOperation
+  | FirestoreBatchDeleteOperation;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -54,6 +70,8 @@ export class FirestoreGateway {
     }
 
     return snapshot.data();
+
+
   }
 
   async list(
@@ -119,6 +137,27 @@ export class FirestoreGateway {
           merge: true,
         },
       );
+    }
+
+    await batch.commit();
+  }
+
+  async batchWrite(operations: readonly FirestoreBatchOperation[]): Promise<void> {
+    if (operations.length > 500) {
+      throw new Error('O lote do Firestore excede 500 operações.');
+    }
+
+    const batch = writeBatch(this.firestore);
+
+    for (const operation of operations) {
+      if (operation.type === 'delete') {
+        batch.delete(doc(this.firestore, operation.path));
+        continue;
+      }
+
+      batch.set(doc(this.firestore, operation.path), operation.data, {
+        merge: operation.merge ?? true,
+      });
     }
 
     await batch.commit();

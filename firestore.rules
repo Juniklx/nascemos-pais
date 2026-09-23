@@ -26,6 +26,120 @@ service cloud.firestore {
         ).data.role == 'owner';
     }
 
+    function isRemovingCaregiver(
+      babyId,
+      memberId
+    ) {
+      return isAuthenticated()
+        && request.auth.uid != memberId
+
+        && isBabyOwner(
+          babyId
+        )
+
+        && exists(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        )
+
+        && get(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        ).data.role == 'caregiver'
+
+        && !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        );
+    }
+
+    function isValidAccessRemovedNotification(
+      data,
+      userId,
+      notificationId
+    ) {
+      return data.keys().hasOnly([
+          'type',
+          'babyId',
+          'babyName',
+          'createdAt',
+          'readAt'
+        ])
+
+        && data.keys().hasAll([
+          'type',
+          'babyId',
+          'babyName',
+          'createdAt',
+          'readAt'
+        ])
+
+        && data.type
+          == 'baby-access-removed'
+
+        && data.babyId is string
+        && data.babyId.size() > 0
+        && data.babyId.size() <= 128
+
+        && notificationId
+          == 'baby-access-removed-' + data.babyId
+
+        && data.babyName is string
+        && data.babyName.size() >= 1
+        && data.babyName.size() <= 80
+
+        && data.babyName
+          == get(
+            /databases/$(database)/documents/babies/$(data.babyId)
+          ).data.name
+
+        && data.createdAt is timestamp
+        && data.createdAt == request.time
+
+        && data.readAt == null
+
+        && isRemovingCaregiver(
+          data.babyId,
+          userId
+        );
+    }
+
+    function hasAccessRemovedNotificationAfter(
+      babyId,
+      memberId
+    ) {
+      let notificationId =
+        'baby-access-removed-' + babyId;
+
+      return existsAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        )
+
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.type
+          == 'baby-access-removed'
+
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.babyId
+          == babyId
+
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.babyName
+          == get(
+            /databases/$(database)/documents/babies/$(babyId)
+          ).data.name
+
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.createdAt
+          == request.time
+
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.readAt
+          == null;
+    }
+
     function isValidInviteId(inviteId) {
       return inviteId is string
         && inviteId.size() >= 32
@@ -468,6 +582,78 @@ service cloud.firestore {
       allow delete:
         if isOwner(userId);
 
+      match /notifications/{notificationId} {
+        /*
+        * Somente o próprio usuário pode
+        * consultar suas notificações.
+        */
+        allow read:
+          if isOwner(
+            userId
+          );
+
+        /*
+        * O proprietário de um bebê pode
+        * criar ou renovar exclusivamente
+        * a notificação de acesso removido,
+        * desde que o vínculo do responsável
+        * seja apagado no mesmo batch.
+        */
+        allow create:
+          if isValidAccessRemovedNotification(
+            request.resource.data,
+            userId,
+            notificationId
+          );
+
+        /*
+        * Há dois tipos de atualização:
+        *
+        * 1. o proprietário remove novamente
+        *    um responsável que havia sido
+        *    convidado outra vez;
+        *
+        * 2. o próprio destinatário marca
+        *    a mensagem como lida.
+        */
+        allow update:
+          if isValidAccessRemovedNotification(
+            request.resource.data,
+            userId,
+            notificationId
+          )
+          ||
+          (
+            isOwner(
+              userId
+            )
+
+            && resource.data.type
+              == 'baby-access-removed'
+
+            && request.resource.data.type
+              == resource.data.type
+
+            && request.resource.data.babyId
+              == resource.data.babyId
+
+            && request.resource.data.babyName
+              == resource.data.babyName
+
+            && request.resource.data.createdAt
+              == resource.data.createdAt
+
+            && resource.data.readAt
+              == null
+
+            && request.resource.data.readAt
+              == request.time
+          );
+
+        allow delete:
+          if false;
+      }
+
       match /feedings/{feedingId} {
         allow read:
           if isOwner(userId);
@@ -616,12 +802,23 @@ service cloud.firestore {
         && request.resource.data.createdAt
           == resource.data.createdAt;
 
-      /*
-       * Exclusão completa do bebê ainda
-       * não faz parte deste MVP.
-       */
       allow delete:
-        if false;
+      if (
+        isBabyOwner(
+          babyId
+        )
+        && memberId != request.auth.uid
+        && resource.data.role == 'caregiver'
+        && hasAccessRemovedNotificationAfter(
+          babyId,
+          memberId
+        )
+      )
+      ||
+      (
+        memberId == request.auth.uid
+        && resource.data.role == 'caregiver'
+      );
 
       match /members/{memberId} {
         allow read:
@@ -705,6 +902,10 @@ service cloud.firestore {
             )
             && memberId != request.auth.uid
             && resource.data.role == 'caregiver'
+            && hasAccessRemovedNotificationAfter(
+              babyId,
+              memberId
+            )
           )
           ||
           (

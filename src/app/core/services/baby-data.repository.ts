@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { DocumentData } from 'firebase/firestore';
+import { DocumentData, serverTimestamp } from 'firebase/firestore';
 import { FirestoreGateway } from '../firebase/firestore.gateway';
 import { Baby, BabyMember, BabyMemberRole, CreateBabyInput } from '../models/baby';
 import { AuthService } from './auth';
@@ -136,7 +136,34 @@ export class BabyDataRepository {
       throw new Error('Não é possível remover o próprio vínculo por esta ação.');
     }
 
-    await this.firestore.delete(this.memberPath(babyId, memberUid));
+    const baby = await this.readBaby(babyId);
+
+    this.assertSameUser(uid);
+
+    if (baby === null) {
+      throw new Error('Bebê não encontrado.');
+    }
+
+    const notificationId = `baby-access-removed-${babyId}`;
+
+    await this.firestore.batchWrite([
+      {
+        type: 'set',
+        path: this.notificationPath(memberUid, notificationId),
+        data: {
+          type: 'baby-access-removed',
+          babyId,
+          babyName: baby.name,
+          createdAt: serverTimestamp(),
+          readAt: null,
+        },
+        merge: false,
+      },
+      {
+        type: 'delete',
+        path: this.memberPath(babyId, memberUid),
+      },
+    ]);
 
     this.assertSameUser(uid);
   }
@@ -222,6 +249,14 @@ export class BabyDataRepository {
 
   private userPath(uid: string): string {
     return `users/${uid}`;
+  }
+
+  private notificationsPath(uid: string): string {
+    return `${this.userPath(uid)}/notifications`;
+  }
+
+  private notificationPath(uid: string, notificationId: string): string {
+    return `${this.notificationsPath(uid)}/${notificationId}`;
   }
 
   private babyPath(babyId: string): string {
@@ -331,14 +366,14 @@ export class BabyDataRepository {
 
       ...(typeof inviteId === 'string'
         ? {
-            inviteId,
-          }
+          inviteId,
+        }
         : {}),
 
       ...(typeof caregiverName === 'string'
         ? {
-            caregiverName: caregiverName.trim(),
-          }
+          caregiverName: caregiverName.trim(),
+        }
         : {}),
     };
   }

@@ -24,6 +24,8 @@ describe('BabyDataRepository', () => {
     delete: jasmine.createSpy('delete'),
 
     batchSet: jasmine.createSpy('batchSet'),
+
+    batchWrite: jasmine.createSpy('batchWrite'),
   };
 
   beforeEach(() => {
@@ -43,6 +45,8 @@ describe('BabyDataRepository', () => {
 
     firestore.batchSet.calls.reset();
 
+    firestore.batchWrite.calls.reset();
+
     firestore.createId.and.returnValue('baby-1');
 
     firestore.get.and.resolveTo(null);
@@ -54,6 +58,8 @@ describe('BabyDataRepository', () => {
     firestore.delete.and.resolveTo();
 
     firestore.batchSet.and.resolveTo();
+
+    firestore.batchWrite.and.resolveTo();
 
     TestBed.configureTestingModule({
       providers: [
@@ -233,10 +239,40 @@ describe('BabyDataRepository', () => {
     expect(firestore.set).toHaveBeenCalledOnceWith('babies/baby-1/diapers/diaper-1', record, true);
   });
 
-  it('remove responsável do bebê', async () => {
+  it('remove responsável e cria notificação no mesmo lote', async () => {
+    firestore.get.and.resolveTo({
+      name: 'Helena',
+      birthDate: '2026-01-01',
+      createdByUid: 'user-a',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
     await repository.removeMember('baby-1', 'user-b');
 
-    expect(firestore.delete).toHaveBeenCalledOnceWith('babies/baby-1/members/user-b');
+    expect(firestore.get).toHaveBeenCalledOnceWith('babies/baby-1');
+
+    const operations = firestore.batchWrite.calls.mostRecent().args[0];
+
+    expect(operations.length).toBe(2);
+
+    expect(operations[0]).toEqual({
+      type: 'set',
+      path: 'users/user-b/notifications/baby-access-removed-baby-1',
+      data: jasmine.objectContaining({
+        type: 'baby-access-removed',
+        babyId: 'baby-1',
+        babyName: 'Helena',
+        createdAt: jasmine.anything(),
+        readAt: null,
+      }),
+      merge: false,
+    });
+
+    expect(operations[1]).toEqual({
+      type: 'delete',
+      path: 'babies/baby-1/members/user-b',
+    });
   });
 
   it('não remove o próprio vínculo por esta ação', async () => {
@@ -244,6 +280,16 @@ describe('BabyDataRepository', () => {
       'Não é possível remover o próprio vínculo por esta ação.',
     );
 
-    expect(firestore.delete).not.toHaveBeenCalled();
+    expect(firestore.batchWrite).not.toHaveBeenCalled();
+  });
+
+  it('não remove responsável quando o bebê não é encontrado', async () => {
+    firestore.get.and.resolveTo(null);
+
+    await expectAsync(repository.removeMember('baby-1', 'user-b')).toBeRejectedWithError(
+      'Bebê não encontrado.',
+    );
+
+    expect(firestore.batchWrite).not.toHaveBeenCalled();
   });
 });
