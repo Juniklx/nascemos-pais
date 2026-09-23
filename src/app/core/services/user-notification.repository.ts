@@ -14,6 +14,8 @@ export class UserNotificationRepository {
   private readonly firestore = inject(FirestoreGateway);
 
   async unreadAccessRemoved(): Promise<BabyAccessRemovedNotification | null> {
+    await this.auth.waitUntilReady();
+
     const uid = this.requireUid();
 
     const notifications = await this.firestore.list(this.notificationsPath(uid));
@@ -31,6 +33,8 @@ export class UserNotificationRepository {
   async acknowledgeAccessRemoved(
     notification: BabyAccessRemovedNotification,
   ): Promise<void> {
+    await this.auth.waitUntilReady();
+
     const uid = this.requireUid();
 
     this.validateId(notification.id);
@@ -52,22 +56,21 @@ export class UserNotificationRepository {
         },
         merge: true,
       },
-
       ...(shouldClearBaby
         ? [
-          {
-            type: 'set' as const,
-            path: this.userPath(uid),
-            data: {
-              babyName: '',
-              babyBirthDate: '',
-              activeBabyId: deleteField(),
-              babyMigrationVersion: deleteField(),
-              babyMigratedAt: deleteField(),
+            {
+              type: 'set' as const,
+              path: this.userPath(uid),
+              data: {
+                babyName: '',
+                babyBirthDate: '',
+                activeBabyId: deleteField(),
+                babyMigrationVersion: deleteField(),
+                babyMigratedAt: deleteField(),
+              },
+              merge: true,
             },
-            merge: true,
-          },
-        ]
+          ]
         : []),
     ]);
 

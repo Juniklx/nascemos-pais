@@ -358,4 +358,41 @@ describe('BabyInviteRepository', () => {
 
     expect(firestore.batchSet).not.toHaveBeenCalled();
   });
+
+  it('descarta notificação antiga ao aceitar novo convite do mesmo bebê', async () => {
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return {
+          caregiverName: 'Marcelo',
+        };
+      }
+
+      if (path === 'users/user-a/notifications/baby-access-removed-baby-1') {
+        return {
+          type: 'baby-access-removed',
+          babyId: 'baby-1',
+          readAt: null,
+        };
+      }
+
+      return null;
+    });
+
+    await repository.acceptInvite(token);
+
+    const entries = firestore.batchSet.calls.mostRecent().args[0];
+
+    expect(entries.length).toBe(4);
+
+    expect(entries[3]).toEqual({
+      path: 'users/user-a/notifications/baby-access-removed-baby-1',
+      data: {
+        readAt: jasmine.anything(),
+      },
+    });
+  });
 });

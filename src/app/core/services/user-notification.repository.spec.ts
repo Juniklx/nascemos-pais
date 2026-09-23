@@ -15,6 +15,8 @@ describe('UserNotificationRepository', () => {
     uid: 'user-b',
   } as User);
 
+  const waitUntilReady = jasmine.createSpy('waitUntilReady');
+
   const firestore = {
     get: jasmine.createSpy('get'),
     list: jasmine.createSpy('list'),
@@ -35,9 +37,12 @@ describe('UserNotificationRepository', () => {
       uid: 'user-b',
     } as User);
 
+    waitUntilReady.calls.reset();
     firestore.get.calls.reset();
     firestore.list.calls.reset();
     firestore.batchWrite.calls.reset();
+
+    waitUntilReady.and.resolveTo();
 
     firestore.get.and.resolveTo({
       activeBabyId: 'baby-1',
@@ -54,6 +59,7 @@ describe('UserNotificationRepository', () => {
           provide: AuthService,
           useValue: {
             user: user.asReadonly(),
+            waitUntilReady,
           },
         },
         {
@@ -102,13 +108,29 @@ describe('UserNotificationRepository', () => {
 
     expect(result?.id).toBe('baby-access-removed-baby-2');
     expect(result?.babyName).toBe('Theo');
+    expect(waitUntilReady).toHaveBeenCalled();
+    expect(firestore.list).toHaveBeenCalledOnceWith('users/user-b/notifications');
+  });
 
+  it('aguarda a autenticação antes de buscar notificações', async () => {
+    user.set(null);
+
+    waitUntilReady.and.callFake(async () => {
+      user.set({
+        uid: 'user-b',
+      } as User);
+    });
+
+    await repository.unreadAccessRemoved();
+
+    expect(waitUntilReady).toHaveBeenCalled();
     expect(firestore.list).toHaveBeenCalledOnceWith('users/user-b/notifications');
   });
 
   it('marca notificação como lida e limpa o bebê removido ainda ativo', async () => {
     await repository.acknowledgeAccessRemoved(notification);
 
+    expect(waitUntilReady).toHaveBeenCalled();
     expect(firestore.get).toHaveBeenCalledOnceWith('users/user-b');
 
     const operations = firestore.batchWrite.calls.mostRecent().args[0];
@@ -162,6 +184,7 @@ describe('UserNotificationRepository', () => {
       'Usuário não autenticado.',
     );
 
+    expect(waitUntilReady).toHaveBeenCalled();
     expect(firestore.list).not.toHaveBeenCalled();
   });
 });

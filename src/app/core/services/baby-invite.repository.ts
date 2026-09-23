@@ -1,13 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-
 import { DocumentData, Timestamp, serverTimestamp } from 'firebase/firestore';
 
-import { FirestoreGateway } from '../firebase/firestore.gateway';
-
+import {
+  FirestoreGateway,
+  type FirestoreBatchEntry,
+} from '../firebase/firestore.gateway';
 import { BabyInvite } from '../models/baby-invite';
-
 import { AuthService } from './auth';
-
 
 /*
  * Usamos até 23 horas no cliente para
@@ -50,7 +49,6 @@ export class BabyInviteRepository {
          * porque as Rules comparam este
          * valor ao horário do servidor.
          */
-
         createdAt: serverTimestamp(),
 
         expiresAt: Timestamp.fromMillis(expiresAt),
@@ -146,16 +144,34 @@ export class BabyInviteRepository {
       throw new Error('Nome do responsável inválido.');
     }
 
+    /*
+     * Se este usuário já foi removido anteriormente
+     * do mesmo bebê, pode existir uma notificação
+     * antiga ainda não lida.
+     *
+     * Ao aceitar um novo convite, essa mensagem
+     * deixa de representar o estado atual e deve
+     * ser marcada como lida no mesmo lote.
+     */
+    const removalNotification = await this.firestore.get(
+      this.notificationPath(uid, invite.babyId),
+    );
+
+    this.assertSameUser(uid);
+
+    const hasPendingRemovalNotification =
+      removalNotification?.['type'] === 'baby-access-removed' &&
+      removalNotification['babyId'] === invite.babyId &&
+      removalNotification['readAt'] === null;
+
     const joinedAt = new Date().toISOString();
 
     /*
-     * As três alterações precisam ocorrer
-     * na mesma operação atômica.
-     *
-     * As Firestore Rules também exigem
-     * exatamente esta relação.
+     * Convite, vínculo, bebê ativo e eventual
+     * limpeza da notificação antiga são gravados
+     * de forma atômica.
      */
-    await this.firestore.batchSet([
+    const entries: FirestoreBatchEntry[] = [
       {
         path: this.invitePath(normalizedToken),
 
@@ -173,8 +189,11 @@ export class BabyInviteRepository {
 
         data: {
           role: 'caregiver',
+
           joinedAt,
+
           inviteId: normalizedToken,
+
           caregiverName: caregiverName.trim(),
         },
       },
@@ -186,7 +205,19 @@ export class BabyInviteRepository {
           activeBabyId: invite.babyId,
         },
       },
-    ]);
+    ];
+
+    if (hasPendingRemovalNotification) {
+      entries.push({
+        path: this.notificationPath(uid, invite.babyId),
+
+        data: {
+          readAt: serverTimestamp(),
+        },
+      });
+    }
+
+    await this.firestore.batchSet(entries);
 
     this.assertSameUser(uid);
 
@@ -306,8 +337,12 @@ export class BabyInviteRepository {
   }
 
   private memberPath(babyId: string, uid: string): string {
-  return `babies/${babyId}/members/${uid}`;
-}
+    return `babies/${babyId}/members/${uid}`;
+  }
+
+  private notificationPath(uid: string, babyId: string): string {
+    return `users/${uid}/notifications/baby-access-removed-${babyId}`;
+  }
 
   private userPath(uid: string): string {
     return `users/${uid}`;
