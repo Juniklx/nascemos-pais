@@ -129,7 +129,7 @@ describe('ProfilePage', () => {
 
     expect(page.inviteLink()).toContain(`/invite/${'a'.repeat(64)}`);
 
-    expect(page.inviteMessage()).toContain('válido por 24 horas');
+    expect(page.inviteMessage()).toContain('válido por até 24 horas');
   });
 
   it('não permite responsável gerar convite', async () => {

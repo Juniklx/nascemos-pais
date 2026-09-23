@@ -85,7 +85,7 @@ describe('BabyInviteRepository', () => {
     TestBed.resetTestingModule();
   });
 
-  it('cria convite seguro com duração de 24 horas', async () => {
+  it('cria convite seguro dentro do limite de 24 horas', async () => {
     const before = Date.now();
 
     const invite = await repository.createInvite('baby-1');
@@ -108,7 +108,7 @@ describe('BabyInviteRepository', () => {
 
     expect(invite.createdAt).toBeLessThanOrEqual(after);
 
-    expect(invite.expiresAt - invite.createdAt).toBe(24 * 60 * 60 * 1000);
+    expect(invite.expiresAt - invite.createdAt).toBe(23 * 60 * 60 * 1000);
 
     const call = firestore.set.calls.mostRecent();
 

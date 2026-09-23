@@ -230,7 +230,7 @@ export class ProfilePage {
       this.inviteLink.set(link);
 
       this.inviteMessage.set(
-        'Convite criado. Ele é válido por 24 horas e pode ser usado uma única vez.',
+        'Convite criado. Ele é válido por até 24 horas e pode ser usado uma única vez.',
       );
     } catch {
       this.inviteMessage.set('Não foi possível criar o convite. Tente novamente.');

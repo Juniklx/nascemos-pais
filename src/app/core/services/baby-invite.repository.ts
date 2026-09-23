@@ -8,7 +8,16 @@ import { BabyInvite } from '../models/baby-invite';
 
 import { AuthService } from './auth';
 
-const INVITE_DURATION_MS = 24 * 60 * 60 * 1000;
+
+/*
+ * Usamos até 23 horas no cliente para
+ * tolerar diferenças entre o relógio do
+ * dispositivo e o horário do Firestore.
+ *
+ * As Rules continuam limitando convites
+ * a no máximo 24 horas no servidor.
+ */
+const INVITE_DURATION_MS = 23 * 60 * 60 * 1000;
 
 @Injectable({
   providedIn: 'root',
@@ -41,6 +50,7 @@ export class BabyInviteRepository {
          * porque as Rules comparam este
          * valor ao horário do servidor.
          */
+
         createdAt: serverTimestamp(),
 
         expiresAt: Timestamp.fromMillis(expiresAt),
