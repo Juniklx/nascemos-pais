@@ -19,6 +19,34 @@ export class BabyDataRepository {
   private readonly auth = inject(AuthService);
   private readonly firestore = inject(FirestoreGateway);
 
+  async updateOwnCaregiverName(babyId: string, caregiverName: string): Promise<void> {
+    const uid = this.requireUid();
+    const name = caregiverName.trim();
+
+    this.validateId(babyId);
+
+    if (name.length === 0 || name.length > 80) {
+      throw new Error('Nome do responsável inválido.');
+    }
+
+    await this.firestore.batchSet([
+      {
+        path: this.memberPath(babyId, uid),
+        data: {
+          caregiverName: name,
+        },
+      },
+      {
+        path: this.userPath(uid),
+        data: {
+          caregiverName: name,
+        },
+      },
+    ]);
+
+    this.assertSameUser(uid);
+  }
+
   async createOwnedBaby(input: CreateBabyInput): Promise<Baby> {
     const uid = this.requireUid();
     const name = input.name.trim();

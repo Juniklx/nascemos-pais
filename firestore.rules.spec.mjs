@@ -838,3 +838,35 @@ test('nega convite substituindo outro bebê ativo', async () => {
 
   await assertFails(batch.commit());
 });
+
+test('permite responsável atualizar apenas o próprio nome', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertSucceeds(
+    setDoc(
+      doc(db, `babies/${sharedBaby}/members/${userB}`),
+      {
+        caregiverName: 'Novo nome',
+      },
+      {
+        merge: true,
+      },
+    ),
+  );
+});
+
+test('nega responsável alterando o próprio papel', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertFails(
+    setDoc(
+      doc(db, `babies/${sharedBaby}/members/${userB}`),
+      {
+        role: 'owner',
+      },
+      {
+        merge: true,
+      },
+    ),
+  );
+});

@@ -280,4 +280,31 @@ describe('BabyDataRepository', () => {
 
     expect(firestore.batchWrite).not.toHaveBeenCalled();
   });
+
+  it('atualiza nome do responsável no perfil e no vínculo', async () => {
+    await repository.updateOwnCaregiverName('baby-1', 'Ana');
+
+    expect(firestore.batchSet).toHaveBeenCalledOnceWith([
+      {
+        path: 'babies/baby-1/members/user-a',
+        data: {
+          caregiverName: 'Ana',
+        },
+      },
+      {
+        path: 'users/user-a',
+        data: {
+          caregiverName: 'Ana',
+        },
+      },
+    ]);
+  });
+
+  it('não atualiza nome inválido do responsável', async () => {
+    await expectAsync(repository.updateOwnCaregiverName('baby-1', '   ')).toBeRejectedWithError(
+      'Nome do responsável inválido.',
+    );
+
+    expect(firestore.batchSet).not.toHaveBeenCalled();
+  });
 });

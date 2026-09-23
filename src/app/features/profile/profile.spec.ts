@@ -32,6 +32,8 @@ describe('ProfilePage', () => {
   const updateBaby = jasmine.createSpy('updateBaby');
   const reloadBabyContext = jasmine.createSpy('reload');
   const updateProfile = jasmine.createSpy('updateProfile');
+  const updateOwnCaregiverName = jasmine.createSpy('updateOwnCaregiverName');
+  const reloadOnboarding = jasmine.createSpy('reload');
 
   const owner: BabyMember = {
     uid: 'user-a',
@@ -98,6 +100,7 @@ describe('ProfilePage', () => {
             babyBirthDate: babyBirthDate.asReadonly(),
             storageError: storageError.asReadonly(),
             updateProfile,
+            reload: reloadOnboarding,
           },
         },
         {
@@ -144,6 +147,7 @@ describe('ProfilePage', () => {
             listMembers,
             removeMember: removeBabyMember,
             updateBaby,
+            updateOwnCaregiverName,
           },
         },
       ],
@@ -259,11 +263,11 @@ describe('ProfilePage', () => {
 
     expect(updateBaby).not.toHaveBeenCalled();
 
-    expect(updateProfile).toHaveBeenCalledOnceWith({
-      caregiverName: 'Ana',
-      babyName: 'Helena',
-      babyBirthDate: '2026-01-01',
-    });
+    expect(updateOwnCaregiverName).toHaveBeenCalledOnceWith('baby-1', 'Ana');
+
+    expect(updateProfile).not.toHaveBeenCalled();
+
+    expect(reloadOnboarding).toHaveBeenCalled();
 
     expect(page.form.getRawValue()).toEqual({
       caregiverName: 'Ana',

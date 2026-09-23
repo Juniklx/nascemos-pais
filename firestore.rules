@@ -867,13 +867,20 @@ service cloud.firestore {
             )
           );
 
-        /*
-         * Por enquanto o papel não é alterado.
-         * Um responsável pode ser removido
-         * e convidado novamente.
-         */
         allow update:
-          if false;
+          if isAuthenticated()
+          && memberId == request.auth.uid
+          && resource.data.role == 'caregiver'
+          && isValidBabyMember(
+            request.resource.data
+          )
+          && 'caregiverName'
+            in request.resource.data
+          && request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'caregiverName'
+          ]);
 
         allow delete:
           if isBabyOwner(

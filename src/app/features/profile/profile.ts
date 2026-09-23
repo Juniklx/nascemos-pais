@@ -281,6 +281,22 @@ export class ProfilePage {
       babyBirthDate,
     };
 
+    if (!this.isBabyOwner()) {
+      try {
+        if (caregiverName !== this.onboarding.caregiverName()) {
+          await this.babies.updateOwnCaregiverName(babyId, caregiverName);
+          await this.onboarding.reload();
+        }
+
+        this.form.reset(data);
+        this.message.set('Perfil salvo com sucesso.');
+      } catch {
+        this.message.set('Não foi possível atualizar seu nome.');
+      }
+
+      return;
+    }
+
     const saved = await this.onboarding.updateProfile(data);
 
     if (!saved) {
