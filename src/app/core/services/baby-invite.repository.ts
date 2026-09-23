@@ -1,10 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { DocumentData, Timestamp, serverTimestamp } from 'firebase/firestore';
 
-import {
-  FirestoreGateway,
-  type FirestoreBatchEntry,
-} from '../firebase/firestore.gateway';
+import { FirestoreGateway, type FirestoreBatchEntry } from '../firebase/firestore.gateway';
 import { BabyInvite } from '../models/baby-invite';
 import { AuthService } from './auth';
 
@@ -136,6 +133,12 @@ export class BabyInviteRepository {
 
     const caregiverName = profile?.['caregiverName'];
 
+    const activeBabyId = profile?.['activeBabyId'];
+
+    if (activeBabyId !== undefined && activeBabyId !== invite.babyId) {
+      throw new Error('Esta conta já está vinculada a outro bebê.');
+    }
+
     if (
       typeof caregiverName !== 'string' ||
       caregiverName.trim().length === 0 ||
@@ -153,9 +156,7 @@ export class BabyInviteRepository {
      * deixa de representar o estado atual e deve
      * ser marcada como lida no mesmo lote.
      */
-    const removalNotification = await this.firestore.get(
-      this.notificationPath(uid, invite.babyId),
-    );
+    const removalNotification = await this.firestore.get(this.notificationPath(uid, invite.babyId));
 
     this.assertSameUser(uid);
 

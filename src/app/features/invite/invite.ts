@@ -169,6 +169,7 @@ export class InvitePage implements OnInit {
         case 'Convite não encontrado.':
         case 'Este convite já foi utilizado.':
         case 'Este convite expirou.':
+        case 'Esta conta já está vinculada a outro bebê.':
         case 'O proprietário não pode aceitar o próprio convite.':
           return error.message;
       }

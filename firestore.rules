@@ -141,6 +141,11 @@ service cloud.firestore {
           /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
         ).data;
 
+      let currentProfile =
+        get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data;
+
       let profile =
         getAfter(
           /databases/$(database)/documents/users/$(request.auth.uid)
@@ -179,6 +184,20 @@ service cloud.firestore {
           == request.time
         && acceptedInvite.babyId
           == babyId
+
+        /*
+         * Enquanto o MVP suporta somente um bebê
+         * ativo, um convite não pode substituir
+         * outro bebê já vinculado à conta.
+         */
+        && (
+          !(
+            'activeBabyId'
+            in currentProfile
+          )
+          || currentProfile.activeBabyId
+            == babyId
+        )
 
         /*
          * O perfil deve passar a apontar
@@ -774,16 +793,12 @@ service cloud.firestore {
         && request.resource.data.createdAt
           == resource.data.createdAt;
 
+      /*
+       * Exclusão completa do bebê ainda
+       * não faz parte deste MVP.
+       */
       allow delete:
-        if isBabyOwner(
-          babyId
-        )
-        && memberId != request.auth.uid
-        && resource.data.role == 'caregiver'
-        && hasAccessRemovedNotificationAfter(
-          babyId,
-          memberId
-        );
+        if false;
 
       match /members/{memberId} {
         allow read:

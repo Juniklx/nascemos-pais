@@ -798,7 +798,43 @@ test('nega exclusão completa do bebê no MVP', async () => {
 test('nega responsável removendo o próprio vínculo', async () => {
   const db = testEnv.authenticatedContext(userB).firestore();
 
-  await assertFails(
-    deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)),
-  );
+  await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)));
+});
+
+test('nega convite substituindo outro bebê ativo', async () => {
+  const currentBaby = 'baby-user-c';
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+
+    await setDoc(doc(db, `babies/${currentBaby}`), {
+      name: 'Bebê atual',
+      birthDate: '2026-01-01',
+      createdByUid: userC,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await setDoc(doc(db, `babies/${currentBaby}/members/${userC}`), {
+      role: 'owner',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await setDoc(
+      doc(db, `users/${userC}`),
+      {
+        activeBabyId: currentBaby,
+      },
+      {
+        merge: true,
+      },
+    );
+  });
+
+  await createPendingInvite();
+
+  const db = testEnv.authenticatedContext(userC).firestore();
+  const batch = createAcceptanceBatch(db);
+
+  await assertFails(batch.commit());
 });

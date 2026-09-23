@@ -395,4 +395,27 @@ describe('BabyInviteRepository', () => {
       },
     });
   });
+
+  it('não substitui outro bebê ativo ao aceitar convite', async () => {
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return {
+          caregiverName: 'Marcelo',
+          activeBabyId: 'baby-2',
+        };
+      }
+
+      return null;
+    });
+
+    await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
+      'Esta conta já está vinculada a outro bebê.',
+    );
+
+    expect(firestore.batchSet).not.toHaveBeenCalled();
+  });
 });
