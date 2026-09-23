@@ -617,42 +617,63 @@ service cloud.firestore {
         *    a mensagem como lida.
         */
         allow update:
-          if isValidAccessRemovedNotification(
+        if (
+          isValidAccessRemovedNotification(
             request.resource.data,
             userId,
             notificationId
           )
-          ||
-          (
-            isOwner(
-              userId
-            )
+        )
+        ||
+        (
+          isOwner(
+            userId
+          )
 
-            && resource.data.type
-              == 'baby-access-removed'
+          && request.resource.data.keys().hasOnly([
+            'type',
+            'babyId',
+            'babyName',
+            'createdAt',
+            'readAt'
+          ])
 
-            && request.resource.data.type
-              == resource.data.type
+          && request.resource.data.keys().hasAll([
+            'type',
+            'babyId',
+            'babyName',
+            'createdAt',
+            'readAt'
+          ])
 
-            && request.resource.data.babyId
-              == resource.data.babyId
+          && notificationId
+            == 'baby-access-removed-' + resource.data.babyId
 
-            && request.resource.data.babyName
-              == resource.data.babyName
+          && resource.data.type
+            == 'baby-access-removed'
 
-            && request.resource.data.createdAt
-              == resource.data.createdAt
+          && request.resource.data.type
+            == resource.data.type
 
-            && resource.data.readAt
-              == null
+          && request.resource.data.babyId
+            == resource.data.babyId
 
-            && request.resource.data.readAt
-              == request.time
-          );
+          && request.resource.data.babyName
+            == resource.data.babyName
+
+          && request.resource.data.createdAt
+            == resource.data.createdAt
+
+          && resource.data.readAt
+            == null
+
+          && request.resource.data.readAt
+            == request.time
+        );
 
         allow delete:
           if false;
-      }
+        }
 
       match /feedings/{feedingId} {
         allow read:

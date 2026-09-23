@@ -1,0 +1,55 @@
+<main class="access-removed">
+  <section class="access-removed__card">
+    <div class="access-removed__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 3V13"></path>
+        <path d="M12 17V17.01"></path>
+        <circle cx="12" cy="12" r="9"></circle>
+      </svg>
+    </div>
+
+    @if (loading() && !notification()) {
+    <h1>Verificando seu acesso...</h1>
+
+    <p>
+      Aguarde um instante.
+    </p>
+    } @else if (notification(); as item) {
+    <span class="access-removed__eyebrow">
+      Acesso removido
+    </span>
+
+    <h1>
+      Você não tem mais acesso a {{ item.babyName }}
+    </h1>
+
+    <p>
+      Seu acesso ao bebê {{ item.babyName }} foi removido pelo proprietário.
+    </p>
+
+    <p class="access-removed__note">
+      Os registros continuam preservados com o proprietário e não foram apagados.
+    </p>
+
+    @if (error()) {
+    <p class="access-removed__error" role="alert">
+      {{ error() }}
+    </p>
+    }
+
+    <button type="button" class="access-removed__button" [disabled]="loading()" (click)="acknowledge()">
+      @if (loading()) {
+      Processando...
+      } @else {
+      Entendi
+      }
+    </button>
+    } @else if (error()) {
+    <h1>Não foi possível verificar seu acesso</h1>
+
+    <p class="access-removed__error" role="alert">
+      {{ error() }}
+    </p>
+    }
+  </section>
+</main>

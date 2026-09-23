@@ -13,6 +13,7 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -392,6 +393,95 @@ test('nega responsável criando notificação de remoção', async () => {
       createdAt: serverTimestamp(),
       readAt: null,
     }),
+  );
+});
+
+test('permite responsável confirmar remoção e limpar o próprio perfil', async () => {
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+
+  await assertSucceeds(
+    setDoc(
+      doc(caregiverDb, `users/${userB}`),
+      {
+        activeBabyId: sharedBaby,
+        babyMigrationVersion: 1,
+        babyMigratedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        merge: true,
+      },
+    ),
+  );
+
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  const removalBatch = createAccessRemovalBatch(ownerDb);
+
+  await assertSucceeds(removalBatch.commit());
+
+  const acknowledgeBatch = writeBatch(caregiverDb);
+
+  acknowledgeBatch.set(
+    doc(caregiverDb, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`),
+    {
+      readAt: serverTimestamp(),
+    },
+    {
+      merge: true,
+    },
+  );
+
+  acknowledgeBatch.set(
+    doc(caregiverDb, `users/${userB}`),
+    {
+      babyName: '',
+      babyBirthDate: '',
+      activeBabyId: deleteField(),
+      babyMigrationVersion: deleteField(),
+      babyMigratedAt: deleteField(),
+    },
+    {
+      merge: true,
+    },
+  );
+
+  await assertSucceeds(acknowledgeBatch.commit());
+
+  const profile = await assertSucceeds(getDoc(doc(caregiverDb, `users/${userB}`)));
+
+  assert.equal(profile.data().caregiverName, 'Conta B');
+  assert.equal(profile.data().babyName, '');
+  assert.equal(profile.data().babyBirthDate, '');
+  assert.equal(profile.data().consentGiven, true);
+  assert.equal(profile.data().activeBabyId, undefined);
+
+  const notification = await assertSucceeds(
+    getDoc(doc(caregiverDb, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`)),
+  );
+
+  assert.notEqual(notification.data().readAt, null);
+});
+
+test('nega responsável acrescentando campos à notificação de remoção', async () => {
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  const removalBatch = createAccessRemovalBatch(ownerDb);
+
+  await assertSucceeds(removalBatch.commit());
+
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+
+  await assertFails(
+    setDoc(
+      doc(caregiverDb, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`),
+      {
+        readAt: serverTimestamp(),
+        extra: 'campo não permitido',
+      },
+      {
+        merge: true,
+      },
+    ),
   );
 });
 

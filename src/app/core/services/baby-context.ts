@@ -157,6 +157,10 @@ export class BabyContextService {
     }
   }
 
+  reset(): void {
+    this.clearState();
+  }
+
   async reload(): Promise<void> {
     /*
      * Usado quando o bebê ativo muda,

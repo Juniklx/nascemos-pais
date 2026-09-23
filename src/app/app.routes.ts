@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
+
 import { activityReadyGuard } from './core/guards/activity-ready.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
 import { onboardingReadyGuard } from './core/guards/onboarding-ready.guard';
+import { accessRemovalGuard } from './core/guards/access-removal.guard';
 
 export const routes: Routes = [
   {
@@ -39,9 +41,19 @@ export const routes: Routes = [
     loadComponent: () => import('./features/invite/invite').then((m) => m.InvitePage),
   },
   {
+    path: 'access-removed',
+
+    canActivate: [authGuard],
+
+    title: 'Acesso removido | Nascemos Pais',
+
+    loadComponent: () =>
+      import('./features/access-removed/access-removed').then((m) => m.AccessRemovedPage),
+  },
+  {
     path: 'onboarding/about-you',
 
-    canActivate: [authGuard, onboardingReadyGuard],
+    canActivate: [authGuard, accessRemovalGuard, onboardingReadyGuard],
 
     loadComponent: () =>
       import('./features/onboarding/about-you/about-you').then((m) => m.AboutYou),
@@ -49,7 +61,7 @@ export const routes: Routes = [
   {
     path: 'onboarding/about-baby',
 
-    canActivate: [authGuard, onboardingReadyGuard],
+    canActivate: [authGuard, accessRemovalGuard, onboardingReadyGuard],
 
     loadComponent: () =>
       import('./features/onboarding/about-baby/about-baby').then((m) => m.AboutBaby),
@@ -57,7 +69,7 @@ export const routes: Routes = [
   {
     path: '',
 
-    canActivate: [authGuard, onboardingCompleteGuard, activityReadyGuard],
+    canActivate: [authGuard, accessRemovalGuard, onboardingCompleteGuard, activityReadyGuard],
 
     loadComponent: () => import('./layouts/app-shell/app-shell').then((m) => m.AppShell),
 
