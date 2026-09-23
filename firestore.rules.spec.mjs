@@ -794,3 +794,11 @@ test('nega exclusão completa do bebê no MVP', async () => {
 
   await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}`)));
 });
+
+test('nega responsável removendo o próprio vínculo', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertFails(
+    deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)),
+  );
+});

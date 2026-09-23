@@ -774,12 +774,16 @@ service cloud.firestore {
         && request.resource.data.createdAt
           == resource.data.createdAt;
 
-      /*
-       * Exclusão completa do bebê ainda
-       * não faz parte deste MVP.
-       */
       allow delete:
-        if false;
+        if isBabyOwner(
+          babyId
+        )
+        && memberId != request.auth.uid
+        && resource.data.role == 'caregiver'
+        && hasAccessRemovedNotificationAfter(
+          babyId,
+          memberId
+        );
 
       match /members/{memberId} {
         allow read:
@@ -857,21 +861,14 @@ service cloud.firestore {
           if false;
 
         allow delete:
-          if (
-            isBabyOwner(
-              babyId
-            )
-            && memberId != request.auth.uid
-            && resource.data.role == 'caregiver'
-            && hasAccessRemovedNotificationAfter(
-              babyId,
-              memberId
-            )
+          if isBabyOwner(
+            babyId
           )
-          ||
-          (
-            memberId == request.auth.uid
-            && resource.data.role == 'caregiver'
+          && memberId != request.auth.uid
+          && resource.data.role == 'caregiver'
+          && hasAccessRemovedNotificationAfter(
+            babyId,
+            memberId
           );
       }
 
