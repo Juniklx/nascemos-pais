@@ -1,291 +1,142 @@
-import {
-  Injectable,
-  inject,
-} from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { DocumentData } from 'firebase/firestore';
+import { FirestoreGateway } from '../firebase/firestore.gateway';
+import { Baby, BabyMember, BabyMemberRole, CreateBabyInput } from '../models/baby';
+import { AuthService } from './auth';
 
-import {
-  DocumentData,
-} from 'firebase/firestore';
-
-import {
-  FirestoreGateway,
-} from '../firebase/firestore.gateway';
-
-import {
-  Baby,
-  BabyMember,
-  BabyMemberRole,
-  CreateBabyInput,
-} from '../models/baby';
-
-import {
-  AuthService,
-} from './auth';
-
-export type BabyRecordCollection =
-  | 'feedings'
-  | 'sleeps'
-  | 'diapers';
+export type BabyRecordCollection = 'feedings' | 'sleeps' | 'diapers';
 
 @Injectable({
   providedIn: 'root',
 })
 export class BabyDataRepository {
-  private readonly auth =
-    inject(AuthService);
+  private readonly auth = inject(AuthService);
 
-  private readonly firestore =
-    inject(FirestoreGateway);
+  private readonly firestore = inject(FirestoreGateway);
 
-  async createOwnedBaby(
-    input: CreateBabyInput,
-  ): Promise<Baby> {
-    const uid =
-      this.requireUid();
+  async createOwnedBaby(input: CreateBabyInput): Promise<Baby> {
+    const uid = this.requireUid();
 
-    const name =
-      input.name.trim();
+    const name = input.name.trim();
 
-    if (
-      name.length === 0 ||
-      name.length > 80 ||
-      !this.isBirthDate(
-        input.birthDate,
-      )
-    ) {
-      throw new Error(
-        'Dados do bebê inválidos.',
-      );
+    if (name.length === 0 || name.length > 80 || !this.isBirthDate(input.birthDate)) {
+      throw new Error('Dados do bebê inválidos.');
     }
 
-    const babyId =
-      this.firestore.createId(
-        'babies',
-      );
+    const babyId = this.firestore.createId('babies');
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const now =
-      new Date()
-        .toISOString();
+    const now = new Date().toISOString();
 
-    const baby:
-      Baby = {
-      id:
-        babyId,
+    const baby: Baby = {
+      id: babyId,
 
       name,
 
-      birthDate:
-        input.birthDate,
+      birthDate: input.birthDate,
 
-      createdByUid:
-        uid,
+      createdByUid: uid,
 
-      createdAt:
-        now,
+      createdAt: now,
 
-      updatedAt:
-        now,
+      updatedAt: now,
     };
 
-    /*
-     * A criação do bebê, o vínculo
-     * do proprietário e a referência
-     * activeBabyId são gravados no
-     * mesmo lote.
-     *
-     * Assim evitamos uma conta ficar
-     * apontando para um bebê incompleto
-     * em caso de falha no meio da operação.
-     */
-    await this.firestore
-      .batchSet([
-        {
-          path:
-            this.babyPath(
-              babyId,
-            ),
+    await this.firestore.batchSet([
+      {
+        path: this.babyPath(babyId),
 
-          data:
-            this.toBabyDocument(
-              baby,
-            ),
+        data: this.toBabyDocument(baby),
+      },
+
+      {
+        path: this.memberPath(babyId, uid),
+
+        data: {
+          role: 'owner',
+
+          joinedAt: now,
         },
+      },
 
-        {
-          path:
-            this.memberPath(
-              babyId,
-              uid,
-            ),
+      {
+        path: this.userPath(uid),
 
-          data: {
-            role:
-              'owner',
-
-            joinedAt:
-              now,
-          },
+        data: {
+          activeBabyId: babyId,
         },
+      },
+    ]);
 
-        {
-          path:
-            this.userPath(
-              uid,
-            ),
-
-          data: {
-            activeBabyId:
-              babyId,
-          },
-        },
-      ]);
-
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
 
     return baby;
   }
 
-  async readBaby(
-    babyId: string,
-  ): Promise<Baby | null> {
-    const uid =
-      this.requireUid();
+  async readBaby(babyId: string): Promise<Baby | null> {
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const data =
-      await this.firestore
-        .get(
-          this.babyPath(
-            babyId,
-          ),
-        );
+    const data = await this.firestore.get(this.babyPath(babyId));
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
 
     if (data === null) {
       return null;
     }
 
-    return this.parseBaby(
-      babyId,
-      data,
-    );
+    return this.parseBaby(babyId, data);
   }
 
-  async readMembership(
-    babyId: string,
-  ): Promise<BabyMember | null> {
-    const uid =
-      this.requireUid();
+  async readMembership(babyId: string): Promise<BabyMember | null> {
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const data =
-      await this.firestore
-        .get(
-          this.memberPath(
-            babyId,
-            uid,
-          ),
-        );
+    const data = await this.firestore.get(this.memberPath(babyId, uid));
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
 
     if (data === null) {
       return null;
     }
 
-    return this.parseMember(
-      uid,
-      data,
-    );
+    return this.parseMember(uid, data);
   }
 
-  async listMembers(
-    babyId: string,
-  ): Promise<BabyMember[]> {
-    const uid =
-      this.requireUid();
+  async listMembers(babyId: string): Promise<BabyMember[]> {
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const members =
-      await this.firestore
-        .list(
-          this.membersPath(
-            babyId,
-          ),
-        );
+    const members = await this.firestore.list(this.membersPath(babyId));
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
 
-    return members.map(
-      (member) => {
-        const memberUid =
-          member['id'];
+    return members.map((member) => {
+      const memberUid = member['id'];
 
-        if (
-          typeof memberUid !==
-          'string'
-        ) {
-          throw new Error(
-            'Responsável inválido.',
-          );
-        }
+      if (typeof memberUid !== 'string') {
+        throw new Error('Responsável inválido.');
+      }
 
-        return this.parseMember(
-          memberUid,
-          member,
-        );
-      },
-    );
+      return this.parseMember(memberUid, member);
+    });
   }
 
-  async listRecords<
-    T extends DocumentData,
-  >(
+  async listRecords<T extends DocumentData>(
     babyId: string,
-    collectionName:
-      BabyRecordCollection,
+    collectionName: BabyRecordCollection,
   ): Promise<T[]> {
-    const uid =
-      this.requireUid();
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const records =
-      await this.firestore
-        .list(
-          this.collectionPath(
-            babyId,
-            collectionName,
-          ),
-        );
+    const records = await this.firestore.list(this.collectionPath(babyId, collectionName));
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
 
     return records as T[];
   }
@@ -294,280 +145,133 @@ export class BabyDataRepository {
     T extends DocumentData & {
       id: string;
     },
-  >(
-    babyId: string,
-    collectionName:
-      BabyRecordCollection,
-    record: T,
-  ): Promise<void> {
-    const uid =
-      this.requireUid();
+  >(babyId: string, collectionName: BabyRecordCollection, record: T): Promise<void> {
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    this.validateId(
-      record.id,
-    );
+    this.validateId(record.id);
 
-    await this.firestore
-      .set(
-        this.recordPath(
-          babyId,
-          collectionName,
-          record.id,
-        ),
-        record,
-        true,
-      );
+    await this.firestore.set(this.recordPath(babyId, collectionName, record.id), record, true);
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
   }
 
   async deleteRecord(
     babyId: string,
-    collectionName:
-      BabyRecordCollection,
+    collectionName: BabyRecordCollection,
     id: string,
   ): Promise<void> {
-    const uid =
-      this.requireUid();
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    this.validateId(
-      id,
-    );
+    this.validateId(id);
 
-    await this.firestore
-      .delete(
-        this.recordPath(
-          babyId,
-          collectionName,
-          id,
-        ),
-      );
+    await this.firestore.delete(this.recordPath(babyId, collectionName, id));
 
-    this.assertSameUser(
-      uid,
-    );
+    this.assertSameUser(uid);
   }
 
   async saveRecords<
     T extends DocumentData & {
       id: string;
     },
-  >(
-    babyId: string,
-    collectionName:
-      BabyRecordCollection,
-    records: readonly T[],
-  ): Promise<void> {
-    /*
-     * O UID é capturado uma única vez.
-     * Assim uma troca de sessão durante
-     * uma operação longa não pode fazer
-     * com que os lotes seguintes sejam
-     * executados em outra conta.
-     */
-    const uid =
-      this.requireUid();
+  >(babyId: string, collectionName: BabyRecordCollection, records: readonly T[]): Promise<void> {
+    const uid = this.requireUid();
 
-    this.validateId(
-      babyId,
-    );
+    this.validateId(babyId);
 
-    const chunkSize =
-      400;
+    const chunkSize = 400;
 
-    for (
-      let index = 0;
-      index < records.length;
-      index += chunkSize
-    ) {
-      this.assertSameUser(
-        uid,
-      );
+    for (let index = 0; index < records.length; index += chunkSize) {
+      this.assertSameUser(uid);
 
-      const chunk =
-        records.slice(
-          index,
-          index +
-          chunkSize,
-        );
+      const chunk = records.slice(index, index + chunkSize);
 
-      const entries =
-        chunk.map(
-          (record) => {
-            this.validateId(
-              record.id,
-            );
+      const entries = chunk.map((record) => {
+        this.validateId(record.id);
 
-            return {
-              path:
-                this.recordPath(
-                  babyId,
-                  collectionName,
-                  record.id,
-                ),
+        return {
+          path: this.recordPath(babyId, collectionName, record.id),
 
-              data:
-                record,
-            };
-          },
-        );
+          data: record,
+        };
+      });
 
-      await this.firestore
-        .batchSet(
-          entries,
-        );
+      await this.firestore.batchSet(entries);
 
-      this.assertSameUser(
-        uid,
-      );
+      this.assertSameUser(uid);
     }
   }
 
-  private userPath(
-    uid: string,
-  ): string {
-    return (
-      `users/${uid}`
-    );
+  private userPath(uid: string): string {
+    return `users/${uid}`;
   }
 
-  private babyPath(
-    babyId: string,
-  ): string {
-    return (
-      `babies/${babyId}`
-    );
+  private babyPath(babyId: string): string {
+    return `babies/${babyId}`;
   }
 
-  private membersPath(
-    babyId: string,
-  ): string {
-    return (
-      `${this.babyPath(
-        babyId,
-      )}/members`
-    );
+  private membersPath(babyId: string): string {
+    return `${this.babyPath(babyId)}/members`;
   }
 
-  private memberPath(
-    babyId: string,
-    uid: string,
-  ): string {
-    return (
-      `${this.membersPath(
-        babyId,
-      )}/${uid}`
-    );
+  private memberPath(babyId: string, uid: string): string {
+    return `${this.membersPath(babyId)}/${uid}`;
   }
 
-  private collectionPath(
-    babyId: string,
-    collectionName:
-      BabyRecordCollection,
-  ): string {
-    return (
-      `${this.babyPath(
-        babyId,
-      )}/${collectionName}`
-    );
+  private collectionPath(babyId: string, collectionName: BabyRecordCollection): string {
+    return `${this.babyPath(babyId)}/${collectionName}`;
   }
 
-  private recordPath(
-    babyId: string,
-    collectionName:
-      BabyRecordCollection,
-    id: string,
-  ): string {
-    return (
-      `${this.collectionPath(
-        babyId,
-        collectionName,
-      )}/${id}`
-    );
+  private recordPath(babyId: string, collectionName: BabyRecordCollection, id: string): string {
+    return `${this.collectionPath(babyId, collectionName)}/${id}`;
   }
 
-  private toBabyDocument(
-    baby: Baby,
-  ): DocumentData {
+  private toBabyDocument(baby: Baby): DocumentData {
     return {
-      name:
-        baby.name,
+      name: baby.name,
 
-      birthDate:
-        baby.birthDate,
+      birthDate: baby.birthDate,
 
-      createdByUid:
-        baby.createdByUid,
+      createdByUid: baby.createdByUid,
 
-      createdAt:
-        baby.createdAt,
+      createdAt: baby.createdAt,
 
-      updatedAt:
-        baby.updatedAt,
+      updatedAt: baby.updatedAt,
     };
   }
 
-  private parseBaby(
-    id: string,
-    data: DocumentData,
-  ): Baby {
-    const name =
-      data['name'];
+  private parseBaby(id: string, data: DocumentData): Baby {
+    const name = data['name'];
 
-    const birthDate =
-      data['birthDate'];
+    const birthDate = data['birthDate'];
 
-    const createdByUid =
-      data[
-      'createdByUid'
-      ];
+    const createdByUid = data['createdByUid'];
 
-    const createdAt =
-      data['createdAt'];
+    const createdAt = data['createdAt'];
 
-    const updatedAt =
-      data['updatedAt'];
+    const updatedAt = data['updatedAt'];
 
     if (
-      typeof name !==
-      'string' ||
-      name.trim().length ===
-      0 ||
+      typeof name !== 'string' ||
+      name.trim().length === 0 ||
       name.length > 80 ||
-      typeof birthDate !==
-      'string' ||
-      !this.isBirthDate(
-        birthDate,
-      ) ||
-      typeof createdByUid !==
-      'string' ||
-      createdByUid.length ===
-      0 ||
-      typeof createdAt !==
-      'string' ||
-      typeof updatedAt !==
-      'string'
+      typeof birthDate !== 'string' ||
+      !this.isBirthDate(birthDate) ||
+      typeof createdByUid !== 'string' ||
+      createdByUid.length === 0 ||
+      typeof createdAt !== 'string' ||
+      typeof updatedAt !== 'string'
     ) {
-      throw new Error(
-        'Dados do bebê inválidos.',
-      );
+      throw new Error('Dados do bebê inválidos.');
     }
 
     return {
       id,
 
-      name:
-        name.trim(),
+      name: name.trim(),
 
       birthDate,
 
@@ -579,28 +283,24 @@ export class BabyDataRepository {
     };
   }
 
-  private parseMember(
-    uid: string,
-    data: DocumentData,
-  ): BabyMember {
-    const role =
-      data['role'];
+  private parseMember(uid: string, data: DocumentData): BabyMember {
+    const role = data['role'];
 
-    const joinedAt =
-      data['joinedAt'];
+    const joinedAt = data['joinedAt'];
+
+    const inviteId = data['inviteId'];
 
     if (
-      uid.trim().length ===
-      0 ||
-      !this.isMemberRole(
-        role,
-      ) ||
-      typeof joinedAt !==
-      'string'
+      uid.trim().length === 0 ||
+      !this.isMemberRole(role) ||
+      typeof joinedAt !== 'string' ||
+      (inviteId !== undefined &&
+        (typeof inviteId !== 'string' ||
+          inviteId.length < 32 ||
+          inviteId.length > 128 ||
+          inviteId.includes('/')))
     ) {
-      throw new Error(
-        'Responsável inválido.',
-      );
+      throw new Error('Responsável inválido.');
     }
 
     return {
@@ -609,83 +309,48 @@ export class BabyDataRepository {
       role,
 
       joinedAt,
+
+      ...(typeof inviteId === 'string'
+        ? {
+            inviteId,
+          }
+        : {}),
     };
   }
 
-  private isMemberRole(
-    value: unknown,
-  ): value is BabyMemberRole {
-    return (
-      value ===
-      'owner' ||
-      value ===
-      'caregiver'
-    );
+  private isMemberRole(value: unknown): value is BabyMemberRole {
+    return value === 'owner' || value === 'caregiver';
   }
 
-  private isBirthDate(
-    value: string,
-  ): boolean {
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/
-        .test(value)
-    ) {
+  private isBirthDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return false;
     }
 
-    const date =
-      new Date(
-        `${value}T00:00:00`,
-      );
+    const date = new Date(`${value}T00:00:00`);
 
-    return (
-      !Number.isNaN(
-        date.getTime(),
-      ) &&
-      date.getTime() <=
-      Date.now()
-    );
+    return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
   }
 
-  private requireUid():
-    string {
-    const uid =
-      this.auth.user()?.uid;
+  private requireUid(): string {
+    const uid = this.auth.user()?.uid;
 
     if (!uid) {
-      throw new Error(
-        'Usuário não autenticado.',
-      );
+      throw new Error('Usuário não autenticado.');
     }
 
     return uid;
   }
 
-  private assertSameUser(
-    uid: string,
-  ): void {
-    if (
-      this.auth
-        .user()?.uid !==
-      uid
-    ) {
-      throw new Error(
-        'A sessão mudou durante a operação.',
-      );
+  private assertSameUser(uid: string): void {
+    if (this.auth.user()?.uid !== uid) {
+      throw new Error('A sessão mudou durante a operação.');
     }
   }
 
-  private validateId(
-    id: string,
-  ): void {
-    if (
-      id.trim().length ===
-      0 ||
-      id.includes('/')
-    ) {
-      throw new Error(
-        'ID inválido.',
-      );
+  private validateId(id: string): void {
+    if (id.trim().length === 0 || id.includes('/')) {
+      throw new Error('ID inválido.');
     }
   }
 }

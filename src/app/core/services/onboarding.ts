@@ -1,22 +1,7 @@
-import {
-  Injectable,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
-
-import {
-  isValidBirthDate,
-  isValidName,
-} from '../validators/onboarding.validators';
-
-import {
-  AuthService,
-} from './auth';
-
-import {
-  OnboardingPersistenceService,
-} from './onboarding-persistence';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { isValidBirthDate, isValidName } from '../validators/onboarding.validators';
+import { AuthService } from './auth';
+import { OnboardingPersistenceService } from './onboarding-persistence';
 
 export interface OnboardingData {
   caregiverName: string;
@@ -26,111 +11,70 @@ export interface OnboardingData {
   consentAt: string | null;
 }
 
-type ProfileData = Pick<
-  OnboardingData,
-  | 'caregiverName'
-  | 'babyName'
-  | 'babyBirthDate'
->;
+type ProfileData = Pick<OnboardingData, 'caregiverName' | 'babyName' | 'babyBirthDate'>;
 
 @Injectable({
   providedIn: 'root',
 })
 export class OnboardingService {
-  private readonly auth =
-    inject(AuthService);
+  private readonly auth = inject(AuthService);
 
-  private readonly persistence =
-    inject(
-      OnboardingPersistenceService,
-    );
+  private readonly persistence = inject(OnboardingPersistenceService);
 
-  private readonly emptyData:
-    OnboardingData = {
-      caregiverName: '',
-      babyName: '',
-      babyBirthDate: '',
-      consentGiven: false,
-      consentAt: null,
-    };
+  private readonly emptyData: OnboardingData = {
+    caregiverName: '',
+    babyName: '',
+    babyBirthDate: '',
+    consentGiven: false,
+    consentAt: null,
+  };
 
-  private readonly errorState =
-    signal<string | null>(null);
+  private readonly errorState = signal<string | null>(null);
 
-  private readonly readyState =
-    signal(false);
+  private readonly readyState = signal(false);
 
-  private readonly loadingState =
-    signal(false);
+  private readonly loadingState = signal(false);
 
-  private loadedUid:
-    string | null = null;
+  private loadedUid: string | null = null;
 
-  private loadingUid:
-    string | null = null;
+  private loadingUid: string | null = null;
 
-  private loadPromise:
-    Promise<void> | null = null;
+  private loadPromise: Promise<void> | null = null;
 
-  readonly caregiverName =
-    signal('');
+  readonly caregiverName = signal('');
 
-  readonly babyName =
-    signal('');
+  readonly babyName = signal('');
 
-  readonly babyBirthDate =
-    signal('');
+  readonly babyBirthDate = signal('');
 
-  readonly consentGiven =
-    signal(false);
+  readonly consentGiven = signal(false);
 
-  readonly consentAt =
-    signal<string | null>(null);
+  readonly consentAt = signal<string | null>(null);
 
-  /*
-   * Mantemos este nome temporariamente
-   * para não quebrar os templates atuais.
-   */
-  readonly storageError =
-    this.errorState.asReadonly();
+  readonly storageError = this.errorState.asReadonly();
 
-  readonly isReady =
-    this.readyState.asReadonly();
+  readonly isReady = this.readyState.asReadonly();
 
-  readonly isLoading =
-    this.loadingState.asReadonly();
+  readonly isLoading = this.loadingState.asReadonly();
 
-  readonly isComplete =
-    computed(
-      () =>
-        isValidName(
-          this.caregiverName(),
-        ) &&
-        isValidName(
-          this.babyName(),
-        ) &&
-        isValidBirthDate(
-          this.babyBirthDate(),
-        ) &&
-        this.consentGiven(),
-    );
+  readonly isComplete = computed(
+    () =>
+      isValidName(this.caregiverName()) &&
+      isValidName(this.babyName()) &&
+      isValidBirthDate(this.babyBirthDate()) &&
+      this.consentGiven(),
+  );
 
-  async ensureLoaded():
-    Promise<void> {
-    await this.auth
-      .waitUntilReady();
+  async ensureLoaded(): Promise<void> {
+    await this.auth.waitUntilReady();
 
-    const uid =
-      this.auth.user()?.uid ??
-      null;
+    const uid = this.auth.user()?.uid ?? null;
 
     if (uid === null) {
       this.loadedUid = null;
       this.loadingUid = null;
 
-      this.applyData(
-        this.emptyData,
-      );
+      this.applyData(this.emptyData);
 
       this.readyState.set(true);
       this.loadingState.set(false);
@@ -138,23 +82,15 @@ export class OnboardingService {
       return;
     }
 
-    if (
-      this.loadedUid === uid &&
-      this.readyState()
-    ) {
+    if (this.loadedUid === uid && this.readyState()) {
       return;
     }
 
-    if (
-      this.loadPromise !== null &&
-      this.loadingUid === uid
-    ) {
+    if (this.loadPromise !== null && this.loadingUid === uid) {
       return this.loadPromise;
     }
 
-    this.applyData(
-      this.emptyData,
-    );
+    this.applyData(this.emptyData);
 
     this.readyState.set(false);
     this.loadingState.set(true);
@@ -162,19 +98,14 @@ export class OnboardingService {
 
     this.loadingUid = uid;
 
-    const promise =
-      this.loadForUser(uid);
+    const promise = this.loadForUser(uid);
 
-    this.loadPromise =
-      promise;
+    this.loadPromise = promise;
 
     try {
       await promise;
     } finally {
-      if (
-        this.loadPromise ===
-        promise
-      ) {
+      if (this.loadPromise === promise) {
         this.loadPromise = null;
         this.loadingUid = null;
         this.loadingState.set(false);
@@ -182,200 +113,130 @@ export class OnboardingService {
     }
   }
 
-  async setCaregiverName(
-    name: string,
-    consentGiven: boolean,
-  ): Promise<boolean> {
-    const normalizedName =
-      name.trim();
+  async setCaregiverName(name: string, consentGiven: boolean): Promise<boolean> {
+    const normalizedName = name.trim();
 
-    if (
-      !isValidName(
-        normalizedName,
-      ) ||
-      !consentGiven
-    ) {
+    if (!isValidName(normalizedName) || !consentGiven) {
       return false;
     }
 
     await this.ensureLoaded();
 
-    if (
-      !this.readyState() ||
-      this.loadedUid !==
-      this.auth.user()?.uid
-    ) {
+    if (!this.readyState() || this.loadedUid !== this.auth.user()?.uid) {
       return false;
     }
 
-    const data:
-      OnboardingData = {
+    const data: OnboardingData = {
       ...this.currentData(),
 
-      caregiverName:
-        normalizedName,
+      caregiverName: normalizedName,
 
       consentGiven: true,
 
-      consentAt:
-        this.consentAt() ??
-        new Date()
-          .toISOString(),
+      consentAt: this.consentAt() ?? new Date().toISOString(),
     };
 
-    return this.saveData(
-      data,
-    );
+    return this.saveData(data);
   }
 
-  async setBabyData(
-    name: string,
-    birthDate: string,
-  ): Promise<boolean> {
-    const normalizedName =
-      name.trim();
+  async setBabyData(name: string, birthDate: string): Promise<boolean> {
+    const normalizedName = name.trim();
 
-    if (
-      !isValidName(
-        normalizedName,
-      ) ||
-      !isValidBirthDate(
-        birthDate,
-      )
-    ) {
+    if (!isValidName(normalizedName) || !isValidBirthDate(birthDate)) {
       return false;
     }
 
     await this.ensureLoaded();
 
-    if (
-      !this.readyState() ||
-      this.loadedUid !==
-      this.auth.user()?.uid
-    ) {
+    if (!this.readyState() || this.loadedUid !== this.auth.user()?.uid) {
       return false;
     }
 
     return this.saveData({
       ...this.currentData(),
 
-      babyName:
-        normalizedName,
+      babyName: normalizedName,
 
-      babyBirthDate:
-        birthDate,
+      babyBirthDate: birthDate,
     });
   }
 
-  async updateProfile(
-    data: ProfileData,
-  ): Promise<boolean> {
+  async updateProfile(data: ProfileData): Promise<boolean> {
     if (
-      !isValidName(
-        data.caregiverName,
-      ) ||
-      !isValidName(
-        data.babyName,
-      ) ||
-      !isValidBirthDate(
-        data.babyBirthDate,
-      )
+      !isValidName(data.caregiverName) ||
+      !isValidName(data.babyName) ||
+      !isValidBirthDate(data.babyBirthDate)
     ) {
       return false;
     }
 
     await this.ensureLoaded();
 
-    if (
-      !this.readyState() ||
-      this.loadedUid !==
-      this.auth.user()?.uid
-    ) {
+    if (!this.readyState() || this.loadedUid !== this.auth.user()?.uid) {
       return false;
     }
 
     return this.saveData({
       ...this.currentData(),
 
-      caregiverName:
-        data.caregiverName
-          .trim(),
+      caregiverName: data.caregiverName.trim(),
 
-      babyName:
-        data.babyName
-          .trim(),
+      babyName: data.babyName.trim(),
 
-      babyBirthDate:
-        data.babyBirthDate,
+      babyBirthDate: data.babyBirthDate,
     });
   }
 
-  getIncompleteRoute():
-    | '/onboarding/about-you'
-    | '/onboarding/about-baby'
-    | '/home' {
-    if (
-      !isValidName(
-        this.caregiverName(),
-      ) ||
-      !this.consentGiven()
-    ) {
+  async reload(): Promise<void> {
+    /*
+     * O perfil pode ser atualizado por
+     * outro fluxo, como a aceitação de
+     * um convite.
+     */
+    this.loadedUid = null;
+
+    this.loadingUid = null;
+
+    this.loadPromise = null;
+
+    this.readyState.set(false);
+
+    this.errorState.set(null);
+
+    await this.ensureLoaded();
+  }
+
+  getIncompleteRoute(): '/onboarding/about-you' | '/onboarding/about-baby' | '/home' {
+    if (!isValidName(this.caregiverName()) || !this.consentGiven()) {
       return '/onboarding/about-you';
     }
 
-    if (
-      !isValidName(
-        this.babyName(),
-      ) ||
-      !isValidBirthDate(
-        this.babyBirthDate(),
-      )
-    ) {
+    if (!isValidName(this.babyName()) || !isValidBirthDate(this.babyBirthDate())) {
       return '/onboarding/about-baby';
     }
 
     return '/home';
   }
 
-  private async loadForUser(
-    uid: string,
-  ): Promise<void> {
+  private async loadForUser(uid: string): Promise<void> {
     try {
-      const data =
-        await this.persistence
-          .load();
+      const data = await this.persistence.load();
 
-      /*
-       * Evita aplicar os dados caso
-       * o usuário tenha mudado durante
-       * uma leitura assíncrona.
-       */
-      if (
-        this.auth.user()?.uid !==
-        uid
-      ) {
+      if (this.auth.user()?.uid !== uid) {
         return;
       }
 
-      this.applyData(
-        data ??
-        this.emptyData,
-      );
+      this.applyData(data ?? this.emptyData);
 
       this.loadedUid = uid;
       this.readyState.set(true);
       this.errorState.set(null);
     } catch {
-      if (
-        this.auth.user()?.uid !==
-        uid
-      ) {
+      if (this.auth.user()?.uid !== uid) {
         return;
       }
 
-      this.applyData(
-        this.emptyData,
-      );
+      this.applyData(this.emptyData);
 
       this.loadedUid = null;
       this.readyState.set(false);
@@ -386,16 +247,11 @@ export class OnboardingService {
     }
   }
 
-  private async saveData(
-    data: OnboardingData,
-  ): Promise<boolean> {
-    const uid =
-      this.auth.user()?.uid;
+  private async saveData(data: OnboardingData): Promise<boolean> {
+    const uid = this.auth.user()?.uid;
 
     if (!uid) {
-      this.errorState.set(
-        'É necessário estar conectado para salvar seus dados.',
-      );
+      this.errorState.set('É necessário estar conectado para salvar seus dados.');
 
       return false;
     }
@@ -404,13 +260,9 @@ export class OnboardingService {
     this.errorState.set(null);
 
     try {
-      await this.persistence
-        .save(data);
+      await this.persistence.save(data);
 
-      if (
-        this.auth.user()?.uid !==
-        uid
-      ) {
+      if (this.auth.user()?.uid !== uid) {
         return false;
       }
 
@@ -429,47 +281,29 @@ export class OnboardingService {
     }
   }
 
-  private currentData():
-    OnboardingData {
+  private currentData(): OnboardingData {
     return {
-      caregiverName:
-        this.caregiverName(),
+      caregiverName: this.caregiverName(),
 
-      babyName:
-        this.babyName(),
+      babyName: this.babyName(),
 
-      babyBirthDate:
-        this.babyBirthDate(),
+      babyBirthDate: this.babyBirthDate(),
 
-      consentGiven:
-        this.consentGiven(),
+      consentGiven: this.consentGiven(),
 
-      consentAt:
-        this.consentAt(),
+      consentAt: this.consentAt(),
     };
   }
 
-  private applyData(
-    data: OnboardingData,
-  ): void {
-    this.caregiverName.set(
-      data.caregiverName,
-    );
+  private applyData(data: OnboardingData): void {
+    this.caregiverName.set(data.caregiverName);
 
-    this.babyName.set(
-      data.babyName,
-    );
+    this.babyName.set(data.babyName);
 
-    this.babyBirthDate.set(
-      data.babyBirthDate,
-    );
+    this.babyBirthDate.set(data.babyBirthDate);
 
-    this.consentGiven.set(
-      data.consentGiven,
-    );
+    this.consentGiven.set(data.consentGiven);
 
-    this.consentAt.set(
-      data.consentAt,
-    );
+    this.consentAt.set(data.consentAt);
   }
 }
