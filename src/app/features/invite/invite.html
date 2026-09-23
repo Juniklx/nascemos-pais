@@ -1,0 +1,172 @@
+<main class="invite-page">
+  <section class="invite-card" aria-labelledby="invite-title">
+    <a class="invite-back" routerLink="/">
+      <span aria-hidden="true">
+        ←
+      </span>
+
+      Voltar
+    </a>
+
+    <div class="invite-brand">
+      <div class="invite-brand__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9"></circle>
+
+          <path d="M12 7V12L15 15"></path>
+        </svg>
+      </div>
+
+      <span>
+        Nascemos Pais
+      </span>
+    </div>
+
+    @if (loading()) {
+    <div class="invite-state" aria-live="polite">
+      <div class="invite-spinner" aria-hidden="true"></div>
+
+      <h1 id="invite-title">
+        Carregando convite...
+      </h1>
+
+      <p>
+        Estamos verificando os dados
+        com segurança.
+      </p>
+    </div>
+    } @else if (
+    needsAuthentication()
+    ) {
+    <header class="invite-header">
+      <span class="invite-label">
+        Convite
+      </span>
+
+      <h1 id="invite-title">
+        Você foi convidado para
+        compartilhar os cuidados
+      </h1>
+
+      <p>
+        Entre na sua conta ou crie uma
+        conta para acessar o convite.
+      </p>
+    </header>
+
+    <div class="invite-info">
+      <p>
+        Ao aceitar, você poderá acompanhar
+        e registrar mamadas, sono e trocas
+        de fralda junto com o responsável
+        que enviou o convite.
+      </p>
+    </div>
+
+    <div class="invite-actions">
+      <a class="invite-primary" routerLink="/auth/login" [queryParams]="{
+            returnUrl: returnUrl
+          }">
+        Entrar na minha conta
+      </a>
+
+      <a class="invite-secondary" routerLink="/auth/register" [queryParams]="{
+            returnUrl: returnUrl
+          }">
+        Criar uma conta
+      </a>
+    </div>
+    } @else if (error()) {
+    <header class="invite-header">
+      <span class="invite-label">
+        Convite
+      </span>
+
+      <h1 id="invite-title">
+        Não foi possível usar
+        este convite
+      </h1>
+    </header>
+
+    <p class="invite-error" role="alert">
+      {{ error() }}
+    </p>
+
+    <a class="invite-secondary" routerLink="/">
+      Voltar para o início
+    </a>
+    } @else if (invite()) {
+    <header class="invite-header">
+      <span class="invite-label">
+        Convite para responsável
+      </span>
+
+      <h1 id="invite-title">
+        Compartilhe os cuidados
+        deste bebê
+      </h1>
+
+      <p>
+        Uma pessoa responsável pelo bebê
+        convidou você para participar
+        dos registros no Nascemos Pais.
+      </p>
+    </header>
+
+    <div class="invite-info">
+      <h2>
+        Ao aceitar, você poderá:
+      </h2>
+
+      <ul>
+        <li>
+          visualizar os registros compartilhados;
+        </li>
+
+        <li>
+          registrar mamadas;
+        </li>
+
+        <li>
+          acompanhar períodos de sono;
+        </li>
+
+        <li>
+          registrar trocas de fralda.
+        </li>
+      </ul>
+    </div>
+
+    <div class="invite-security">
+      <strong>
+        Acesso compartilhado
+      </strong>
+
+      <p>
+        Seus registros passarão a usar o
+        mesmo espaço compartilhado do bebê.
+        O convite é individual, expira e
+        não pode ser reutilizado.
+      </p>
+    </div>
+
+    @if (error()) {
+    <p class="invite-error" role="alert">
+      {{ error() }}
+    </p>
+    }
+
+    <button type="button" class="invite-primary" [disabled]="!canAccept()" (click)="accept()">
+      @if (accepting()) {
+      Aceitando convite...
+      } @else {
+      Aceitar convite
+      }
+    </button>
+
+    <a class="invite-cancel" routerLink="/home">
+      Agora não
+    </a>
+    }
+  </section>
+</main>
