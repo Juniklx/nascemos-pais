@@ -788,3 +788,9 @@ test('nega consumir convite sem criar vínculo de responsável', async () => {
     assert.equal(membership.exists(), false);
   });
 });
+
+test('nega exclusão completa do bebê no MVP', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}`)));
+});

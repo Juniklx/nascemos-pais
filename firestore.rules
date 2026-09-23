@@ -2,7 +2,6 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -32,19 +31,15 @@ service cloud.firestore {
     ) {
       return isAuthenticated()
         && request.auth.uid != memberId
-
         && isBabyOwner(
           babyId
         )
-
         && exists(
           /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
         )
-
         && get(
           /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
         ).data.role == 'caregiver'
-
         && !existsAfter(
           /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
         );
@@ -62,7 +57,6 @@ service cloud.firestore {
           'createdAt',
           'readAt'
         ])
-
         && data.keys().hasAll([
           'type',
           'babyId',
@@ -70,31 +64,23 @@ service cloud.firestore {
           'createdAt',
           'readAt'
         ])
-
         && data.type
           == 'baby-access-removed'
-
         && data.babyId is string
         && data.babyId.size() > 0
         && data.babyId.size() <= 128
-
         && notificationId
           == 'baby-access-removed-' + data.babyId
-
         && data.babyName is string
         && data.babyName.size() >= 1
         && data.babyName.size() <= 80
-
         && data.babyName
           == get(
             /databases/$(database)/documents/babies/$(data.babyId)
           ).data.name
-
         && data.createdAt is timestamp
         && data.createdAt == request.time
-
         && data.readAt == null
-
         && isRemovingCaregiver(
           data.babyId,
           userId
@@ -111,29 +97,24 @@ service cloud.firestore {
       return existsAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         )
-
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.type
           == 'baby-access-removed'
-
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.babyId
           == babyId
-
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.babyName
           == get(
             /databases/$(database)/documents/babies/$(babyId)
           ).data.name
-
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.createdAt
           == request.time
-
         && getAfter(
           /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
         ).data.readAt
@@ -168,10 +149,8 @@ service cloud.firestore {
       return isAuthenticated()
         && memberId
           == request.auth.uid
-
         && 'inviteId'
           in request.resource.data
-
         && isValidInviteId(
           request.resource.data.inviteId
         )
@@ -181,13 +160,10 @@ service cloud.firestore {
          */
         && invite.status
           == 'pending'
-
         && invite.babyId
           == babyId
-
         && invite.createdByUid
           != request.auth.uid
-
         && invite.expiresAt
           > request.time
 
@@ -197,13 +173,10 @@ service cloud.firestore {
          */
         && acceptedInvite.status
           == 'accepted'
-
         && acceptedInvite.acceptedByUid
           == request.auth.uid
-
         && acceptedInvite.acceptedAt
           == request.time
-
         && acceptedInvite.babyId
           == babyId
 
@@ -417,20 +390,15 @@ service cloud.firestore {
         ).data;
 
       return isAuthenticated()
-
         && isValidInviteId(
           inviteId
         )
-
         && resource.data.status
           == 'pending'
-
         && resource.data.expiresAt
           > request.time
-
         && request.auth.uid
           != resource.data.createdByUid
-
         && request.resource.data.keys().hasOnly([
           'babyId',
           'createdByUid',
@@ -440,7 +408,6 @@ service cloud.firestore {
           'acceptedByUid',
           'acceptedAt'
         ])
-
         && request.resource.data.keys().hasAll([
           'babyId',
           'createdByUid',
@@ -457,13 +424,10 @@ service cloud.firestore {
          */
         && request.resource.data.babyId
           == resource.data.babyId
-
         && request.resource.data.createdByUid
           == resource.data.createdByUid
-
         && request.resource.data.createdAt
           == resource.data.createdAt
-
         && request.resource.data.expiresAt
           == resource.data.expiresAt
 
@@ -473,10 +437,8 @@ service cloud.firestore {
          */
         && request.resource.data.status
           == 'accepted'
-
         && request.resource.data.acceptedByUid
           == request.auth.uid
-
         && request.resource.data.acceptedAt
           == request.time
 
@@ -486,7 +448,6 @@ service cloud.firestore {
          */
         && acceptedMember.role
           == 'caregiver'
-
         && acceptedMember.inviteId
           == inviteId;
     }
@@ -584,21 +545,21 @@ service cloud.firestore {
 
       match /notifications/{notificationId} {
         /*
-        * Somente o próprio usuário pode
-        * consultar suas notificações.
-        */
+         * Somente o próprio usuário pode
+         * consultar suas notificações.
+         */
         allow read:
           if isOwner(
             userId
           );
 
         /*
-        * O proprietário de um bebê pode
-        * criar ou renovar exclusivamente
-        * a notificação de acesso removido,
-        * desde que o vínculo do responsável
-        * seja apagado no mesmo batch.
-        */
+         * O proprietário de um bebê pode
+         * criar ou renovar exclusivamente
+         * a notificação de acesso removido,
+         * desde que o vínculo do responsável
+         * seja apagado no mesmo batch.
+         */
         allow create:
           if isValidAccessRemovedNotification(
             request.resource.data,
@@ -607,73 +568,63 @@ service cloud.firestore {
           );
 
         /*
-        * Há dois tipos de atualização:
-        *
-        * 1. o proprietário remove novamente
-        *    um responsável que havia sido
-        *    convidado outra vez;
-        *
-        * 2. o próprio destinatário marca
-        *    a mensagem como lida.
-        */
+         * Há dois tipos de atualização:
+         *
+         * 1. o proprietário remove novamente
+         *    um responsável que havia sido
+         *    convidado outra vez;
+         *
+         * 2. o próprio destinatário marca
+         *    a mensagem como lida.
+         */
         allow update:
-        if (
-          isValidAccessRemovedNotification(
-            request.resource.data,
-            userId,
-            notificationId
+          if (
+            isValidAccessRemovedNotification(
+              request.resource.data,
+              userId,
+              notificationId
+            )
           )
-        )
-        ||
-        (
-          isOwner(
-            userId
-          )
-
-          && request.resource.data.keys().hasOnly([
-            'type',
-            'babyId',
-            'babyName',
-            'createdAt',
-            'readAt'
-          ])
-
-          && request.resource.data.keys().hasAll([
-            'type',
-            'babyId',
-            'babyName',
-            'createdAt',
-            'readAt'
-          ])
-
-          && notificationId
-            == 'baby-access-removed-' + resource.data.babyId
-
-          && resource.data.type
-            == 'baby-access-removed'
-
-          && request.resource.data.type
-            == resource.data.type
-
-          && request.resource.data.babyId
-            == resource.data.babyId
-
-          && request.resource.data.babyName
-            == resource.data.babyName
-
-          && request.resource.data.createdAt
-            == resource.data.createdAt
-
-          && resource.data.readAt
-            == null
-
-          && request.resource.data.readAt
-            == request.time
-        );
+          ||
+          (
+            isOwner(
+              userId
+            )
+            && request.resource.data.keys().hasOnly([
+              'type',
+              'babyId',
+              'babyName',
+              'createdAt',
+              'readAt'
+            ])
+            && request.resource.data.keys().hasAll([
+              'type',
+              'babyId',
+              'babyName',
+              'createdAt',
+              'readAt'
+            ])
+            && notificationId
+              == 'baby-access-removed-' + resource.data.babyId
+            && resource.data.type
+              == 'baby-access-removed'
+            && request.resource.data.type
+              == resource.data.type
+            && request.resource.data.babyId
+              == resource.data.babyId
+            && request.resource.data.babyName
+              == resource.data.babyName
+            && request.resource.data.createdAt
+              == resource.data.createdAt
+            && resource.data.readAt
+              == null
+            && request.resource.data.readAt
+              == request.time
+          );
 
         allow delete:
           if false;
-        }
+      }
 
       match /feedings/{feedingId} {
         allow read:
@@ -823,23 +774,12 @@ service cloud.firestore {
         && request.resource.data.createdAt
           == resource.data.createdAt;
 
+      /*
+       * Exclusão completa do bebê ainda
+       * não faz parte deste MVP.
+       */
       allow delete:
-      if (
-        isBabyOwner(
-          babyId
-        )
-        && memberId != request.auth.uid
-        && resource.data.role == 'caregiver'
-        && hasAccessRemovedNotificationAfter(
-          babyId,
-          memberId
-        )
-      )
-      ||
-      (
-        memberId == request.auth.uid
-        && resource.data.role == 'caregiver'
-      );
+        if false;
 
       match /members/{memberId} {
         allow read:
