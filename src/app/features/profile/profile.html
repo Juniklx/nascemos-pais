@@ -23,20 +23,19 @@
       <label [for]="field.key">{{ field.label }}</label>
 
       <input [id]="field.key" [type]="field.type" [attr.autocomplete]="field.autocomplete"
-        [attr.max]="field.type === 'date' ? today : null" [formControlName]="field.key" required [attr.aria-invalid]="
-            form.controls[field.key].touched &&
-            form.controls[field.key].invalid
+        [attr.max]="field.type === 'date' ? today : null" [attr.readonly]="
+            field.key !== 'caregiverName' && !isBabyOwner() ? true : null
+          " [attr.aria-readonly]="
+            field.key !== 'caregiverName' && !isBabyOwner() ? true : null
+          " [formControlName]="field.key" required [attr.aria-invalid]="
+            form.controls[field.key].touched && form.controls[field.key].invalid
           " [attr.aria-describedby]="
-            form.controls[field.key].touched &&
-            form.controls[field.key].invalid
+            form.controls[field.key].touched && form.controls[field.key].invalid
               ? field.key + '-error'
               : null
           " />
 
-      @if (
-      form.controls[field.key].touched &&
-      form.controls[field.key].invalid
-      ) {
+      @if (form.controls[field.key].touched && form.controls[field.key].invalid) {
       <p [id]="field.key + '-error'" class="field-error" role="alert">
         {{ field.error }}
       </p>
@@ -44,10 +43,16 @@
     </div>
     }
 
+    @if (isBabyOwner()) {
     <p class="profile-note">
-      Alterar esses dados mantém os registros de mamadas,
-      sono e fraldas.
+      Alterar os dados do bebê mantém os registros de mamadas, sono e fraldas.
     </p>
+    } @else {
+    <p class="profile-note">
+      Somente o proprietário pode alterar o nome e a data de nascimento do bebê.
+      Você pode atualizar normalmente o seu nome.
+    </p>
+    }
 
     <p class="profile-feedback" role="status">
       {{ message() }}
@@ -66,8 +71,8 @@
       </h2>
 
       <p class="profile-note">
-        Convide outra pessoa para acompanhar e registrar
-        mamadas, sono e trocas de fralda deste bebê.
+        Convide outra pessoa para acompanhar e registrar mamadas, sono e trocas de fralda deste
+        bebê.
       </p>
     </div>
 
@@ -139,8 +144,7 @@
     }
 
     <p class="profile-note">
-      Por segurança, cada convite expira após 24 horas
-      e não pode ser reutilizado.
+      Por segurança, cada convite expira após 24 horas e não pode ser reutilizado.
     </p>
   </section>
   }
@@ -200,8 +204,7 @@
     </button>
 
     <p class="profile-note">
-      Seus dados e registros ficam sincronizados
-      com sua conta na nuvem.
+      Seus dados e registros ficam sincronizados com sua conta na nuvem.
     </p>
   </section>
 </section>

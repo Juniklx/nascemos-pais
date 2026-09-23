@@ -1,22 +1,26 @@
 import { Injectable, inject } from '@angular/core';
 import { DocumentData, serverTimestamp } from 'firebase/firestore';
+
 import { FirestoreGateway } from '../firebase/firestore.gateway';
 import { Baby, BabyMember, BabyMemberRole, CreateBabyInput } from '../models/baby';
 import { AuthService } from './auth';
 
 export type BabyRecordCollection = 'feedings' | 'sleeps' | 'diapers';
 
+interface UpdateBabyInput {
+  readonly name: string;
+  readonly birthDate: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class BabyDataRepository {
   private readonly auth = inject(AuthService);
-
   private readonly firestore = inject(FirestoreGateway);
 
   async createOwnedBaby(input: CreateBabyInput): Promise<Baby> {
     const uid = this.requireUid();
-
     const name = input.name.trim();
 
     if (name.length === 0 || name.length > 80 || !this.isBirthDate(input.birthDate)) {
@@ -31,38 +35,27 @@ export class BabyDataRepository {
 
     const baby: Baby = {
       id: babyId,
-
       name,
-
       birthDate: input.birthDate,
-
       createdByUid: uid,
-
       createdAt: now,
-
       updatedAt: now,
     };
 
     await this.firestore.batchSet([
       {
         path: this.babyPath(babyId),
-
         data: this.toBabyDocument(baby),
       },
-
       {
         path: this.memberPath(babyId, uid),
-
         data: {
           role: 'owner',
-
           joinedAt: now,
         },
       },
-
       {
         path: this.userPath(uid),
-
         data: {
           activeBabyId: babyId,
         },
@@ -88,6 +81,29 @@ export class BabyDataRepository {
     }
 
     return this.parseBaby(babyId, data);
+  }
+
+  async updateBaby(babyId: string, input: UpdateBabyInput): Promise<void> {
+    const uid = this.requireUid();
+    const name = input.name.trim();
+
+    this.validateId(babyId);
+
+    if (name.length === 0 || name.length > 80 || !this.isBirthDate(input.birthDate)) {
+      throw new Error('Dados do bebê inválidos.');
+    }
+
+    await this.firestore.set(
+      this.babyPath(babyId),
+      {
+        name,
+        birthDate: input.birthDate,
+        updatedAt: new Date().toISOString(),
+      },
+      true,
+    );
+
+    this.assertSameUser(uid);
   }
 
   async readMembership(babyId: string): Promise<BabyMember | null> {
@@ -183,15 +199,14 @@ export class BabyDataRepository {
     return records as T[];
   }
 
-  async saveRecord<
-    T extends DocumentData & {
-      id: string;
-    },
-  >(babyId: string, collectionName: BabyRecordCollection, record: T): Promise<void> {
+  async saveRecord<T extends DocumentData & { id: string }>(
+    babyId: string,
+    collectionName: BabyRecordCollection,
+    record: T,
+  ): Promise<void> {
     const uid = this.requireUid();
 
     this.validateId(babyId);
-
     this.validateId(record.id);
 
     await this.firestore.set(this.recordPath(babyId, collectionName, record.id), record, true);
@@ -207,7 +222,6 @@ export class BabyDataRepository {
     const uid = this.requireUid();
 
     this.validateId(babyId);
-
     this.validateId(id);
 
     await this.firestore.delete(this.recordPath(babyId, collectionName, id));
@@ -215,11 +229,11 @@ export class BabyDataRepository {
     this.assertSameUser(uid);
   }
 
-  async saveRecords<
-    T extends DocumentData & {
-      id: string;
-    },
-  >(babyId: string, collectionName: BabyRecordCollection, records: readonly T[]): Promise<void> {
+  async saveRecords<T extends DocumentData & { id: string }>(
+    babyId: string,
+    collectionName: BabyRecordCollection,
+    records: readonly T[],
+  ): Promise<void> {
     const uid = this.requireUid();
 
     this.validateId(babyId);
@@ -236,7 +250,6 @@ export class BabyDataRepository {
 
         return {
           path: this.recordPath(babyId, collectionName, record.id),
-
           data: record,
         };
       });
@@ -282,26 +295,18 @@ export class BabyDataRepository {
   private toBabyDocument(baby: Baby): DocumentData {
     return {
       name: baby.name,
-
       birthDate: baby.birthDate,
-
       createdByUid: baby.createdByUid,
-
       createdAt: baby.createdAt,
-
       updatedAt: baby.updatedAt,
     };
   }
 
   private parseBaby(id: string, data: DocumentData): Baby {
     const name = data['name'];
-
     const birthDate = data['birthDate'];
-
     const createdByUid = data['createdByUid'];
-
     const createdAt = data['createdAt'];
-
     const updatedAt = data['updatedAt'];
 
     if (
@@ -320,26 +325,18 @@ export class BabyDataRepository {
 
     return {
       id,
-
       name: name.trim(),
-
       birthDate,
-
       createdByUid,
-
       createdAt,
-
       updatedAt,
     };
   }
 
   private parseMember(uid: string, data: DocumentData): BabyMember {
     const role = data['role'];
-
     const joinedAt = data['joinedAt'];
-
     const inviteId = data['inviteId'];
-
     const caregiverName = data['caregiverName'];
 
     if (
@@ -363,17 +360,11 @@ export class BabyDataRepository {
       uid,
       role,
       joinedAt,
-
-      ...(typeof inviteId === 'string'
-        ? {
-          inviteId,
-        }
-        : {}),
-
+      ...(typeof inviteId === 'string' ? { inviteId } : {}),
       ...(typeof caregiverName === 'string'
         ? {
-          caregiverName: caregiverName.trim(),
-        }
+            caregiverName: caregiverName.trim(),
+          }
         : {}),
     };
   }

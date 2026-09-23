@@ -2,14 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
-import { ThemeService } from '../../core/services/theme';
-import { OnboardingService } from '../../core/services/onboarding';
-import { trimmedRequired, validBirthDate } from '../../core/validators/onboarding.validators';
+import type { BabyMember } from '../../core/models/baby';
 import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
-import type { BabyMember } from '../../core/models/baby';
 import { BabyDataRepository } from '../../core/services/baby-data.repository';
 import { BabyInviteRepository } from '../../core/services/baby-invite.repository';
+import { OnboardingService } from '../../core/services/onboarding';
+import { ThemeService } from '../../core/services/theme';
+import { trimmedRequired, validBirthDate } from '../../core/validators/onboarding.validators';
 
 @Component({
   selector: 'app-profile',
@@ -19,37 +19,23 @@ import { BabyInviteRepository } from '../../core/services/baby-invite.repository
 })
 export class ProfilePage {
   private readonly onboarding = inject(OnboardingService);
-
   private readonly router = inject(Router);
-
   private readonly babies = inject(BabyDataRepository);
-
   private readonly babyContext = inject(BabyContextService);
-
   private readonly invites = inject(BabyInviteRepository);
 
   readonly members = signal<readonly BabyMember[]>([]);
-
   readonly membersLoading = signal(false);
-
   readonly membersError = signal('');
-
   readonly removingMemberUid = signal<string | null>(null);
 
   readonly auth = inject(AuthService);
-
   readonly theme = inject(ThemeService);
-
   readonly storageError = this.onboarding.storageError;
-
   readonly message = signal('');
-
   readonly isBabyOwner = this.babyContext.isOwner;
-
   readonly inviteLink = signal('');
-
   readonly inviteMessage = signal('');
-
   readonly inviteLoading = signal(false);
 
   readonly fields = [
@@ -81,14 +67,17 @@ export class ProfilePage {
       nonNullable: true,
       validators: [trimmedRequired],
     }),
-    babyName: new FormControl(this.onboarding.babyName(), {
+    babyName: new FormControl(this.babyContext.baby()?.name ?? this.onboarding.babyName(), {
       nonNullable: true,
       validators: [trimmedRequired],
     }),
-    babyBirthDate: new FormControl(this.onboarding.babyBirthDate(), {
-      nonNullable: true,
-      validators: [Validators.required, validBirthDate],
-    }),
+    babyBirthDate: new FormControl(
+      this.babyContext.baby()?.birthDate ?? this.onboarding.babyBirthDate(),
+      {
+        nonNullable: true,
+        validators: [Validators.required, validBirthDate],
+      },
+    ),
   });
 
   get today(): string {
@@ -124,12 +113,6 @@ export class ProfilePage {
     try {
       const members = await this.babies.listMembers(babyId);
 
-      /*
-       * A leitura pode terminar depois de uma
-       * mudança de contexto ou de permissão.
-       *
-       * Nesse caso ignoramos o resultado antigo.
-       */
       if (!this.isBabyOwner() || this.babyContext.activeBabyId() !== babyId) {
         return;
       }
@@ -144,10 +127,6 @@ export class ProfilePage {
         }),
       );
     } catch {
-      /*
-       * Também evitamos mostrar um erro pertencente
-       * a um contexto que já deixou de ser o atual.
-       */
       if (this.isBabyOwner() && this.babyContext.activeBabyId() === babyId) {
         this.membersError.set('Não foi possível carregar os responsáveis.');
       }
@@ -177,7 +156,6 @@ export class ProfilePage {
       await this.babies.removeMember(babyId, member.uid);
 
       this.members.update((members) => members.filter((item) => item.uid !== member.uid));
-
       this.inviteMessage.set('Responsável removido com sucesso.');
     } catch {
       this.membersError.set('Não foi possível remover este responsável. Tente novamente.');
@@ -208,7 +186,6 @@ export class ProfilePage {
 
     if (!this.isBabyOwner()) {
       this.inviteMessage.set('Somente o proprietário do bebê pode convidar responsáveis.');
-
       return;
     }
 
@@ -216,7 +193,6 @@ export class ProfilePage {
 
     if (!babyId) {
       this.inviteMessage.set('Não foi possível identificar o bebê ativo.');
-
       return;
     }
 
@@ -224,11 +200,9 @@ export class ProfilePage {
 
     try {
       const invite = await this.invites.createInvite(babyId);
-
       const link = `${window.location.origin}/invite/${invite.id}`;
 
       this.inviteLink.set(link);
-
       this.inviteMessage.set(
         'Convite criado. Ele é válido por até 24 horas e pode ser usado uma única vez.',
       );
@@ -248,7 +222,6 @@ export class ProfilePage {
 
     try {
       await navigator.clipboard.writeText(link);
-
       this.inviteMessage.set('Link copiado.');
     } catch {
       this.inviteMessage.set(
@@ -267,19 +240,51 @@ export class ProfilePage {
       return;
     }
 
+    const activeBaby = this.babyContext.baby();
+    const babyId = this.babyContext.activeBabyId();
+
+    if (!activeBaby || !babyId) {
+      this.message.set('Não foi possível identificar o bebê ativo.');
+      return;
+    }
+
     const values = this.form.getRawValue();
+    const caregiverName = values.caregiverName.trim();
+
+    let babyName = activeBaby.name;
+    let babyBirthDate = activeBaby.birthDate;
+
+    if (this.isBabyOwner()) {
+      babyName = values.babyName.trim();
+      babyBirthDate = values.babyBirthDate;
+
+      const babyChanged = babyName !== activeBaby.name || babyBirthDate !== activeBaby.birthDate;
+
+      if (babyChanged) {
+        try {
+          await this.babies.updateBaby(babyId, {
+            name: babyName,
+            birthDate: babyBirthDate,
+          });
+
+          await this.babyContext.reload();
+        } catch {
+          this.message.set('Não foi possível atualizar os dados do bebê.');
+          return;
+        }
+      }
+    }
 
     const data = {
-      caregiverName: values.caregiverName.trim(),
-      babyName: values.babyName.trim(),
-      babyBirthDate: values.babyBirthDate,
+      caregiverName,
+      babyName,
+      babyBirthDate,
     };
 
     const saved = await this.onboarding.updateProfile(data);
 
     if (!saved) {
       this.message.set(this.storageError() ?? 'Não foi possível atualizar o perfil.');
-
       return;
     }
 
