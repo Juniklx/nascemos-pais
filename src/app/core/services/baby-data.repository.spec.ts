@@ -233,4 +233,18 @@ describe('BabyDataRepository', () => {
 
     expect(firestore.set).toHaveBeenCalledOnceWith('babies/baby-1/diapers/diaper-1', record, true);
   });
+
+  it('remove responsável do bebê', async () => {
+    await repository.removeMember('baby-1', 'user-b');
+
+    expect(firestore.delete).toHaveBeenCalledOnceWith('babies/baby-1/members/user-b');
+  });
+
+  it('não remove o próprio vínculo por esta ação', async () => {
+    await expectAsync(repository.removeMember('baby-1', 'user-a')).toBeRejectedWithError(
+      'Não é possível remover o próprio vínculo por esta ação.',
+    );
+
+    expect(firestore.delete).not.toHaveBeenCalled();
+  });
 });

@@ -6,6 +6,8 @@ import { OnboardingService } from '../../core/services/onboarding';
 import { trimmedRequired, validBirthDate } from '../../core/validators/onboarding.validators';
 import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
+import type { BabyMember } from '../../core/models/baby';
+import { BabyDataRepository } from '../../core/services/baby-data.repository';
 
 import { BabyInviteRepository } from '../../core/services/baby-invite.repository';
 
@@ -20,9 +22,19 @@ export class ProfilePage {
 
   private readonly router = inject(Router);
 
+  private readonly babies = inject(BabyDataRepository);
+
   private readonly babyContext = inject(BabyContextService);
 
   private readonly invites = inject(BabyInviteRepository);
+
+  readonly members = signal<readonly BabyMember[]>([]);
+
+  readonly membersLoading = signal(false);
+
+  readonly membersError = signal('');
+
+  readonly removingMemberUid = signal<string | null>(null);
 
   readonly auth = inject(AuthService);
 
@@ -90,6 +102,102 @@ export class ProfilePage {
 
   clearMessage(): void {
     this.message.set('');
+  }
+
+  async loadMembers(): Promise<void> {
+    if (!this.isBabyOwner()) {
+      this.members.set([]);
+      return;
+    }
+
+    const babyId = this.babyContext.activeBabyId();
+
+    if (!babyId) {
+      this.membersError.set('Não foi possível identificar o bebê ativo.');
+      return;
+    }
+
+    this.members.set([]);
+    this.membersLoading.set(true);
+    this.membersError.set('');
+
+    try {
+      const members = await this.babies.listMembers(babyId);
+
+      /*
+       * A leitura pode terminar depois de uma
+       * mudança de contexto ou de permissão.
+       *
+       * Nesse caso ignoramos o resultado antigo.
+       */
+      if (!this.isBabyOwner() || this.babyContext.activeBabyId() !== babyId) {
+        return;
+      }
+
+      this.members.set(
+        [...members].sort((a, b) => {
+          if (a.role === b.role) {
+            return a.joinedAt.localeCompare(b.joinedAt);
+          }
+
+          return a.role === 'owner' ? -1 : 1;
+        }),
+      );
+    } catch {
+      /*
+       * Também evitamos mostrar um erro pertencente
+       * a um contexto que já deixou de ser o atual.
+       */
+      if (this.isBabyOwner() && this.babyContext.activeBabyId() === babyId) {
+        this.membersError.set('Não foi possível carregar os responsáveis.');
+      }
+    } finally {
+      if (this.babyContext.activeBabyId() === babyId) {
+        this.membersLoading.set(false);
+      }
+    }
+  }
+
+  async removeMember(member: BabyMember): Promise<void> {
+    if (!this.isBabyOwner() || member.role !== 'caregiver') {
+      return;
+    }
+
+    const babyId = this.babyContext.activeBabyId();
+
+    if (!babyId) {
+      this.membersError.set('Não foi possível identificar o bebê ativo.');
+      return;
+    }
+
+    this.removingMemberUid.set(member.uid);
+    this.membersError.set('');
+
+    try {
+      await this.babies.removeMember(babyId, member.uid);
+
+      this.members.update((members) => members.filter((item) => item.uid !== member.uid));
+
+      this.inviteMessage.set('Responsável removido com sucesso.');
+    } catch {
+      this.membersError.set('Não foi possível remover este responsável. Tente novamente.');
+    } finally {
+      this.removingMemberUid.set(null);
+    }
+  }
+
+  constructor() {
+    void this.loadMembers();
+  }
+
+  memberLabel(member: BabyMember): string {
+    if (member.role === 'owner') {
+      return 'Você';
+    }
+
+    const suffix = member.uid.slice(-6);
+
+    return `Responsável • ${suffix}`;
   }
 
   async generateInvite(): Promise<void> {

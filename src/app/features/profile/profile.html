@@ -71,6 +71,43 @@
       </p>
     </div>
 
+    <div class="member-list" aria-live="polite">
+      @if (membersLoading()) {
+      <p class="profile-note">
+        Carregando responsáveis...
+      </p>
+      } @else if (membersError()) {
+      <p class="storage-warning" role="alert">
+        {{ membersError() }}
+      </p>
+      } @else {
+      @for (member of members(); track member.uid) {
+      <div class="member-item">
+        <div>
+          <strong>
+            {{ memberLabel(member) }}
+          </strong>
+
+          <span>
+            {{ member.role === 'owner' ? 'Proprietário' : 'Responsável' }}
+          </span>
+        </div>
+
+        @if (member.role === 'caregiver') {
+        <button type="button" class="member-remove" [disabled]="removingMemberUid() === member.uid"
+          (click)="removeMember(member)">
+          @if (removingMemberUid() === member.uid) {
+          Removendo...
+          } @else {
+          Remover
+          }
+        </button>
+        }
+      </div>
+      }
+      }
+    </div>
+
     <button type="button" class="save-button" [disabled]="inviteLoading()" (click)="generateInvite()">
       @if (inviteLoading()) {
       Gerando convite...

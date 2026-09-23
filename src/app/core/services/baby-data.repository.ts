@@ -126,6 +126,21 @@ export class BabyDataRepository {
     });
   }
 
+  async removeMember(babyId: string, memberUid: string): Promise<void> {
+    const uid = this.requireUid();
+
+    this.validateId(babyId);
+    this.validateId(memberUid);
+
+    if (memberUid === uid) {
+      throw new Error('Não é possível remover o próprio vínculo por esta ação.');
+    }
+
+    await this.firestore.delete(this.memberPath(babyId, memberUid));
+
+    this.assertSameUser(uid);
+  }
+
   async listRecords<T extends DocumentData>(
     babyId: string,
     collectionName: BabyRecordCollection,
