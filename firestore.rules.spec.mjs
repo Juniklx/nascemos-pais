@@ -173,6 +173,7 @@ async function createPendingInvite(token = inviteToken) {
 
 function createAcceptanceBatch(db, token = inviteToken) {
   const batch = writeBatch(db);
+  const joinedAt = new Date().toISOString();
 
   batch.set(
     doc(db, `babyInvites/${token}`),
@@ -190,14 +191,14 @@ function createAcceptanceBatch(db, token = inviteToken) {
 
   batch.set(doc(db, `babies/${sharedBaby}/members/${userC}`), {
     role: 'caregiver',
-    joinedAt: new Date().toISOString(),
+    joinedAt,
     inviteId: token,
     caregiverName: 'Conta C',
   });
 
   batch.set(doc(db, `users/${userC}/babies/${sharedBaby}`), {
     role: 'caregiver',
-    joinedAt: new Date().toISOString(),
+    joinedAt,
   });
 
   batch.set(
@@ -703,15 +704,7 @@ test('nega aceitar convite sem nome do responsável no vínculo', async () => {
     },
   );
 
-  await assertSucceeds(batch.commit());
-
-  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
-  assert.equal(profile.data().activeBabyId, sharedBaby);
-
-  const reference = await assertSucceeds(
-    getDoc(doc(db, `users/${userC}/babies/${sharedBaby}`)),
-  );
-  assert.equal(reference.exists(), true);
+  await assertFails(batch.commit());
 });
 
 test('nega aceitação de convite expirado', async () => {
@@ -891,7 +884,15 @@ test('permite convite adicionar outro bebê e torná-lo ativo', async () => {
   const db = testEnv.authenticatedContext(userC).firestore();
   const batch = createAcceptanceBatch(db);
 
-  await assertFails(batch.commit());
+  await assertSucceeds(batch.commit());
+
+  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
+  assert.equal(profile.data().activeBabyId, sharedBaby);
+
+  const reference = await assertSucceeds(
+    getDoc(doc(db, `users/${userC}/babies/${sharedBaby}`)),
+  );
+  assert.equal(reference.exists(), true);
 });
 
 test('permite responsável atualizar apenas o próprio nome', async () => {

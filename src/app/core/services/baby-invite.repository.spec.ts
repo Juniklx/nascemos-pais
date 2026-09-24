@@ -218,7 +218,7 @@ describe('BabyInviteRepository', () => {
 
     const entries = firestore.batchSet.calls.mostRecent().args[0];
 
-    expect(entries.length).toBe(5);
+    expect(entries.length).toBe(4);
 
     expect(entries[0].path).toBe(`babyInvites/${token}`);
 
@@ -396,7 +396,7 @@ describe('BabyInviteRepository', () => {
 
     const entries = firestore.batchSet.calls.mostRecent().args[0];
 
-    expect(entries.length).toBe(4);
+    expect(entries.length).toBe(5);
 
     expect(entries[4]).toEqual({
       path: 'users/user-a/notifications/baby-access-removed-baby-1',
