@@ -1077,7 +1077,7 @@ export class ActivityPersistenceService {
   ): { createdByUid?: string; finishedByUid?: string } {
     const attribution: { createdByUid?: string; finishedByUid?: string } = {};
 
-    for (const field of ['createdByUid', ...(allowFinish ? ['finishedByUid'] : [])] as const) {
+    for (const field of (allowFinish ? ['createdByUid', 'finishedByUid'] : ['createdByUid']) as Array<'createdByUid' | 'finishedByUid'>) {
       if (!(field in value)) {
         continue;
       }
