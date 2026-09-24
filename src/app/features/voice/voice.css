@@ -149,6 +149,21 @@
   background: var(--color-sage-soft);
 }
 
+.voice-state--pending {
+  border-color: var(--color-sage);
+  background: var(--color-sage-soft);
+}
+
+.voice-state--pending .voice-state__icon {
+  border-color: var(--color-sage);
+  color: var(--color-sage);
+}
+
+.voice-state .voice-state__summary {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
 .voice-state--success .voice-state__icon {
   border-color: var(--color-sage);
   background: var(--color-sage);

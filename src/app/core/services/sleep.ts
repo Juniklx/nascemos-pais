@@ -71,6 +71,14 @@ export class SleepService {
 
   async start():
     Promise<Sleep | null> {
+    return this.startAt(Date.now(), true);
+  }
+
+  async startAt(startedAt: number, reuseActive = false): Promise<Sleep | null> {
+    if (!Number.isSafeInteger(startedAt) || startedAt < 0 || startedAt > Date.now()) {
+      return null;
+    }
+
     if (
       !(await this.prepareWrite())
     ) {
@@ -81,7 +89,7 @@ export class SleepService {
       this.activeSleep();
 
     if (active) {
-      return active;
+      return reuseActive ? active : null;
     }
 
     if (this.savingState()) {
@@ -93,7 +101,7 @@ export class SleepService {
         crypto.randomUUID(),
 
       startedAt:
-        Date.now(),
+        startedAt,
 
       endedAt:
         null,

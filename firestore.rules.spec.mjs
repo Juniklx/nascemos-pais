@@ -1082,6 +1082,27 @@ test('aceita mamadas válidas com períodos e registros legados sem divisão', a
   }));
 });
 
+test('mamadeira exige volume inteiro e registro concluído sem lado ou períodos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const bottle = {
+    id: 'bottle-1', startedAt: 1000, endedAt: 1000,
+    side: null, periods: null, bottleMl: 120,
+  };
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/bottle-1`), bottle));
+
+  for (const [index, change] of [
+    { bottleMl: 0 }, { bottleMl: 120.5 }, { bottleMl: 1001 },
+    { endedAt: null }, { endedAt: 1200 }, { side: 'left' },
+    { periods: [{ startedAt: 1000, endedAt: 1000, side: null }] },
+  ].entries()) {
+    const id = `bottle-invalid-${index}`;
+    await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/${id}`), {
+      ...bottle, ...change, id,
+    }));
+  }
+});
+
 test('valida todas as posições até o limite de 6 períodos', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
   const periods = Array.from({ length: 6 }, (_, index) => ({
@@ -1509,4 +1530,3 @@ test('permite proprietário completar o próprio nome sem modificar o papel', as
     setDoc(doc(db, path), { role: 'caregiver' }, { merge: true }),
   );
 });
-

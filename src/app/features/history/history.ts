@@ -225,7 +225,9 @@ export class History {
       id: feeding.id,
       kind: 'feeding',
       title:
-        feeding.endedAt === null
+        feeding.bottleMl !== undefined
+          ? 'Mamadeira'
+          : feeding.endedAt === null
           ? 'Mamada em andamento'
           : 'Mamada',
       time: this.timeFormatter.format(
@@ -309,6 +311,10 @@ export class History {
     feeding: Feeding,
     now: number,
   ): string {
+    if (feeding.bottleMl !== undefined) {
+      return `${feeding.bottleMl} ml`;
+    }
+
     const times = this.feedingService.durations(
       feeding,
       now,

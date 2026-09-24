@@ -44,6 +44,7 @@ O primeiro acesso solicita:
 - registrar lado esquerdo ou direito;
 - alternar os lados durante a mamada;
 - manter mamadas em andamento após recarregar a página.
+- registrar mamadeira com volume em ml por comando de voz, após confirmação.
 
 ### Sono
 
@@ -114,6 +115,8 @@ Exemplos:
 - `iniciar sono`;
 - `finalizar sono`;
 - `registrar fralda suja`.
+- `Lucas dormiu há 15 minutos` (o nome deve ser o do bebê ativo);
+- `registrar mamadeira de 120 ml`.
 
 O objetivo é permitir registros rápidos em situações em que digitar ou navegar pela interface não seja conveniente.
 

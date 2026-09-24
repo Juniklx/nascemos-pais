@@ -125,6 +125,8 @@ export class HistoryDetail {
       'keep',
     );
 
+  readonly bottleMlInput = signal('');
+
   readonly diaperTypeInput =
     signal<DiaperType>(
       'wet',
@@ -373,6 +375,8 @@ export class HistoryDetail {
           'keep',
         );
 
+        this.bottleMlInput.set(activity.record.bottleMl?.toString() ?? '');
+
         break;
 
       case 'sleep':
@@ -477,6 +481,10 @@ export class HistoryDetail {
         value,
       );
     }
+  }
+
+  onBottleMlInput(event: Event): void {
+    this.bottleMlInput.set(this.readControlValue(event));
   }
 
   onDiaperTypeInput(
@@ -724,6 +732,26 @@ export class HistoryDetail {
       null
     ) {
       return false;
+    }
+
+    if (record.bottleMl !== undefined) {
+      const recordedAt = this.parseDateTimeInput(this.startedAtInput());
+      const volumeMl = Number(this.bottleMlInput());
+
+      if (recordedAt === null || recordedAt > Date.now() || !Number.isSafeInteger(volumeMl) ||
+        volumeMl < 1 || volumeMl > 1000) {
+        this.editError.set('Informe um horário válido e um volume entre 1 e 1000 ml.');
+        return false;
+      }
+
+      return this.feedingService.updateCompleted({
+        ...record,
+        startedAt: recordedAt,
+        endedAt: recordedAt,
+        side: null,
+        periods: null,
+        bottleMl: volumeMl,
+      });
     }
 
     const range =
