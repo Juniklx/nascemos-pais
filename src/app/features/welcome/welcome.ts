@@ -75,18 +75,22 @@ export class Welcome implements OnDestroy {
 
   private async redirectAuthenticatedVisitor(): Promise<void> {
     const { AuthService } = await import('../../core/services/auth');
-    if (this.destroyRef.destroyed || this.router.url !== '/') return;
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute()) return;
 
     const auth = this.injector.get(AuthService);
     await auth.waitUntilReady();
-    if (this.destroyRef.destroyed || this.router.url !== '/' || !auth.isAuthenticated()) return;
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute() || !auth.isAuthenticated()) return;
 
     const { OnboardingService } = await import('../../core/services/onboarding');
     const onboarding = this.injector.get(OnboardingService);
     await onboarding.ensureLoaded();
-    if (this.destroyRef.destroyed || this.router.url !== '/') return;
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute()) return;
 
-    await this.router.navigate([onboarding.getIncompleteRoute()]);
+    await this.router.navigate([onboarding.getIncompleteRoute()], { replaceUrl: true });
+  }
+
+  private isWelcomeRoute(): boolean {
+    return this.router.url.split(/[?#]/, 1)[0] === '/';
   }
 
   get activeSlide(): WelcomeSlide {
