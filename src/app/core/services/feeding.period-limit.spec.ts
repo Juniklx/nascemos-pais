@@ -51,7 +51,7 @@ describe('FeedingService: limite de períodos', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  it('impede criar o período 33 sem modificar a mamada aberta', async () => {
+  it('impede criar o período 25 sem modificar a mamada aberta', async () => {
     expect(service.periodLimitReached()).toBeTrue();
     expect(await service.setSide('right')).toBeFalse();
     expect(saveFeeding).not.toHaveBeenCalled();
