@@ -1,0 +1,102 @@
+<main class="privacy">
+  <header class="privacy__header">
+    <a routerLink="/" class="privacy__back">← Voltar ao início</a>
+    <span class="privacy__brand">Nascemos Pais</span>
+    <h1>Termos de Uso</h1>
+    <p>Saiba como usar o site e compartilhar os registros da rotina do bebê.</p>
+    <span class="privacy__date">Rascunho técnico · Atualizado em {{ updatedAt }}</span>
+  </header>
+
+  <div class="privacy__content">
+    <aside class="privacy__notice" role="note">
+      <strong>Documento em revisão</strong>
+      <p>Estes termos descrevem o funcionamento atual do projeto. Condições comerciais,
+        suporte, disponibilidade e procedimentos de encerramento ainda precisam ser definidos
+        e revisados antes do lançamento do serviço.</p>
+    </aside>
+
+    <nav class="privacy__index" aria-label="Nesta página">
+      <strong>Nesta página</strong>
+      <a href="#servico">O serviço</a>
+      <a href="#conta">Conta e acesso</a>
+      <a href="#registros">Registros e compartilhamento</a>
+      <a href="#orientacoes">Informações e comandos de voz</a>
+      <a href="#privacidade">Privacidade</a>
+      <a href="#disponibilidade">Disponibilidade e mudanças</a>
+      <a href="#encerramento">Encerramento e contato</a>
+    </nav>
+
+    <section id="servico" aria-labelledby="servico-title">
+      <h2 id="servico-title">1. Sobre o serviço</h2>
+      <p>O Nascemos Pais é um site em desenvolvimento para organizar registros de mamadas,
+        sono e trocas de fralda de bebês e compartilhá-los com responsáveis autorizados.
+        Nesta fase do projeto, o uso é gratuito; não há plano pago ou assinatura contratada
+        pelo site.</p>
+      <p>O serviço é administrado por Marcelo Soares Teixeira Junior. Estes termos se aplicam
+        à utilização dos recursos disponibilizados no site.</p>
+    </section>
+
+    <section id="conta" aria-labelledby="conta-title">
+      <h2 id="conta-title">2. Conta e acesso</h2>
+      <p>O cadastro deve ser feito por uma pessoa adulta responsável pelo bebê ou autorizada
+        por seu responsável legal. Forneça informações corretas e mantenha o acesso à sua
+        conta sob seu controle. Não compartilhe senhas nem utilize a conta de outra pessoa.</p>
+      <p>O acesso pode ser feito por e-mail e senha ou pelo Google, quando o provedor estiver
+        disponível. Se suspeitar de acesso indevido, proteja sua conta e comunique o problema
+        pelo canal indicado ao final desta página.</p>
+    </section>
+
+    <section id="registros" aria-labelledby="registros-title">
+      <h2 id="registros-title">3. Registros e compartilhamento</h2>
+      <p>Os responsáveis inserem e conferem os horários e detalhes das atividades. A pessoa
+        que administra o perfil do bebê pode convidar outros responsáveis e retirar o acesso.
+        Antes de enviar um convite, confirme que a pessoa pode consultar as informações do bebê.</p>
+      <p>Contas vinculadas ao mesmo bebê podem consultar registros compartilhados conforme
+        suas permissões. A retirada de acesso impede novas consultas, mas não apaga cópias
+        anteriormente exportadas por alguém autorizado. Evite divulgar convites, registros
+        e arquivos exportados a terceiros sem autorização.</p>
+    </section>
+
+    <section id="orientacoes" aria-labelledby="orientacoes-title">
+      <h2 id="orientacoes-title">4. Informações e comandos de voz</h2>
+      <p>Os registros e conteúdos do site servem para organização da rotina. Eles não são
+        diagnósticos, prescrições nem substituem a orientação de profissionais de saúde.
+        Em caso de urgência, procure atendimento adequado.</p>
+      <p>O reconhecimento de voz é opcional e depende do navegador. Antes de salvar, confira
+        o bebê, o tipo de atividade, o horário e os demais dados reconhecidos; comandos
+        interpretados incorretamente podem produzir registros imprecisos.</p>
+    </section>
+
+    <section id="privacidade" aria-labelledby="privacidade-title">
+      <h2 id="privacidade-title">5. Privacidade e dados</h2>
+      <p>O tratamento dos dados da conta e do bebê está descrito na
+        <a routerLink="/privacidade">Política de Privacidade</a>. Leia esse documento para
+        conhecer os dados tratados, as finalidades, o compartilhamento e as formas de
+        solicitar informações ou exclusão.</p>
+      <p>O consentimento registrado na etapa de apresentação dos dados é tratado
+        separadamente destes Termos de Uso.</p>
+    </section>
+
+    <section id="disponibilidade" aria-labelledby="disponibilidade-title">
+      <h2 id="disponibilidade-title">6. Disponibilidade e alterações</h2>
+      <p>O projeto ainda está em evolução. Pode haver indisponibilidade temporária,
+        manutenção ou mudanças nas funcionalidades. Consulte seus registros periodicamente
+        e utilize a opção de exportação em <strong>Meus dados</strong> quando precisar de
+        uma cópia das informações disponíveis à sua conta.</p>
+      <p>Alterações relevantes nestes termos serão identificadas pela data exibida no início
+        da página. Condições de planos pagos, caso sejam oferecidos no futuro, deverão ser
+        apresentadas antes de qualquer contratação.</p>
+    </section>
+
+    <section id="encerramento" aria-labelledby="encerramento-title">
+      <h2 id="encerramento-title">7. Acesso, encerramento e contato</h2>
+      <p>Você pode sair da sua conta a qualquer momento. Para solicitar a retirada de acesso
+        ou a exclusão de dados, consulte a <a routerLink="/privacidade">Política de Privacidade</a>.
+        O pedido de exclusão é analisado conforme as informações envolvidas e os direitos
+        dos demais responsáveis; o envio da solicitação não apaga os registros imediatamente.</p>
+      <p>Para dúvidas sobre o uso do site, escreva para
+        <a [href]="'mailto:' + contact">{{ contact }}</a>. A operação e a disponibilidade
+        desse canal precisam ser verificadas antes do lançamento público.</p>
+    </section>
+  </div>
+</main>

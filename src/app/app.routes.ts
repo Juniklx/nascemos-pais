@@ -40,6 +40,11 @@ export const routes: Routes = [
       import('./features/privacy/privacy-policy').then((m) => m.PrivacyPolicyPage),
   },
   {
+    path: 'termos',
+    title: 'Termos de Uso | Nascemos Pais',
+    loadComponent: () => import('./features/terms/terms-of-use').then((m) => m.TermsOfUsePage),
+  },
+  {
     path: 'invite/:token',
 
     title: 'Convite | Nascemos Pais',
