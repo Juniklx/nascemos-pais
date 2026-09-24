@@ -229,7 +229,7 @@
 .delete-button:focus-visible,
 .cancel-button:focus-visible,
 .confirm-delete-button:focus-visible {
-  outline: 3px solid rgb(111 143 122 / 30%);
+  outline: 3px solid var(--color-sage);
   outline-offset: 3px;
 }
 
@@ -296,7 +296,7 @@
 
 .edit-field input:focus-visible,
 .edit-field select:focus-visible {
-  outline: 3px solid rgb(111 143 122 / 30%);
+  outline: 3px solid var(--color-sage);
   outline-offset: 2px;
 }
 
@@ -364,7 +364,7 @@
 .edit-button:focus-visible,
 .edit-cancel-button:focus-visible,
 .save-button:focus-visible {
-  outline: 3px solid rgb(111 143 122 / 30%);
+  outline: 3px solid var(--color-sage);
   outline-offset: 3px;
 }
 
