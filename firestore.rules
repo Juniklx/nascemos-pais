@@ -122,6 +122,26 @@ service cloud.firestore {
         && inviteId.size() <= 128;
     }
 
+    function canAcceptInviteWithoutSkippingMigration() {
+      let profile = get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data;
+
+      return (
+          'babyMigrationVersion' in profile
+          && profile.babyMigrationVersion == 1
+          && 'activeBabyId' in profile
+          && profile.activeBabyId is string
+          && profile.activeBabyId.size() > 0
+        )
+        || (
+          !('babyMigrationVersion' in profile)
+          && !('activeBabyId' in profile)
+          && profile.babyName == ''
+          && profile.babyBirthDate == ''
+        );
+    }
+
     function isAcceptingInviteForBaby(
       babyId,
       memberId
@@ -143,6 +163,7 @@ service cloud.firestore {
 
       return isAuthenticated()
         && memberId == request.auth.uid
+        && canAcceptInviteWithoutSkippingMigration()
         && 'inviteId' in request.resource.data
         && isValidInviteId(
           request.resource.data.inviteId
@@ -403,6 +424,7 @@ service cloud.firestore {
         ).data;
 
       return isAuthenticated()
+        && canAcceptInviteWithoutSkippingMigration()
         && isValidInviteId(
           inviteId
         )
