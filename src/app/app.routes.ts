@@ -1,18 +1,38 @@
-import { Routes } from '@angular/router';
+import { EnvironmentInjector, inject, runInInjectionContext } from '@angular/core';
+import { CanActivateFn, Routes } from '@angular/router';
+import { from, isObservable, switchMap } from 'rxjs';
 
-import { activityReadyGuard } from './core/guards/activity-ready.guard';
-import { authGuard } from './core/guards/auth.guard';
-import { guestGuard } from './core/guards/guest.guard';
-import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
-import { onboardingReadyGuard } from './core/guards/onboarding-ready.guard';
-import { accessRemovalGuard } from './core/guards/access-removal.guard';
+const lazyGuard =
+  (load: () => Promise<CanActivateFn>): CanActivateFn =>
+  (route, state) => {
+    const injector = inject(EnvironmentInjector);
+    return from(load()).pipe(
+      switchMap((guard) => {
+        const result = runInInjectionContext(injector, () => guard(route, state));
+        return isObservable(result) ? result : from(Promise.resolve(result));
+      }),
+    );
+  };
+
+const activityReadyGuard = lazyGuard(() =>
+  import('./core/guards/activity-ready.guard').then((m) => m.activityReadyGuard),
+);
+const authGuard = lazyGuard(() => import('./core/guards/auth.guard').then((m) => m.authGuard));
+const guestGuard = lazyGuard(() => import('./core/guards/guest.guard').then((m) => m.guestGuard));
+const onboardingCompleteGuard = lazyGuard(() =>
+  import('./core/guards/onboarding-complete.guard').then((m) => m.onboardingCompleteGuard),
+);
+const onboardingReadyGuard = lazyGuard(() =>
+  import('./core/guards/onboarding-ready.guard').then((m) => m.onboardingReadyGuard),
+);
+const accessRemovalGuard = lazyGuard(() =>
+  import('./core/guards/access-removal.guard').then((m) => m.accessRemovalGuard),
+);
 
 export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    canActivate: [guestGuard],
-
     loadComponent: () => import('./features/welcome/welcome').then((m) => m.Welcome),
   },
   {
@@ -154,7 +174,6 @@ export const routes: Routes = [
   {
     path: '**',
     title: 'Página não encontrada | Nascemos Pais',
-    loadComponent: () =>
-      import('./features/not-found/not-found').then((m) => m.NotFoundPage),
+    loadComponent: () => import('./features/not-found/not-found').then((m) => m.NotFoundPage),
   },
 ];
