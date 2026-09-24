@@ -9,6 +9,6 @@ import { RouterLink } from '@angular/router';
 })
 export class PrivacyPolicyPage {
   readonly updatedAt = '24 de setembro de 2026';
-  readonly privacyContact = '';
+  readonly privacyContact = 'privacidade@nascemospais.com.br';
   readonly controller = 'Marcelo Soares Teixeira Junior';
 }
