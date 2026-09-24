@@ -457,6 +457,65 @@ export class BabyDataRepository {
     return records as T[];
   }
 
+  watchRecords<T extends DocumentData>(
+    babyId: string,
+    collectionName: BabyRecordCollection,
+    onNext: (records: T[], fromCache: boolean, hasPendingWrites: boolean) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    const uid = this.requireUid();
+    this.validateId(babyId);
+
+    return this.firestore.listen(
+      this.collectionPath(babyId, collectionName),
+      (records, fromCache, hasPendingWrites) => {
+        if (this.auth.user()?.uid === uid) {
+          onNext(records as T[], fromCache, hasPendingWrites);
+        }
+      },
+      (error) => {
+        if (this.auth.user()?.uid === uid) {
+          onError(error);
+        }
+      },
+    );
+  }
+
+  watchMembers(
+    babyId: string,
+    onNext: (members: BabyMember[]) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    const uid = this.requireUid();
+    this.validateId(babyId);
+
+    return this.firestore.listen(
+      this.membersPath(babyId),
+      (items) => {
+        if (this.auth.user()?.uid !== uid) {
+          return;
+        }
+
+        onNext(
+          items.map((item) => {
+            const memberUid = item['id'];
+
+            if (typeof memberUid !== 'string') {
+              throw new Error('Identificador de responsável inválido.');
+            }
+
+            return this.parseMember(memberUid, item);
+          }),
+        );
+      },
+      (error) => {
+        if (this.auth.user()?.uid === uid) {
+          onError(error);
+        }
+      },
+    );
+  }
+
   async saveRecord<T extends DocumentData & { id: string }>(
     babyId: string,
     collectionName: BabyRecordCollection,
