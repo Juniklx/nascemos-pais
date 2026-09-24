@@ -453,13 +453,83 @@ service cloud.firestore {
         && acceptedMember.inviteId == inviteId;
     }
 
+    /*
+     * Autoria é opcional para manter os registros antigos legíveis.
+     * Registros novos recebem UID; regras abaixo impedem falsificação.
+     */
+    function isValidAttribution(data, canFinish) {
+      return (
+          !('createdByUid' in data)
+          || (
+            data.createdByUid is string
+            && data.createdByUid.size() > 0
+            && data.createdByUid.size() <= 128
+          )
+        )
+        && (
+          !('finishedByUid' in data)
+          || (
+            canFinish
+            && data.finishedByUid is string
+            && data.finishedByUid.size() > 0
+            && data.finishedByUid.size() <= 128
+            && data.endedAt != null
+          )
+        );
+    }
+
+    function isAuthoredCreate(data) {
+      return (
+          !('createdByUid' in data)
+          || data.createdByUid == request.auth.uid
+        )
+        && (
+          !('finishedByUid' in data)
+          || data.finishedByUid == request.auth.uid
+        );
+    }
+
+    function preservesAttribution(data, previous) {
+      return (
+          (
+            !('createdByUid' in previous)
+            && !('createdByUid' in data)
+          )
+          || (
+            'createdByUid' in previous
+            && 'createdByUid' in data
+            && data.createdByUid == previous.createdByUid
+          )
+        )
+        && (
+          (
+            !('finishedByUid' in previous)
+            && !('finishedByUid' in data)
+          )
+          || (
+            'finishedByUid' in previous
+            && 'finishedByUid' in data
+            && data.finishedByUid == previous.finishedByUid
+          )
+          || (
+            !('finishedByUid' in previous)
+            && 'finishedByUid' in data
+            && previous.endedAt == null
+            && data.endedAt != null
+            && data.finishedByUid == request.auth.uid
+          )
+        );
+    }
+
     function isValidFeeding(data, feedingId) {
       return data.keys().hasOnly([
           'id',
           'startedAt',
           'endedAt',
           'side',
-          'periods'
+          'periods',
+          'createdByUid',
+          'finishedByUid'
         ])
         && data.keys().hasAll([
           'id',
@@ -480,14 +550,17 @@ service cloud.firestore {
         && (
           data.periods == null
           || data.periods is list
-        );
+        )
+        && isValidAttribution(data, true);
     }
 
     function isValidSleep(data, sleepId) {
       return data.keys().hasOnly([
           'id',
           'startedAt',
-          'endedAt'
+          'endedAt',
+          'createdByUid',
+          'finishedByUid'
         ])
         && data.keys().hasAll([
           'id',
@@ -501,14 +574,16 @@ service cloud.firestore {
         && (
           data.endedAt == null
           || data.endedAt >= data.startedAt
-        );
+        )
+        && isValidAttribution(data, true);
     }
 
     function isValidDiaper(data, diaperId) {
       return data.keys().hasOnly([
           'id',
           'type',
-          'recordedAt'
+          'recordedAt',
+          'createdByUid'
         ])
         && data.keys().hasAll([
           'id',
@@ -522,7 +597,8 @@ service cloud.firestore {
           || data.type == 'dirty'
           || data.type == 'both'
         )
-        && isValidTimestamp(data.recordedAt);
+        && isValidTimestamp(data.recordedAt)
+        && isValidAttribution(data, false);
     }
 
     /*
@@ -1084,6 +1160,9 @@ service cloud.firestore {
             request.resource.data,
             feedingId
           )
+          && isAuthoredCreate(
+            request.resource.data
+          )
           && (
             request.resource.data.endedAt != null
             || hasFeedingLockAfter(
@@ -1107,6 +1186,10 @@ service cloud.firestore {
           && isValidFeeding(
             request.resource.data,
             feedingId
+          )
+          && preservesAttribution(
+            request.resource.data,
+            resource.data
           )
           && (
             (
@@ -1150,6 +1233,9 @@ service cloud.firestore {
             request.resource.data,
             sleepId
           )
+          && isAuthoredCreate(
+            request.resource.data
+          )
           && (
             request.resource.data.endedAt != null
             || hasSleepLockAfter(
@@ -1165,6 +1251,10 @@ service cloud.firestore {
           && isValidSleep(
             request.resource.data,
             sleepId
+          )
+          && preservesAttribution(
+            request.resource.data,
+            resource.data
           )
           && (
             (
@@ -1200,13 +1290,29 @@ service cloud.firestore {
             babyId
           );
 
-        allow create, update:
+        allow create:
           if isBabyMember(
             babyId
           )
           && isValidDiaper(
             request.resource.data,
             diaperId
+          )
+          && isAuthoredCreate(
+            request.resource.data
+          );
+
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidDiaper(
+            request.resource.data,
+            diaperId
+          )
+          && preservesAttribution(
+            request.resource.data,
+            resource.data
           );
 
         allow delete:
