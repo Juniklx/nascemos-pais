@@ -32,6 +32,7 @@ export class FeedingPage {
   readonly activeFeeding = this.feedingService.activeFeeding;
   readonly storageError = this.feedingService.storageError;
   readonly isSaving = this.feedingService.isSaving;
+  readonly periodLimitReached = this.feedingService.periodLimitReached;
 
   readonly finishedFeeding = signal<Feeding | null>(null);
 
