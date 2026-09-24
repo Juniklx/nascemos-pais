@@ -546,7 +546,7 @@ service cloud.firestore {
 
     /*
      * Firestore Rules não possuem um iterador de validação para listas.
-     * Limitamos o registro novo a 24 períodos para validar cada posição,
+     * Limitamos o registro novo a 16 períodos para validar cada posição,
      * mantendo períodos nulos dos registros legados como antes.
      */
     function isValidFeedingPeriod(period, startedAt) {
@@ -574,7 +574,7 @@ service cloud.firestore {
         || (
           periods is list
           && periods.size() > 0
-          && periods.size() <= 24
+          && periods.size() <= 16
           && isValidFeedingPeriod(periods[0], startedAt)
         && (
           periods.size() <= 1
@@ -635,38 +635,6 @@ service cloud.firestore {
         && (
           periods.size() <= 15
           || isValidFollowingPeriod(periods, 15, startedAt)
-        )
-        && (
-          periods.size() <= 16
-          || isValidFollowingPeriod(periods, 16, startedAt)
-        )
-        && (
-          periods.size() <= 17
-          || isValidFollowingPeriod(periods, 17, startedAt)
-        )
-        && (
-          periods.size() <= 18
-          || isValidFollowingPeriod(periods, 18, startedAt)
-        )
-        && (
-          periods.size() <= 19
-          || isValidFollowingPeriod(periods, 19, startedAt)
-        )
-        && (
-          periods.size() <= 20
-          || isValidFollowingPeriod(periods, 20, startedAt)
-        )
-        && (
-          periods.size() <= 21
-          || isValidFollowingPeriod(periods, 21, startedAt)
-        )
-        && (
-          periods.size() <= 22
-          || isValidFollowingPeriod(periods, 22, startedAt)
-        )
-        && (
-          periods.size() <= 23
-          || isValidFollowingPeriod(periods, 23, startedAt)
         )
           && periods[periods.size() - 1].endedAt == endedAt
           && periods[periods.size() - 1].side == side
