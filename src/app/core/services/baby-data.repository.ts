@@ -246,6 +246,25 @@ export class BabyDataRepository {
     );
 
     this.assertSameUser(uid);
+
+    if (!currentMembership.caregiverName) {
+      const profile = await this.firestore.get(this.userPath(uid));
+
+      this.assertSameUser(uid);
+
+      const caregiverName = profile?.['caregiverName'];
+
+      if (typeof caregiverName === 'string' && caregiverName.trim().length > 0 &&
+        caregiverName.trim().length <= 80) {
+        await this.firestore.set(
+          this.memberPath(babyId, uid),
+          { caregiverName: caregiverName.trim() },
+          true,
+        );
+
+        this.assertSameUser(uid);
+      }
+    }
   }
 
   async listLinkedBabies(): Promise<LinkedBaby[]> {
@@ -455,6 +474,69 @@ export class BabyDataRepository {
     this.assertSameUser(uid);
 
     return records as T[];
+  }
+
+  watchRecords<T extends DocumentData>(
+    babyId: string,
+    collectionName: BabyRecordCollection,
+    onNext: (records: T[], fromCache: boolean, hasPendingWrites: boolean) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    const uid = this.requireUid();
+    this.validateId(babyId);
+
+    return this.firestore.listen(
+      this.collectionPath(babyId, collectionName),
+      (records, fromCache, hasPendingWrites) => {
+        if (this.auth.user()?.uid === uid) {
+          onNext(records as T[], fromCache, hasPendingWrites);
+        }
+      },
+      (error) => {
+        if (this.auth.user()?.uid === uid) {
+          onError(error);
+        }
+      },
+    );
+  }
+
+  watchMembers(
+    babyId: string,
+    onNext: (members: BabyMember[]) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    const uid = this.requireUid();
+    this.validateId(babyId);
+
+    return this.firestore.listen(
+      this.membersPath(babyId),
+      (items) => {
+        if (this.auth.user()?.uid !== uid) {
+          return;
+        }
+
+        try {
+          onNext(
+            items.map((item) => {
+              const memberUid = item['id'];
+
+              if (typeof memberUid !== 'string') {
+                throw new Error('Identificador de responsável inválido.');
+              }
+
+              return this.parseMember(memberUid, item);
+            }),
+          );
+        } catch (error) {
+          onError(error instanceof Error ? error : new Error('Responsável inválido.'));
+        }
+      },
+      (error) => {
+        if (this.auth.user()?.uid === uid) {
+          onError(error);
+        }
+      },
+    );
   }
 
   async saveRecord<T extends DocumentData & { id: string }>(

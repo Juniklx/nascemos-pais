@@ -119,6 +119,9 @@
             </div>
 
             <p>{{ event.description }}</p>
+            @if (event.attribution) {
+              <p>{{ event.attribution }}</p>
+            }
           </div>
 
           <span

@@ -30,7 +30,17 @@ describe('ActivityPersistenceService', () => {
     listRecords: jasmine.Spy;
     saveRecord: jasmine.Spy;
     deleteRecord: jasmine.Spy;
+    watchRecords: jasmine.Spy;
+    watchMembers: jasmine.Spy;
   };
+
+  let streams: Array<{
+    babyId: string;
+    collectionName: string;
+    next: (records: unknown[], fromCache: boolean, hasPendingWrites: boolean) => void;
+    error: (error: Error) => void;
+    unsubscribe: jasmine.Spy;
+  }>;
 
   let babyContext: {
     ensureLoaded: jasmine.Spy;
@@ -132,7 +142,22 @@ describe('ActivityPersistenceService', () => {
       'listRecords',
       'saveRecord',
       'deleteRecord',
+      'watchRecords',
+      'watchMembers',
     ]);
+
+    streams = [];
+
+    babies.watchRecords.and.callFake(
+      (babyId: string, collectionName: string,
+        next: (records: unknown[], fromCache: boolean, hasPendingWrites: boolean) => void,
+        error: (error: Error) => void) => {
+        const unsubscribe = jasmine.createSpy('unsubscribe');
+        streams.push({ babyId, collectionName, next, error, unsubscribe });
+        return unsubscribe;
+      },
+    );
+    babies.watchMembers.and.returnValue(jasmine.createSpy('unsubscribeMembers'));
 
     babyContext = {
       ensureLoaded: jasmine.createSpy('ensureLoaded'),
@@ -402,15 +427,15 @@ describe('ActivityPersistenceService', () => {
 
     await service.saveFeeding(feeding);
 
-    expect(babies.saveRecord).toHaveBeenCalledOnceWith('baby-a', 'feedings', feeding);
+    expect(babies.saveRecord).toHaveBeenCalledOnceWith('baby-a', 'feedings', { ...feeding, createdByUid: 'user-a' });
 
     expect(repository.saveRecord).not.toHaveBeenCalled();
 
-    expect(service.feedings()).toEqual([feeding]);
+    expect(service.feedings()).toEqual([{ ...feeding, createdByUid: 'user-a' }]);
 
     const cached = await service.load();
 
-    expect(cached.feedings).toEqual([feeding]);
+    expect(cached.feedings).toEqual([{ ...feeding, createdByUid: 'user-a' }]);
   });
 
   it('salva sono e fralda no bebê ativo', async () => {
@@ -419,12 +444,12 @@ describe('ActivityPersistenceService', () => {
     await service.saveSleep(sleep);
     await service.saveDiaper(diaper);
 
-    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'sleeps', sleep);
+    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'sleeps', { ...sleep, createdByUid: 'user-a' });
 
-    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'diapers', diaper);
+    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'diapers', { ...diaper, createdByUid: 'user-a' });
 
-    expect(service.sleeps()).toEqual([sleep]);
-    expect(service.diapers()).toEqual([diaper]);
+    expect(service.sleeps()).toEqual([{ ...sleep, createdByUid: 'user-a' }]);
+    expect(service.diapers()).toEqual([{ ...diaper, createdByUid: 'user-a' }]);
   });
 
   it('remove registro do bebê ativo e atualiza o estado', async () => {
@@ -475,6 +500,131 @@ describe('ActivityPersistenceService', () => {
     expect(result.feedings).toEqual([feeding]);
     expect(service.isReady()).toBeTrue();
     expect(service.error()).toBeNull();
+  });
+
+  it('aplica em tempo real inclusões e exclusões vindas do Firestore', async () => {
+    await service.load();
+
+    const feedingStream = streams.find((item) => item.collectionName === 'feedings')!;
+    const diaperStream = streams.find((item) => item.collectionName === 'diapers')!;
+
+    feedingStream.next([feeding], false, false);
+    diaperStream.next([diaper], false, false);
+    streams.find((item) => item.collectionName === 'sleeps')!.next([], false, false);
+
+    expect(service.feedings()).toEqual([feeding]);
+    expect(service.diapers()).toEqual([diaper]);
+    expect(service.realtimeStatus()).toBe('live');
+
+    // Ao perder a ligação com o servidor, os dados em cache continuam disponíveis.
+    diaperStream.next([diaper], true, false);
+    expect(service.realtimeStatus()).toBe('connecting');
+    expect(service.diapers()).toEqual([diaper]);
+
+    diaperStream.next([diaper], false, false);
+    expect(service.realtimeStatus()).toBe('live');
+
+    feedingStream.next([], false, false);
+
+    expect(service.feedings()).toEqual([]);
+    expect(service.diapers()).toEqual([diaper]);
+  });
+
+  it('ignora snapshots locais ainda não confirmados pelo servidor', async () => {
+    await service.load();
+
+    streams.find((item) => item.collectionName === 'feedings')!.next([feeding], true, true);
+
+    expect(service.feedings()).toEqual([]);
+    expect(service.realtimeStatus()).toBe('connecting');
+  });
+
+  it('encerra os listeners anteriores e ignora eventos de outro bebê', async () => {
+    await service.load();
+
+    const oldStreams = [...streams];
+    activeBabyId.set('baby-b');
+    mockBabyCloud();
+
+    await service.load();
+
+    for (const previous of oldStreams) {
+      expect(previous.unsubscribe).toHaveBeenCalled();
+    }
+
+    oldStreams[0].next([feeding], false, false);
+
+    expect(service.feedings()).toEqual([]);
+    expect(streams.filter((stream) => stream.babyId === 'baby-b').length).toBe(3);
+  });
+
+  it('preserva os registros se um listener falha e permite reconectar', async () => {
+    mockBabyCloud({ feedings: [feeding] });
+    await service.load();
+
+    streams[0].error(new Error('permission-denied'));
+
+    expect(service.feedings()).toEqual([feeding]);
+    expect(service.error()).toContain('sincronizar');
+    expect(service.realtimeStatus()).toBe('error');
+    expect(streams[0].unsubscribe).toHaveBeenCalled();
+
+    service.retryRealtime();
+
+    expect(streams.filter((stream) => stream.collectionName === 'feedings').length).toBe(2);
+    expect(service.realtimeStatus()).toBe('connecting');
+  });
+
+  it('identifica responsáveis e usa fallback para registros legados', async () => {
+    await service.load();
+
+    expect(service.actorName()).toBeNull();
+    expect(service.actorName('user-a')).toBe('Responsável');
+
+    const onMembers = babies.watchMembers.calls.mostRecent().args[1] as (
+      members: Array<{ uid: string; role: 'owner' | 'caregiver'; joinedAt: string; caregiverName?: string }>
+    ) => void;
+
+    onMembers([
+      { uid: 'user-a', role: 'owner', joinedAt: '2026-01-01', caregiverName: 'Marcelo' },
+      { uid: 'user-b', role: 'caregiver', joinedAt: '2026-01-02', caregiverName: 'Ana' },
+    ]);
+
+    expect(service.actorName('user-a')).toBe('Marcelo');
+    expect(service.actorName('user-b')).toBe('Ana');
+    expect(service.actorName('user-c')).toBe('Responsável');
+  });
+
+  it('cancela todas as assinaturas ao encerrar a sessão', async () => {
+    await service.load();
+    const oldStreams = [...streams];
+
+    user.set(null);
+    activeBabyId.set(null);
+
+    await expectAsync(service.load()).toBeRejectedWithError('Usuário não autenticado.');
+
+    for (const previous of oldStreams) {
+      expect(previous.unsubscribe).toHaveBeenCalled();
+    }
+
+    expect(service.realtimeStatus()).toBe('idle');
+    expect(service.actorName('user-a')).toBe('Responsável');
+  });
+
+  it('registra autoria e preserva o autor de uma atividade existente', async () => {
+    mockBabyCloud({ feedings: [feeding] });
+    await service.load();
+
+    await service.saveFeeding({ ...feeding, endedAt: 3000, periods: [{
+      startedAt: 1000, endedAt: 3000, side: 'left',
+    }] });
+
+    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'feedings', jasmine.objectContaining({
+      finishedByUid: 'user-a',
+    }));
+    expect(service.feedings()[0].createdByUid).toBeUndefined();
+    expect(service.feedings()[0].finishedByUid).toBe('user-a');
   });
 
   it('não expõe registros da conta anterior depois da troca de usuário', async () => {

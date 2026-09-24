@@ -47,6 +47,8 @@ describe('AppShell', () => {
 
   const selectBaby = jasmine.createSpy('selectBaby');
   const loadActivities = jasmine.createSpy('load');
+  const retryRealtime = jasmine.createSpy('retryRealtime');
+  const realtimeStatus = signal<'idle' | 'connecting' | 'live' | 'error'>('idle');
   const navigate = jasmine.createSpy('navigate');
 
   beforeEach(() => {
@@ -63,6 +65,8 @@ describe('AppShell', () => {
 
     selectBaby.calls.reset();
     loadActivities.calls.reset();
+    retryRealtime.calls.reset();
+    realtimeStatus.set('idle');
     navigate.calls.reset();
 
     selectBaby.and.callFake(async (babyId: string) => {
@@ -87,6 +91,8 @@ describe('AppShell', () => {
           provide: ActivityPersistenceService,
           useValue: {
             load: loadActivities,
+            retryRealtime,
+            realtimeStatus: realtimeStatus.asReadonly(),
           },
         },
         {
@@ -106,6 +112,16 @@ describe('AppShell', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
+  });
+
+  it('exibe estado e permite tentar sincronizar novamente', () => {
+    realtimeStatus.set('error');
+
+    expect(shell.realtimeStatus()).toBe('error');
+
+    shell.retryRealtime();
+
+    expect(retryRealtime).toHaveBeenCalledOnceWith();
   });
 
   it('troca o bebê ativo, recarrega os registros e abre a home', async () => {

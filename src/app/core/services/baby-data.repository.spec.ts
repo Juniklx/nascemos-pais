@@ -663,6 +663,40 @@ describe('BabyDataRepository', () => {
     expect(firestore.batchWrite).not.toHaveBeenCalled();
   });
 
+  it('completa o nome do proprietário legado a partir do perfil', async () => {
+    firestore.get.and.callFake(async (path: string) =>
+      path === 'users/user-a' ? { caregiverName: 'Marcelo' } : null,
+    );
+
+    await repository.ensureBabyReference('baby-1', {
+      uid: 'user-a',
+      role: 'owner',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    expect(firestore.set).toHaveBeenCalledWith(
+      'babies/baby-1/members/user-a',
+      { caregiverName: 'Marcelo' },
+      true,
+    );
+  });
+
+  it('não altera o nome que já está salvo no vínculo', async () => {
+    await repository.ensureBabyReference('baby-1', {
+      uid: 'user-a',
+      role: 'owner',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+      caregiverName: 'Ana',
+    });
+
+    expect(firestore.get).not.toHaveBeenCalled();
+    expect(firestore.set).toHaveBeenCalledOnceWith(
+      'users/user-a/babies/baby-1',
+      { role: 'owner', joinedAt: '2026-01-01T00:00:00.000Z' },
+      true,
+    );
+  });
+
   it('atualiza nome do responsável no perfil e no vínculo', async () => {
     await repository.updateOwnCaregiverName('baby-1', 'Ana');
 

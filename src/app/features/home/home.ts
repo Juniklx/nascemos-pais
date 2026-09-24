@@ -17,6 +17,7 @@ import type {
   Sleep,
 } from '../../core/models/sleep';
 
+import { ActivityPersistenceService } from '../../core/services/activity-persistence';
 import { BabyContextService } from '../../core/services/baby-context';
 import { DiaperService } from '../../core/services/diaper';
 import { FeedingService } from '../../core/services/feeding';
@@ -33,6 +34,7 @@ interface RoutineEvent {
   time: string;
   dateTime: string;
   description: string;
+  attribution: string | null;
 }
 
 type HomeActivity =
@@ -64,6 +66,8 @@ export class Home {
 
   private readonly babyContext =
     inject(BabyContextService);
+
+  private readonly persistence = inject(ActivityPersistenceService);
 
   private readonly feedingService =
     inject(FeedingService);
@@ -186,6 +190,38 @@ export class Home {
         null,
       );
     });
+
+  readonly lastActivityAttribution = computed(() => {
+    const activity = this.lastCompletedActivity();
+
+    return activity === null ? null : this.activityAttribution(
+      activity.record.createdByUid,
+      'finishedByUid' in activity.record ? activity.record.finishedByUid : undefined,
+    );
+  });
+
+  readonly activeFeedingAttribution = computed(() =>
+    this.activityAttribution(this.activeFeeding()?.createdByUid),
+  );
+
+  readonly activeSleepAttribution = computed(() =>
+    this.activityAttribution(this.activeSleep()?.createdByUid),
+  );
+
+  private activityAttribution(createdByUid?: string, finishedByUid?: string): string | null {
+    const creator = this.persistence.actorName(createdByUid);
+    const finisher = this.persistence.actorName(finishedByUid);
+
+    if (creator && finisher) {
+      return `Iniciado por ${creator} · Finalizado por ${finisher}`;
+    }
+
+    if (creator) {
+      return `Registrado por ${creator}`;
+    }
+
+    return finisher ? `Finalizado por ${finisher}` : null;
+  }
 
   readonly lastActivityElapsed =
     computed(() => {
@@ -317,6 +353,11 @@ export class Home {
                     this.feedingDescription(
                       feeding,
                     ),
+
+                  attribution: this.activityAttribution(
+                    feeding.createdByUid,
+                    feeding.finishedByUid,
+                  ),
                 }),
               );
 
@@ -361,6 +402,11 @@ export class Home {
                     this.sleepDescription(
                       sleep,
                     ),
+
+                  attribution: this.activityAttribution(
+                    sleep.createdByUid,
+                    sleep.finishedByUid,
+                  ),
                 }),
               );
 
@@ -403,6 +449,10 @@ export class Home {
                       .label(
                         diaper.type,
                       ),
+
+                  attribution: this.activityAttribution(
+                    diaper.createdByUid,
+                  ),
                 }),
               );
 

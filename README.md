@@ -93,6 +93,16 @@ A página inicial apresenta:
 - manter responsáveis, convites e registros vinculados ao bebê correto;
 - remover o acesso de um responsável sem afetar os demais bebês da conta.
 
+### Rotina compartilhada em tempo real
+
+- mamadas, sono e fraldas são atualizados automaticamente nos aparelhos dos responsáveis vinculados ao bebê;
+- a Home e o Histórico acompanham o bebê atualmente selecionado, incluindo atividades ainda em andamento;
+- a duração de mamadas e sonos é calculada localmente a partir dos horários registrados, sem gravações periódicas no Firestore;
+- registros novos identificam quem os criou e, quando aplicável, quem os finalizou;
+- registros antigos, sem autoria, continuam disponíveis;
+- o indicador de sincronização diferencia conexão com o servidor, conexão em andamento e erro;
+- ao trocar de bebê ou sair da conta, as assinaturas anteriores deixam de fornecer dados.
+
 ### Comandos de voz
 
 A aplicação possui suporte a comandos de voz compatíveis com o recurso de reconhecimento de fala disponível no navegador.
@@ -125,6 +135,8 @@ babies/{babyId}/diapers/{diaperId}
 
 babyInvites/{inviteId}
 ```
+
+Os listeners do Firestore usam a mesma estrutura e as mesmas regras de acesso. Cada assinante acompanha somente o bebê ativo e recebe atualizações quando outro responsável salva, edita, finaliza ou exclui registros.
 
 Os registros pertencem ao bebê, e não diretamente ao usuário. O acesso é autorizado conforme o vínculo em `babies/{babyId}/members/{uid}`, permitindo que diferentes cuidadores acompanhem o mesmo bebê sem misturar registros de outros bebês.
 
@@ -267,7 +279,8 @@ Nesta versão ainda não estão incluídos:
 - notificações push;
 - painel administrativo;
 - recuperação avançada ou exportação de dados;
-- sincronização em tempo real entre múltiplos dispositivos;
+- presença online dos responsáveis;
+- resolução colaborativa de edições simultâneas do mesmo registro (última gravação válida prevalece);
 - aplicação nativa para Android ou iOS.
 
 O reconhecimento de voz também depende da disponibilidade e compatibilidade da API utilizada pelo navegador.

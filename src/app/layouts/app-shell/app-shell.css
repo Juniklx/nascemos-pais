@@ -62,6 +62,37 @@
   line-height: 1.4;
 }
 
+.realtime-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 2px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.realtime-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+
+.realtime-status__dot--live {
+  background: var(--color-sage);
+}
+
+.realtime-status button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-sage);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 20;

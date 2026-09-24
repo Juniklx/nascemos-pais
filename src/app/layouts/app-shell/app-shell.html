@@ -71,6 +71,24 @@
       {{ contextError() }}
     </p>
     }
+    @if (realtimeStatus() !== 'idle') {
+      <div class="realtime-status" role="status">
+        <span class="realtime-status__dot"
+          [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
+        @switch (realtimeStatus()) {
+          @case ('live') {
+            <span>Atualização em tempo real</span>
+          }
+          @case ('connecting') {
+            <span>Conectando aos registros…</span>
+          }
+          @case ('error') {
+            <span>Sincronização interrompida</span>
+            <button type="button" (click)="retryRealtime()">Tentar novamente</button>
+          }
+        }
+      </div>
+    }
   </aside>
 
   <main class="home">
@@ -96,6 +114,24 @@
       <p class="baby-switcher__error" role="alert">
         {{ contextError() }}
       </p>
+      }
+      @if (realtimeStatus() !== 'idle') {
+        <div class="realtime-status" role="status">
+          <span class="realtime-status__dot"
+            [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
+          @switch (realtimeStatus()) {
+            @case ('live') {
+              <span>Atualização em tempo real</span>
+            }
+            @case ('connecting') {
+              <span>Conectando aos registros…</span>
+            }
+            @case ('error') {
+              <span>Sincronização interrompida</span>
+              <button type="button" (click)="retryRealtime()">Tentar novamente</button>
+            }
+          }
+        </div>
       }
     </div>
 
