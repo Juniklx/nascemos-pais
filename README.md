@@ -323,6 +323,12 @@ O projeto utiliza fallback de SPA para permitir acesso direto a rotas internas d
 
 sem retornar erro 404 do servidor.
 
+### Login com Google
+
+No projeto `nascemos-pais` do Firebase Console, confira **Authentication → Sign-in method → Google** e habilite o provedor. Em **Authentication → Settings → Authorized domains**, adicione o domínio exato usado para abrir o site na Vercel (somente o host, sem `https://` e sem caminho). Se testar localmente, confira também `localhost`. Cada URL de prévia da Vercel com um host diferente exige autorização própria; prefira um domínio estável para os testes compartilhados.
+
+Se a janela de login abrir e fechar com erro, consulte o código `Firebase Authentication: auth/...` no Console do navegador. `auth/unauthorized-domain` indica que o host da página não consta nos domínios autorizados. O código não inclui dados da conta.
+
 ## Limitações atuais do MVP
 
 Nesta versão ainda não estão incluídos:
