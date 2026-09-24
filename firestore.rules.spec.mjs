@@ -1082,29 +1082,29 @@ test('aceita mamadas válidas com períodos e registros legados sem divisão', a
   }));
 });
 
-test('valida todas as posições até o limite de 32 períodos', async () => {
+test('valida todas as posições até o limite de 24 períodos', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
-  const periods = Array.from({ length: 32 }, (_, index) => ({
+  const periods = Array.from({ length: 24 }, (_, index) => ({
     startedAt: 1000 + index * 100,
     endedAt: 1100 + index * 100,
     side: index % 2 ? 'right' : 'left',
   }));
 
-  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-32`), {
-    id: 'feeding-32',
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-24`), {
+    id: 'feeding-24',
     startedAt: 1000,
-    endedAt: 4200,
+    endedAt: 3400,
     side: 'right',
     periods,
   }));
 
   const invalid = periods.map((period) => ({ ...period }));
-  invalid[30].endedAt = 999;
+  invalid[22].endedAt = 999;
 
-  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-invalid-32`), {
-    id: 'feeding-invalid-32',
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-invalid-24`), {
+    id: 'feeding-invalid-24',
     startedAt: 1000,
-    endedAt: 4200,
+    endedAt: 3400,
     side: 'right',
     periods: invalid,
   }));
@@ -1137,7 +1137,7 @@ test('nega estrutura inválida de períodos em qualquer mamada', async () => {
     ],
     [valid[0], { ...valid[1], endedAt: 1550 }],
     [valid[0], { ...valid[1], side: 'left' }],
-    Array.from({ length: 33 }, (_, index) => ({
+    Array.from({ length: 25 }, (_, index) => ({
       startedAt: 1000 + index * 20,
       endedAt: 1020 + index * 20,
       side: 'right',
@@ -1155,6 +1155,23 @@ test('nega estrutura inválida de períodos em qualquer mamada', async () => {
       periods: invalidCases[index],
     }));
   }
+});
+
+test('nega 25 períodos mesmo quando todos são estruturalmente válidos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const periods = Array.from({ length: 25 }, (_, index) => ({
+    startedAt: 1000 + index * 100,
+    endedAt: 1100 + index * 100,
+    side: 'right',
+  }));
+
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-25`), {
+    id: 'feeding-25',
+    startedAt: 1000,
+    endedAt: 3500,
+    side: 'right',
+    periods,
+  }));
 });
 
 test('a validação também protege a coleção legada de cada usuário', async () => {
