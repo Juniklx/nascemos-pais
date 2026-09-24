@@ -92,7 +92,18 @@ describe('Welcome: carrossel', () => {
     await component['redirectAuthenticatedVisitor']();
 
     expect(onboarding.ensureLoaded).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith(['/home']);
+    expect(navigate).toHaveBeenCalledWith(['/home'], { replaceUrl: true });
+  });
+
+  it('redireciona uma sessão ativa mesmo com parâmetros na URL inicial', async () => {
+    auth.isAuthenticated.and.returnValue(true);
+    const router = TestBed.inject(Router);
+    spyOnProperty(router, 'url', 'get').and.returnValue('/?utm_source=banca');
+    const navigate = spyOn(router, 'navigate').and.resolveTo(true);
+    createComponent();
+    await component['redirectAuthenticatedVisitor']();
+
+    expect(navigate).toHaveBeenCalledWith(['/home'], { replaceUrl: true });
   });
 
   it('avança e retorna ao primeiro slide após o último', () => {
