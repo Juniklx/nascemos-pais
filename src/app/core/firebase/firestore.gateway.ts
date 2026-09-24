@@ -5,6 +5,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocFromServer,
   getDocs,
   onSnapshot,
   runTransaction,
@@ -56,6 +57,12 @@ export class FirestoreGateway {
     }
 
     return snapshot.data();
+  }
+
+  async getFromServer(path: string): Promise<DocumentData | null> {
+    const snapshot = await getDocFromServer(doc(this.firestore, path));
+
+    return snapshot.exists() ? snapshot.data() : null;
   }
 
   async list(path: string): Promise<DocumentData[]> {
