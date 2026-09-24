@@ -103,6 +103,10 @@ export class AccountDeletionPreflightService {
         throw new Error('Foi encontrado um vínculo inválido. A pré-verificação foi cancelada.');
       }
 
+      if (members.filter((item) => item['role'] === 'owner').length !== 1) {
+        throw new Error('A propriedade de um bebê está inconsistente. Solicite ajuda.');
+      }
+
       babies.push({
         id,
         name: baby['name'],
