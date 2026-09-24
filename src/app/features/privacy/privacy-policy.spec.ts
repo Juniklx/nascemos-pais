@@ -26,6 +26,18 @@ describe('PrivacyPolicyPage', () => {
     expect(email?.textContent).toContain('privacidade@nascemospais.com.br');
   });
 
+  it('distingue localizacao do Firestore do processamento por outros servicos', () => {
+    const fixture = TestBed.createComponent(PrivacyPolicyPage);
+    fixture.detectChanges();
+
+    const sharing = (fixture.nativeElement as HTMLElement).querySelector('#compartilhamento');
+
+    expect(sharing?.textContent).toContain('southamerica-east1');
+    expect(sharing?.textContent).toContain('São Paulo');
+    expect(sharing?.textContent).toContain('Estados Unidos');
+    expect(sharing?.textContent).toContain('transferências internacionais');
+  });
+
   it('mantém aviso de revisão mesmo com contato definido', () => {
     const fixture = TestBed.createComponent(PrivacyPolicyPage);
     fixture.detectChanges();
