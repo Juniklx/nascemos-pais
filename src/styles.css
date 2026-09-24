@@ -6,12 +6,12 @@
   --color-surface: #ffffff;
 
   --color-ink: #242321;
-  --color-muted: #77736e;
+  --color-muted: #68625e;
 
   --color-border: #e8e3dd;
 
-  --color-sage: #6f8f7a;
-  --color-sage-hover: #607d6a;
+  --color-sage: #4d7056;
+  --color-sage-hover: #42634c;
   --color-sage-soft: #e7eee9;
 
   --font-family:
@@ -74,7 +74,7 @@ a {
   --color-canvas: #151b18;
   --color-surface: #202923;
   --color-ink: #f0f3ed;
-  --color-muted: #b3bdb5;
+  --color-muted: #bac6be;
   --color-border: #465249;
 
   --color-sage: #a9c7b3;
@@ -86,4 +86,9 @@ a {
   --color-warning-border: #806746;
   --color-warning-surface: #352b1e;
   --color-warning-text: #f2d09d;
+}
+/* Consistent focus indication for keyboard users, including new controls. */
+:where(a[href], button, input, select, textarea, [role='button'], [tabindex]):focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 3px;
 }
