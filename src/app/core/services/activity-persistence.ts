@@ -501,17 +501,19 @@ export class ActivityPersistenceService {
 
               this.state.set({ ...current, snapshot });
 
-              if (!fromCache) {
+              if (fromCache) {
+                listeners.fromServer.delete(collectionName);
+              } else {
                 listeners.fromServer.add(collectionName);
               }
 
-              if (listeners.fromServer.size === 3) {
-                this.realtime.set({ uid, babyId, status: 'live' });
+              const isLive = listeners.fromServer.size === 3;
 
-                if (this.state().error ===
-                  'Não foi possível sincronizar os registros com a nuvem. Tente novamente.') {
-                  this.clearError(uid, babyId);
-                }
+              this.realtime.set({ uid, babyId, status: isLive ? 'live' : 'connecting' });
+
+              if (isLive && this.state().error ===
+                'Não foi possível sincronizar os registros com a nuvem. Tente novamente.') {
+                this.clearError(uid, babyId);
               }
             } catch {
               this.failListening(listeners);
