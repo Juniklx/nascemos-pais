@@ -438,6 +438,28 @@ describe('ActivityPersistenceService', () => {
     expect(cached.feedings).toEqual([{ ...feeding, createdByUid: 'user-a' }]);
   });
 
+  it('bloqueia gravações de mamadas antigas acima do limite sem alterar o histórico', async () => {
+    const old = {
+      ...feeding,
+      endedAt: 1700,
+      side: 'left' as const,
+      periods: Array.from({ length: 7 }, (_, index) => ({
+        startedAt: 1000 + index * 100,
+        endedAt: 1100 + index * 100,
+        side: 'left' as const,
+      })),
+    };
+    mockBabyCloud({ feedings: [old] });
+    await service.load();
+
+    await expectAsync(service.saveFeeding({ ...old, side: 'right' })).toBeRejectedWithError(
+      'Este registro possui mais de 6 períodos e deve ser migrado sem perda de dados.',
+    );
+
+    expect(babies.saveRecord).not.toHaveBeenCalled();
+    expect(service.feedings()[0].periods).toEqual(old.periods);
+  });
+
   it('salva sono e fralda no bebê ativo', async () => {
     await service.load();
 

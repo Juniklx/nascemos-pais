@@ -86,9 +86,9 @@ beforeEach(async () => {
     await setDoc(doc(db, `users/${userC}`), {
       caregiverName: 'Conta C',
 
-      babyName: 'Bebê C',
+      babyName: '',
 
-      babyBirthDate: '2026-01-03',
+      babyBirthDate: '',
 
       consentGiven: true,
 
@@ -171,7 +171,7 @@ async function createPendingInvite(token = inviteToken) {
   );
 }
 
-function createAcceptanceBatch(db, token = inviteToken) {
+function createAcceptanceBatch(db, token = inviteToken, profilePatch = {}) {
   const batch = writeBatch(db);
   const joinedAt = new Date().toISOString();
 
@@ -205,6 +205,7 @@ function createAcceptanceBatch(db, token = inviteToken) {
     doc(db, `users/${userC}`),
     {
       activeBabyId: sharedBaby,
+      ...profilePatch,
     },
     {
       merge: true,
@@ -740,6 +741,64 @@ test('permite aceitar convite em operação atômica', async () => {
   assert.equal(baby.exists(), true);
 });
 
+test('nega convite para conta legada antes de migrar seus dados', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+
+    await setDoc(doc(db, `users/${userC}`), {
+      babyName: 'Bebê legado',
+      babyBirthDate: '2026-02-01',
+    }, { merge: true });
+
+    await setDoc(doc(db, `users/${userC}/diapers/diaper-antiga`), {
+      id: 'diaper-antiga',
+      type: 'wet',
+      recordedAt: 1234,
+    });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(createAcceptanceBatch(db).commit());
+
+  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
+  assert.equal(profile.data().babyName, 'Bebê legado');
+  assert.equal(profile.data().activeBabyId, undefined);
+  const diaper = await assertSucceeds(getDoc(doc(db, `users/${userC}/diapers/diaper-antiga`)));
+  assert.equal(diaper.exists(), true);
+});
+
+test('nega convite quando houve migração interrompida', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `users/${userC}`), {
+      activeBabyId: 'baby-interrompido',
+    }, { merge: true });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+  await assertFails(createAcceptanceBatch(db).commit());
+});
+
+test('não permite forjar migração no mesmo lote do convite', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `users/${userC}`), {
+      babyName: 'Bebê legado',
+      babyBirthDate: '2026-02-01',
+    }, { merge: true });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+  const batch = createAcceptanceBatch(db, inviteToken, {
+    babyMigrationVersion: 1,
+    babyMigratedAt: new Date().toISOString(),
+  });
+
+  await assertFails(batch.commit());
+});
+
 test('nega aceitar convite sem nome do responsável no vínculo', async () => {
   await createPendingInvite();
 
@@ -943,6 +1002,8 @@ test('permite convite adicionar outro bebê e torná-lo ativo', async () => {
       doc(db, `users/${userC}`),
       {
         activeBabyId: currentBaby,
+        babyMigrationVersion: 1,
+        babyMigratedAt: '2026-01-01T00:00:00.000Z',
       },
       {
         merge: true,
@@ -996,6 +1057,133 @@ test('nega responsável alterando o próprio papel', async () => {
       },
     ),
   );
+});
+
+test('aceita mamadas válidas com períodos e registros legados sem divisão', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-periods`), {
+    id: 'feeding-periods',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: [
+      { startedAt: 1000, endedAt: 1250, side: 'left' },
+      { startedAt: 1250, endedAt: 1600, side: 'right' },
+    ],
+  }));
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-legacy`), {
+    id: 'feeding-legacy',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: null,
+  }));
+});
+
+test('valida todas as posições até o limite de 6 períodos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const periods = Array.from({ length: 6 }, (_, index) => ({
+    startedAt: 1000 + index * 100,
+    endedAt: 1100 + index * 100,
+    side: index % 2 ? 'right' : 'left',
+  }));
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-6`), {
+    id: 'feeding-6',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods,
+  }));
+
+  const invalid = periods.map((period) => ({ ...period }));
+  invalid[4].endedAt = 999;
+
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-invalid-16`), {
+    id: 'feeding-invalid-16',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: invalid,
+  }));
+});
+
+test('nega estrutura inválida de períodos em qualquer mamada', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const valid = [
+    { startedAt: 1000, endedAt: 1200, side: 'left' },
+    { startedAt: 1200, endedAt: 1600, side: 'right' },
+  ];
+  const invalidCases = [
+    [],
+    'não é uma lista',
+    [null],
+    [{ startedAt: '1000', endedAt: 1600, side: 'right' }],
+    [{ startedAt: -1, endedAt: 1600, side: 'right' }],
+    [{ startedAt: 1000, endedAt: 999, side: 'right' }],
+    [{ startedAt: 1000, endedAt: 1600, side: 'inválido' }],
+    [{ startedAt: 1000, endedAt: 1600 }],
+    [{ startedAt: 1000, endedAt: 1600, side: 'right', secret: true }],
+    [{ startedAt: 999, endedAt: 1600, side: 'right' }],
+    [
+      { startedAt: 1000, endedAt: null, side: 'left' },
+      { startedAt: 1200, endedAt: 1600, side: 'right' },
+    ],
+    [
+      { startedAt: 1000, endedAt: 1200, side: 'left' },
+      { startedAt: 1300, endedAt: 1600, side: 'right' },
+    ],
+    [valid[0], { ...valid[1], endedAt: 1550 }],
+    [valid[0], { ...valid[1], side: 'left' }],
+    Array.from({ length: 7 }, (_, index) => ({
+      startedAt: 1000 + index * 20,
+      endedAt: 1020 + index * 20,
+      side: 'right',
+    })),
+  ];
+
+  for (let index = 0; index < invalidCases.length; index++) {
+    const id = `feeding-invalid-${index}`;
+
+    await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/${id}`), {
+      id,
+      startedAt: 1000,
+      endedAt: 1600,
+      side: 'right',
+      periods: invalidCases[index],
+    }));
+  }
+});
+
+test('nega 7 períodos mesmo quando todos são estruturalmente válidos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const periods = Array.from({ length: 7 }, (_, index) => ({
+    startedAt: 1000 + index * 100,
+    endedAt: 1100 + index * 100,
+    side: 'right',
+  }));
+
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-7`), {
+    id: 'feeding-7',
+    startedAt: 1000,
+    endedAt: 1700,
+    side: 'right',
+    periods,
+  }));
+});
+
+test('a validação também protege a coleção legada de cada usuário', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(setDoc(doc(db, `users/${userA}/feedings/invalid-legacy`), {
+    id: 'invalid-legacy',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: [],
+  }));
 });
 
 test('nega mamada aberta sem lock de atividade', async () => {

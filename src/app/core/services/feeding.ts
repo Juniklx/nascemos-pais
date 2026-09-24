@@ -5,11 +5,12 @@ import {
   signal,
 } from '@angular/core';
 
-import type {
-  Feeding,
-  FeedingDurations,
-  FeedingPeriod,
-  FeedingSide,
+import {
+  MAX_FEEDING_PERIODS,
+  type Feeding,
+  type FeedingDurations,
+  type FeedingPeriod,
+  type FeedingSide,
 } from '../models/feeding';
 
 import {
@@ -53,6 +54,14 @@ export class FeedingService {
               null,
           ) ?? null,
     );
+
+  readonly periodLimitReached = computed(
+    () => (this.activeFeeding()?.periods?.length ?? 0) >= MAX_FEEDING_PERIODS,
+  );
+
+  readonly legacyOversized = computed(
+    () => (this.activeFeeding()?.periods?.length ?? 0) > MAX_FEEDING_PERIODS,
+  );
 
   readonly completedFeedings =
     computed(
@@ -172,6 +181,12 @@ export class FeedingService {
       return true;
     }
 
+    // As Firestore Rules validam cada posição até este limite.
+    // Preservamos a mamada em andamento e permitimos finalizá-la.
+    if (periods.length >= MAX_FEEDING_PERIODS) {
+      return false;
+    }
+
     if (this.savingState()) {
       return false;
     }
@@ -254,7 +269,9 @@ export class FeedingService {
     const active =
       this.activeFeeding();
 
-    if (!active) {
+    if (!active || (active.periods?.length ?? 0) > MAX_FEEDING_PERIODS) {
+      // Não regravar, truncar ou tentar finalizar registros antigos maiores
+      // do que o formato atualmente autorizado pelas Firestore Rules.
       return null;
     }
 
@@ -344,7 +361,9 @@ export class FeedingService {
 
     if (
       !current ||
-      current.endedAt === null
+      current.endedAt === null ||
+      (current.periods?.length ?? 0) > MAX_FEEDING_PERIODS ||
+      (record.periods?.length ?? 0) > MAX_FEEDING_PERIODS
     ) {
       return false;
     }

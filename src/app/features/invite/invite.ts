@@ -183,6 +183,7 @@ export class InvitePage implements OnInit {
         case 'Este convite já foi utilizado.':
         case 'Este convite expirou.':
         case 'Esta conta já está vinculada a outro bebê.':
+        case 'Conclua a migração do seu bebê antes de aceitar este convite.':
         case 'O proprietário não pode aceitar o próprio convite.':
           return error.message;
       }

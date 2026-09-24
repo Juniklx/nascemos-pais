@@ -20,6 +20,8 @@ describe('BabyInviteRepository', () => {
   let firestore: {
     get: jasmine.Spy;
 
+    getFromServer: jasmine.Spy;
+
     set: jasmine.Spy;
 
     batchSet: jasmine.Spy;
@@ -50,9 +52,11 @@ describe('BabyInviteRepository', () => {
       uid: 'user-a',
     } as User);
 
-    firestore = jasmine.createSpyObj('FirestoreGateway', ['get', 'set', 'batchSet']);
+    firestore = jasmine.createSpyObj('FirestoreGateway', ['get', 'getFromServer', 'set', 'batchSet']);
 
     firestore.get.and.resolveTo(null);
+
+    firestore.getFromServer.and.callFake(async (path: string) => firestore.get(path));
 
     firestore.set.and.resolveTo();
 
@@ -206,6 +210,8 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: 'Marcelo',
+          babyName: '',
+          babyBirthDate: '',
         };
       }
 
@@ -330,6 +336,8 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: 'Marcelo',
+          babyName: '',
+          babyBirthDate: '',
         };
       }
 
@@ -356,6 +364,8 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: '',
+          babyName: '',
+          babyBirthDate: '',
         };
       }
 
@@ -378,6 +388,8 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: 'Marcelo',
+          babyName: '',
+          babyBirthDate: '',
         };
       }
 
@@ -406,6 +418,50 @@ describe('BabyInviteRepository', () => {
     });
   });
 
+  it('bloqueia conta legada com bebê ainda não migrado antes de escrever', async () => {
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === `babyInvites/${token}`) {
+        return pendingInvite();
+      }
+
+      if (path === 'users/user-a') {
+        return { caregiverName: 'Marcelo', babyName: 'Bebê legado', babyBirthDate: '2026-01-01' };
+      }
+
+      return null;
+    });
+
+    await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
+      'Conclua a migração do seu bebê antes de aceitar este convite.',
+    );
+    expect(firestore.batchSet).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia conta com migração interrompida ou dados parciais', async () => {
+    for (const profile of [
+      { caregiverName: 'Marcelo', babyName: 'Parcial', babyBirthDate: '' },
+      { caregiverName: 'Marcelo', babyName: '', babyBirthDate: '', activeBabyId: 'baby-antigo' },
+    ]) {
+      firestore.get.and.callFake(async (path: string) =>
+        path === `babyInvites/${token}` ? pendingInvite() : profile,
+      );
+
+      await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
+        'Conclua a migração do seu bebê antes de aceitar este convite.',
+      );
+    }
+
+    expect(firestore.batchSet).not.toHaveBeenCalled();
+  });
+
+  it('não confia em cache quando a verificação da migração falha', async () => {
+    firestore.get.and.returnValue(Promise.resolve(pendingInvite()));
+    firestore.getFromServer.and.rejectWith(new Error('offline'));
+
+    await expectAsync(repository.acceptInvite(token)).toBeRejected();
+    expect(firestore.batchSet).not.toHaveBeenCalled();
+  });
+
   it('aceita convite mesmo quando outro bebê já está ativo', async () => {
     firestore.get.and.callFake(async (path: string) => {
       if (path === `babyInvites/${token}`) {
@@ -415,7 +471,10 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: 'Marcelo',
+          babyName: '',
+          babyBirthDate: '',
           activeBabyId: 'baby-2',
+          babyMigrationVersion: 1,
         };
       }
 

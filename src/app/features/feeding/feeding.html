@@ -104,21 +104,33 @@
 
       <div class="side-options">
         <button type="button" [class.is-selected]="feeding.side === null" [attr.aria-pressed]="feeding.side === null"
-          (click)="setSide(null)" [disabled]="isSaving()">
+          (click)="setSide(null)" [disabled]="isSaving() || periodLimitReached()">
           Não informar
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'left'"
-          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving()">
+          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving() || periodLimitReached()">
           Esquerdo
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'right'"
-          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving()">
+          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving() || periodLimitReached()">
           Direito
         </button>
       </div>
 
+      @if (legacyOversized()) {
+      <p class="hint" role="alert">
+        Esta mamada antiga tem mais de 6 períodos. Seus horários foram preservados,
+        mas ela não pode ser alterada nem finalizada nesta versão. Aguarde a
+        migração segura; não exclua o registro para contornar essa restrição.
+      </p>
+      } @else if (periodLimitReached()) {
+      <p class="hint" role="status">
+        Esta mamada atingiu o limite de 6 períodos. Finalize-a para salvar
+        os horários registrados antes de iniciar um novo acompanhamento.
+      </p>
+      } @else {
       <p class="hint">
         @if (feeding.periods === null) {
         Selecione um lado para começar a acompanhar
@@ -128,9 +140,10 @@
         O tempo anterior será mantido.
         }
       </p>
+      }
     </fieldset>
 
-    <button type="button" class="primary-button" [disabled]="isSaving()" (click)="finish()">
+    <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized()" (click)="finish()">
       {{ isSaving() ? 'Salvando...' : 'Finalizar mamada' }}
     </button>
 

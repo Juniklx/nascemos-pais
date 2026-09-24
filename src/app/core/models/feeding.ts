@@ -1,3 +1,5 @@
+export const MAX_FEEDING_PERIODS = 6;
+
 export type FeedingSide = 'left' | 'right';
 
 export interface FeedingPeriod {

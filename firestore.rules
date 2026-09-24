@@ -122,6 +122,26 @@ service cloud.firestore {
         && inviteId.size() <= 128;
     }
 
+    function canAcceptInviteWithoutSkippingMigration() {
+      let profile = get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      ).data;
+
+      return (
+          'babyMigrationVersion' in profile
+          && profile.babyMigrationVersion == 1
+          && 'activeBabyId' in profile
+          && profile.activeBabyId is string
+          && profile.activeBabyId.size() > 0
+        )
+        || (
+          !('babyMigrationVersion' in profile)
+          && !('activeBabyId' in profile)
+          && profile.babyName == ''
+          && profile.babyBirthDate == ''
+        );
+    }
+
     function isAcceptingInviteForBaby(
       babyId,
       memberId
@@ -143,6 +163,7 @@ service cloud.firestore {
 
       return isAuthenticated()
         && memberId == request.auth.uid
+        && canAcceptInviteWithoutSkippingMigration()
         && 'inviteId' in request.resource.data
         && isValidInviteId(
           request.resource.data.inviteId
@@ -186,7 +207,8 @@ service cloud.firestore {
 
     function isValidTimestamp(value) {
       return value is int
-        && value >= 0;
+        && value >= 0
+        && value <= 8640000000000000;
     }
 
     function isNullableTimestamp(value) {
@@ -403,6 +425,7 @@ service cloud.firestore {
         ).data;
 
       return isAuthenticated()
+        && canAcceptInviteWithoutSkippingMigration()
         && isValidInviteId(
           inviteId
         )
@@ -521,6 +544,64 @@ service cloud.firestore {
         );
     }
 
+    /*
+     * Firestore Rules não possuem um iterador de validação para listas.
+     * Limitamos o registro novo a 6 períodos para validar cada posição,
+     * mantendo períodos nulos dos registros legados como antes.
+     */
+    function isValidFeedingPeriod(period) {
+      return period is map
+        && period.keys().hasOnly(['startedAt', 'endedAt', 'side'])
+        && period.keys().hasAll(['startedAt', 'endedAt', 'side'])
+        && isValidTimestamp(period.startedAt)
+        && (
+          period.endedAt == null
+          || (
+            isValidTimestamp(period.endedAt)
+            && period.endedAt >= period.startedAt
+          )
+        )
+        && isValidSide(period.side);
+    }
+
+    function isValidFollowingPeriod(periods, index) {
+      return isValidFeedingPeriod(periods[index])
+        && periods[index].startedAt == periods[index - 1].endedAt;
+    }
+
+    function isValidFeedingPeriods(periods, startedAt, endedAt, side) {
+      return periods == null
+        || (
+          periods is list
+          && periods.size() > 0
+          && periods.size() <= 6
+          && isValidFeedingPeriod(periods[0])
+          && periods[0].startedAt >= startedAt
+        && (
+          periods.size() <= 1
+          || isValidFollowingPeriod(periods, 1)
+        )
+        && (
+          periods.size() <= 2
+          || isValidFollowingPeriod(periods, 2)
+        )
+        && (
+          periods.size() <= 3
+          || isValidFollowingPeriod(periods, 3)
+        )
+        && (
+          periods.size() <= 4
+          || isValidFollowingPeriod(periods, 4)
+        )
+        && (
+          periods.size() <= 5
+          || isValidFollowingPeriod(periods, 5)
+        )
+          && periods[periods.size() - 1].endedAt == endedAt
+          && periods[periods.size() - 1].side == side
+        );
+    }
+
     function isValidFeeding(data, feedingId) {
       return data.keys().hasOnly([
           'id',
@@ -547,9 +628,11 @@ service cloud.firestore {
           || data.endedAt >= data.startedAt
         )
         && isValidSide(data.side)
-        && (
-          data.periods == null
-          || data.periods is list
+        && isValidFeedingPeriods(
+          data.periods,
+          data.startedAt,
+          data.endedAt,
+          data.side
         )
         && isValidAttribution(data, true);
     }

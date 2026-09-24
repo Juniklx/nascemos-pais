@@ -127,11 +127,17 @@ export class BabyInviteRepository {
 
     this.validateId(invite.babyId);
 
-    const profile = await this.firestore.get(this.userPath(uid));
+    // Não aceite convites com dados legados ainda pendentes de migração.
+    // A leitura direta do servidor evita tomar essa decisão com um cache antigo.
+    const profile = await this.firestore.getFromServer(this.userPath(uid));
 
     this.assertSameUser(uid);
 
-    const caregiverName = profile?.['caregiverName'];
+    if (profile === null || !this.isSafeToAcceptInvite(profile)) {
+      throw new Error('Conclua a migração do seu bebê antes de aceitar este convite.');
+    }
+
+    const caregiverName = profile['caregiverName'];
 
     if (
       typeof caregiverName !== 'string' ||
@@ -227,6 +233,20 @@ export class BabyInviteRepository {
     this.assertSameUser(uid);
 
     return invite.babyId;
+  }
+
+  private isSafeToAcceptInvite(profile: DocumentData): boolean {
+    if (profile['babyMigrationVersion'] === 1) {
+      return typeof profile['activeBabyId'] === 'string' && profile['activeBabyId'].trim() !== '';
+    }
+
+    // Conta nova com onboarding pessoal concluído e sem bebê cadastrado.
+    // Qualquer dado parcial, bebê ativo ou migração interrompida exige revisão.
+    return (
+      !('activeBabyId' in profile) &&
+      profile['babyName'] === '' &&
+      profile['babyBirthDate'] === ''
+    );
   }
 
   private parseInvite(id: string, data: DocumentData): BabyInvite {
