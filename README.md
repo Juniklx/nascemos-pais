@@ -219,6 +219,11 @@ A exclusão definitiva de conta exige backend confiável e tratamento especial p
 compartilhados; está registrada na issue #49. Os prazos operacionais, a política de
 backups e eventuais hipóteses de conservação ainda exigem definição e revisão jurídica.
 
+A prévia de exclusão de `/meus-dados` consulta os vínculos no servidor, sem apagar
+registros e sem garantir que eventuais referências órfãs foram identificadas. O desenho
+do processamento seguro, as limitações dessa prévia e os testes necessários estão
+descritos em [docs/privacy/account-deletion.md](docs/privacy/account-deletion.md).
+
 ## Tecnologias
 
 - Angular 20
