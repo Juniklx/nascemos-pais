@@ -1,10 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
+import type { BabyMember } from '../models/baby';
 import type { Diaper, DiaperType } from '../models/diaper';
 import type { Feeding, FeedingPeriod, FeedingSide } from '../models/feeding';
 import type { Sleep } from '../models/sleep';
 import { AuthService } from './auth';
 import { BabyContextService } from './baby-context';
-import { BabyDataRepository } from './baby-data.repository';
+import { BabyDataRepository, type BabyRecordCollection } from './baby-data.repository';
 import { UserDataRepository } from './user-data.repository';
 
 export interface ActivitySnapshot {
@@ -20,6 +21,21 @@ interface ActivityState {
   readonly ready: boolean;
   readonly loading: boolean;
   readonly error: string | null;
+}
+
+export type RealtimeStatus = 'idle' | 'connecting' | 'live' | 'error';
+
+interface ActiveListeners {
+  readonly uid: string;
+  readonly babyId: string;
+  readonly unsubscribe: Array<() => void>;
+  readonly fromServer: Set<BabyRecordCollection>;
+}
+
+interface MemberState {
+  readonly uid: string | null;
+  readonly babyId: string | null;
+  readonly members: readonly BabyMember[];
 }
 
 interface ActivityLoadResult {
@@ -38,6 +54,7 @@ const EMPTY_SNAPSHOT: ActivitySnapshot = {
 })
 export class ActivityPersistenceService {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly babyContext = inject(BabyContextService);
   private readonly babies = inject(BabyDataRepository);
 
@@ -64,7 +81,69 @@ export class ActivityPersistenceService {
   });
 
   private loadingUid: string | null = null;
+  private loadingBabyId: string | null = null;
   private loadPromise: Promise<ActivityLoadResult> | null = null;
+  private loadGeneration = 0;
+  private listeners: ActiveListeners | null = null;
+
+  private readonly realtime = signal<{
+    readonly uid: string | null;
+    readonly babyId: string | null;
+    readonly status: RealtimeStatus;
+  }>({ uid: null, babyId: null, status: 'idle' });
+
+  private readonly memberState = signal<MemberState>({
+    uid: null,
+    babyId: null,
+    members: [],
+  });
+
+  readonly realtimeStatus = computed<RealtimeStatus>(() => {
+    const status = this.realtime();
+
+    return status.uid === this.auth.user()?.uid &&
+      status.babyId === this.babyContext.activeBabyId()
+      ? status.status
+      : 'idle';
+  });
+
+  constructor() {
+    effect(() => {
+      const uid = this.auth.user()?.uid ?? null;
+      const babyId = this.babyContext.activeBabyId();
+
+      if (this.listeners && (this.listeners.uid !== uid || this.listeners.babyId !== babyId)) {
+        this.stopListening();
+      }
+    });
+
+    this.destroyRef.onDestroy(() => this.stopListening());
+  }
+
+  actorName(uid?: string): string | null {
+    if (!uid) {
+      return null;
+    }
+
+    const state = this.memberState();
+
+    if (state.uid !== this.auth.user()?.uid || state.babyId !== this.babyContext.activeBabyId()) {
+      return 'Responsável';
+    }
+
+    const member = state.members.find((item) => item.uid === uid);
+
+    return member?.caregiverName?.trim() || (member?.role === 'owner' ? 'Proprietário' : 'Responsável');
+  }
+
+  retryRealtime(): void {
+    const current = this.state();
+
+    if (current.ready && current.uid === this.auth.user()?.uid &&
+      current.babyId === this.babyContext.activeBabyId() && current.uid && current.babyId) {
+      this.startListening(current.uid, current.babyId);
+    }
+  }
 
   readonly snapshot = computed<ActivitySnapshot>(() => {
     const uid = this.auth.user()?.uid ?? null;
@@ -121,6 +200,7 @@ export class ActivityPersistenceService {
     const uid = this.auth.user()?.uid;
 
     if (!uid) {
+      this.stopListening();
       this.state.set({
         uid: null,
         babyId: null,
@@ -142,14 +222,24 @@ export class ActivityPersistenceService {
       current.babyId === activeBabyId &&
       current.ready
     ) {
+      if (!this.listeners || this.realtimeStatus() === 'error') {
+        this.startListening(uid, activeBabyId);
+      }
+
       return current.snapshot;
     }
 
-    if (this.loadingUid === uid && this.loadPromise !== null) {
+    if (this.loadingUid === uid && this.loadPromise !== null &&
+      (this.loadingBabyId === activeBabyId || activeBabyId === null)) {
       const result = await this.loadPromise;
+
+      this.assertSameContext(uid, result.babyId);
 
       return result.snapshot;
     }
+
+    this.stopListening();
+    const generation = ++this.loadGeneration;
 
     this.state.set({
       uid,
@@ -161,6 +251,7 @@ export class ActivityPersistenceService {
     });
 
     this.loadingUid = uid;
+    this.loadingBabyId = activeBabyId;
 
     const promise = this.loadForUser(uid);
 
@@ -171,6 +262,10 @@ export class ActivityPersistenceService {
 
       this.assertSameContext(uid, result.babyId);
 
+      if (generation !== this.loadGeneration) {
+        throw new Error('O carregamento anterior foi substituído.');
+      }
+
       this.state.set({
         uid,
         babyId: result.babyId,
@@ -180,9 +275,11 @@ export class ActivityPersistenceService {
         error: null,
       });
 
+      this.startListening(uid, result.babyId);
+
       return result.snapshot;
     } catch (error) {
-      if (this.auth.user()?.uid === uid) {
+      if (generation === this.loadGeneration && this.auth.user()?.uid === uid) {
         this.state.set({
           uid,
           babyId: null,
@@ -198,23 +295,34 @@ export class ActivityPersistenceService {
       if (this.loadPromise === promise) {
         this.loadPromise = null;
         this.loadingUid = null;
+        this.loadingBabyId = null;
       }
     }
   }
 
   async saveFeeding(feeding: Feeding): Promise<void> {
     const { uid, babyId, snapshot } = this.requireReadyState();
+    const previous = snapshot.feedings.find((item) => item.id === feeding.id);
+    const authored = previous === undefined ? { ...feeding, createdByUid: uid } :
+      previous.createdByUid ? { ...feeding, createdByUid: previous.createdByUid } : feeding;
+    const saved = previous?.endedAt === null && feeding.endedAt !== null
+      ? { ...authored, finishedByUid: uid }
+      : previous?.finishedByUid
+        ? { ...authored, finishedByUid: previous.finishedByUid }
+        : authored;
 
     this.clearError(uid, babyId);
 
     try {
-      await this.babies.saveRecord(babyId, 'feedings', feeding);
+      await this.babies.saveRecord(babyId, 'feedings', saved);
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        feedings: this.upsertFeeding(snapshot.feedings, feeding),
+        ...latest,
+        feedings: this.upsertFeeding(latest.feedings, saved),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -224,7 +332,7 @@ export class ActivityPersistenceService {
   }
 
   async deleteFeeding(id: string): Promise<void> {
-    const { uid, babyId, snapshot } = this.requireReadyState();
+    const { uid, babyId } = this.requireReadyState();
 
     this.clearError(uid, babyId);
 
@@ -233,9 +341,11 @@ export class ActivityPersistenceService {
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        feedings: snapshot.feedings.filter((feeding) => feeding.id !== id),
+        ...latest,
+        feedings: latest.feedings.filter((feeding) => feeding.id !== id),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -246,17 +356,27 @@ export class ActivityPersistenceService {
 
   async saveSleep(sleep: Sleep): Promise<void> {
     const { uid, babyId, snapshot } = this.requireReadyState();
+    const previous = snapshot.sleeps.find((item) => item.id === sleep.id);
+    const authored = previous === undefined ? { ...sleep, createdByUid: uid } :
+      previous.createdByUid ? { ...sleep, createdByUid: previous.createdByUid } : sleep;
+    const saved = previous?.endedAt === null && sleep.endedAt !== null
+      ? { ...authored, finishedByUid: uid }
+      : previous?.finishedByUid
+        ? { ...authored, finishedByUid: previous.finishedByUid }
+        : authored;
 
     this.clearError(uid, babyId);
 
     try {
-      await this.babies.saveRecord(babyId, 'sleeps', sleep);
+      await this.babies.saveRecord(babyId, 'sleeps', saved);
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        sleeps: this.upsertSleep(snapshot.sleeps, sleep),
+        ...latest,
+        sleeps: this.upsertSleep(latest.sleeps, saved),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -266,7 +386,7 @@ export class ActivityPersistenceService {
   }
 
   async deleteSleep(id: string): Promise<void> {
-    const { uid, babyId, snapshot } = this.requireReadyState();
+    const { uid, babyId } = this.requireReadyState();
 
     this.clearError(uid, babyId);
 
@@ -275,9 +395,11 @@ export class ActivityPersistenceService {
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        sleeps: snapshot.sleeps.filter((sleep) => sleep.id !== id),
+        ...latest,
+        sleeps: latest.sleeps.filter((sleep) => sleep.id !== id),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -288,17 +410,22 @@ export class ActivityPersistenceService {
 
   async saveDiaper(diaper: Diaper): Promise<void> {
     const { uid, babyId, snapshot } = this.requireReadyState();
+    const previous = snapshot.diapers.find((item) => item.id === diaper.id);
+    const authored = previous === undefined ? { ...diaper, createdByUid: uid } :
+      previous.createdByUid ? { ...diaper, createdByUid: previous.createdByUid } : diaper;
 
     this.clearError(uid, babyId);
 
     try {
-      await this.babies.saveRecord(babyId, 'diapers', diaper);
+      await this.babies.saveRecord(babyId, 'diapers', authored);
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        diapers: this.upsertDiaper(snapshot.diapers, diaper),
+        ...latest,
+        diapers: this.upsertDiaper(latest.diapers, authored),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -308,7 +435,7 @@ export class ActivityPersistenceService {
   }
 
   async deleteDiaper(id: string): Promise<void> {
-    const { uid, babyId, snapshot } = this.requireReadyState();
+    const { uid, babyId } = this.requireReadyState();
 
     this.clearError(uid, babyId);
 
@@ -317,9 +444,11 @@ export class ActivityPersistenceService {
 
       this.assertSameContext(uid, babyId);
 
+      const latest = this.snapshot();
+
       this.updateSnapshot(uid, babyId, {
-        ...snapshot,
-        diapers: snapshot.diapers.filter((diaper) => diaper.id !== id),
+        ...latest,
+        diapers: latest.diapers.filter((diaper) => diaper.id !== id),
       });
     } catch (error) {
       this.setSyncError(uid, babyId);
@@ -337,6 +466,108 @@ export class ActivityPersistenceService {
     }
 
     this.clearError(uid, babyId);
+  }
+
+  private startListening(uid: string, babyId: string): void {
+    this.stopListening();
+
+    const listeners: ActiveListeners = {
+      uid,
+      babyId,
+      unsubscribe: [],
+      fromServer: new Set<BabyRecordCollection>(),
+    };
+
+    this.listeners = listeners;
+    this.realtime.set({ uid, babyId, status: 'connecting' });
+    this.memberState.set({ uid, babyId, members: [] });
+
+    for (const collectionName of ['feedings', 'sleeps', 'diapers'] as const) {
+      try {
+        const unsubscribe = this.babies.watchRecords<Feeding | Sleep | Diaper>(
+          babyId,
+          collectionName,
+          (records, fromCache, hasPendingWrites) => {
+            if (!this.isCurrentListener(listeners) || hasPendingWrites) {
+              return;
+            }
+
+            try {
+              const current = this.state();
+              const snapshot = this.normalizeSnapshot(
+                { ...current.snapshot, [collectionName]: records },
+                true,
+              );
+
+              this.state.set({ ...current, snapshot });
+
+              if (!fromCache) {
+                listeners.fromServer.add(collectionName);
+              }
+
+              if (listeners.fromServer.size === 3) {
+                this.realtime.set({ uid, babyId, status: 'live' });
+              }
+            } catch {
+              this.failListening(listeners);
+            }
+          },
+          () => this.failListening(listeners),
+        );
+
+        listeners.unsubscribe.push(unsubscribe);
+      } catch {
+        this.failListening(listeners);
+        return;
+      }
+    }
+
+    try {
+      const unsubscribe = this.babies.watchMembers(
+        babyId,
+        (members) => {
+          if (this.isCurrentListener(listeners)) {
+            this.memberState.set({ uid, babyId, members });
+          }
+        },
+        () => {
+          // Falhas na lista de membros não devem interromper os registros.
+        },
+      );
+
+      listeners.unsubscribe.push(unsubscribe);
+    } catch {
+      // Os nomes são opcionais; o acompanhamento das atividades continua funcionando.
+    }
+  }
+
+  private isCurrentListener(listeners: ActiveListeners): boolean {
+    return this.listeners === listeners && this.auth.user()?.uid === listeners.uid &&
+      this.babyContext.activeBabyId() === listeners.babyId;
+  }
+
+  private failListening(listeners: ActiveListeners): void {
+    if (!this.isCurrentListener(listeners)) {
+      return;
+    }
+
+    this.stopListening();
+    this.realtime.set({ uid: listeners.uid, babyId: listeners.babyId, status: 'error' });
+    this.setSyncError(listeners.uid, listeners.babyId);
+  }
+
+  private stopListening(): void {
+    const previous = this.listeners;
+    this.listeners = null;
+
+    if (previous) {
+      for (const unsubscribe of previous.unsubscribe) {
+        unsubscribe();
+      }
+    }
+
+    this.realtime.set({ uid: null, babyId: null, status: 'idle' });
+    this.memberState.set({ uid: null, babyId: null, members: [] });
   }
 
   private async loadForUser(uid: string): Promise<ActivityLoadResult> {
@@ -712,6 +943,7 @@ export class ActivityPersistenceService {
       startedAt,
       endedAt,
       side,
+      ...this.parseAttribution(value),
     };
 
     if (legacy) {
@@ -808,6 +1040,7 @@ export class ActivityPersistenceService {
       id,
       startedAt,
       endedAt,
+      ...this.parseAttribution(value),
     };
   }
 
@@ -834,7 +1067,31 @@ export class ActivityPersistenceService {
       id,
       type,
       recordedAt,
+      ...this.parseAttribution(value, false),
     };
+  }
+
+  private parseAttribution(
+    value: Record<string, unknown>,
+    allowFinish = true,
+  ): { createdByUid?: string; finishedByUid?: string } {
+    const attribution: { createdByUid?: string; finishedByUid?: string } = {};
+
+    for (const field of ['createdByUid', ...(allowFinish ? ['finishedByUid'] : [])] as const) {
+      if (!(field in value)) {
+        continue;
+      }
+
+      const uid = value[field];
+
+      if (typeof uid !== 'string' || uid.trim().length === 0 || uid.includes('/')) {
+        throw new Error('Autoria de atividade inválida.');
+      }
+
+      attribution[field] = uid;
+    }
+
+    return attribution;
   }
 
   private isObject(value: unknown): value is Record<string, unknown> {
