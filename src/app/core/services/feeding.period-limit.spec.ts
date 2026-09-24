@@ -66,6 +66,33 @@ describe('FeedingService: limite de períodos', () => {
     expect(saveFeeding).toHaveBeenCalledTimes(1);
   });
 
+  it('preserva uma mamada legada acima do limite sem tentar regravar ou finalizar', async () => {
+    const original = ongoingFeeding(MAX_FEEDING_PERIODS + 1);
+    feedings.set([original]);
+
+    expect(service.legacyOversized()).toBeTrue();
+    expect(service.periodLimitReached()).toBeTrue();
+    expect(await service.setSide('right')).toBeFalse();
+    expect(await service.finish()).toBeNull();
+    expect(saveFeeding).not.toHaveBeenCalled();
+    expect(service.activeFeeding()).toEqual(original);
+  });
+
+  it('bloqueia edição de mamada legada concluída acima do limite', async () => {
+    const completed: Feeding = {
+      ...ongoingFeeding(MAX_FEEDING_PERIODS + 1),
+      endedAt: 1800,
+      periods: ongoingFeeding(MAX_FEEDING_PERIODS + 1).periods?.map((period, index, array) =>
+        index === array.length - 1 ? { ...period, endedAt: 1800 } : period,
+      ) ?? null,
+    };
+    feedings.set([completed]);
+
+    expect(await service.updateCompleted(completed)).toBeFalse();
+    expect(saveFeeding).not.toHaveBeenCalled();
+    expect(service.feedings()[0].periods?.length).toBe(MAX_FEEDING_PERIODS + 1);
+  });
+
   it('permite adicionar o último período autorizado', async () => {
     feedings.set([ongoingFeeding(MAX_FEEDING_PERIODS - 1)]);
 

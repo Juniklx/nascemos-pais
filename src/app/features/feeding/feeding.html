@@ -119,7 +119,13 @@
         </button>
       </div>
 
-      @if (periodLimitReached()) {
+      @if (legacyOversized()) {
+      <p class="hint" role="alert">
+        Esta mamada antiga tem mais de 6 períodos. Seus horários foram preservados,
+        mas ela não pode ser alterada nem finalizada nesta versão. Aguarde a
+        migração segura; não exclua o registro para contornar essa restrição.
+      </p>
+      } @else if (periodLimitReached()) {
       <p class="hint" role="status">
         Esta mamada atingiu o limite de 6 períodos. Finalize-a para salvar
         os horários registrados antes de iniciar um novo acompanhamento.
@@ -137,7 +143,7 @@
       }
     </fieldset>
 
-    <button type="button" class="primary-button" [disabled]="isSaving()" (click)="finish()">
+    <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized()" (click)="finish()">
       {{ isSaving() ? 'Salvando...' : 'Finalizar mamada' }}
     </button>
 

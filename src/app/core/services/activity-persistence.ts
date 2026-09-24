@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angular/core';
 import type { BabyMember } from '../models/baby';
 import type { Diaper, DiaperType } from '../models/diaper';
-import type { Feeding, FeedingPeriod, FeedingSide } from '../models/feeding';
+import { MAX_FEEDING_PERIODS, type Feeding, type FeedingPeriod, type FeedingSide } from '../models/feeding';
 import type { Sleep } from '../models/sleep';
 import { AuthService } from './auth';
 import { BabyContextService } from './baby-context';
@@ -303,6 +303,14 @@ export class ActivityPersistenceService {
   async saveFeeding(feeding: Feeding): Promise<void> {
     const { uid, babyId, snapshot } = this.requireReadyState();
     const previous = snapshot.feedings.find((item) => item.id === feeding.id);
+
+    if (
+      (previous?.periods?.length ?? 0) > MAX_FEEDING_PERIODS ||
+      (feeding.periods?.length ?? 0) > MAX_FEEDING_PERIODS
+    ) {
+      throw new Error('Este registro possui mais de 6 períodos e deve ser migrado sem perda de dados.');
+    }
+
     const authored = previous === undefined ? { ...feeding, createdByUid: uid } :
       previous.createdByUid ? { ...feeding, createdByUid: previous.createdByUid } : feeding;
     const saved = previous?.endedAt === null && feeding.endedAt !== null

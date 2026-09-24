@@ -59,6 +59,10 @@ export class FeedingService {
     () => (this.activeFeeding()?.periods?.length ?? 0) >= MAX_FEEDING_PERIODS,
   );
 
+  readonly legacyOversized = computed(
+    () => (this.activeFeeding()?.periods?.length ?? 0) > MAX_FEEDING_PERIODS,
+  );
+
   readonly completedFeedings =
     computed(
       () =>
@@ -265,7 +269,9 @@ export class FeedingService {
     const active =
       this.activeFeeding();
 
-    if (!active) {
+    if (!active || (active.periods?.length ?? 0) > MAX_FEEDING_PERIODS) {
+      // Não regravar, truncar ou tentar finalizar registros antigos maiores
+      // do que o formato atualmente autorizado pelas Firestore Rules.
       return null;
     }
 
@@ -355,7 +361,9 @@ export class FeedingService {
 
     if (
       !current ||
-      current.endedAt === null
+      current.endedAt === null ||
+      (current.periods?.length ?? 0) > MAX_FEEDING_PERIODS ||
+      (record.periods?.length ?? 0) > MAX_FEEDING_PERIODS
     ) {
       return false;
     }
