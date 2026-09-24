@@ -1,4 +1,4 @@
-export const MAX_FEEDING_PERIODS = 32;
+export const MAX_FEEDING_PERIODS = 24;
 
 export type FeedingSide = 'left' | 'right';
 
