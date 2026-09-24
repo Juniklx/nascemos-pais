@@ -1,73 +1,48 @@
 import { Component, inject } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
-import {
-  Router,
-  RouterLink,
-} from '@angular/router';
-
-import {
-  AuthService,
-} from '../../../core/services/auth';
-import {
-  OnboardingService,
-} from '../../../core/services/onboarding';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../../core/services/auth';
+import { OnboardingService } from '../../../core/services/onboarding';
+import { normalizeInviteReturnUrl } from '../../../core/utils/invite-return-url';
 
 @Component({
   selector: 'app-register',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-  ],
+
+  imports: [ReactiveFormsModule, RouterLink],
+
   templateUrl: './register.html',
+
   styleUrl: '../auth.css',
 })
 export class RegisterPage {
-  private readonly router =
-    inject(Router);
+  private readonly router = inject(Router);
 
-  private readonly onboarding =
-    inject(OnboardingService);
+  private readonly route = inject(ActivatedRoute);
 
-  readonly auth =
-    inject(AuthService);
+  private readonly onboarding = inject(OnboardingService);
+
+  readonly auth = inject(AuthService);
+
+  readonly returnUrl = normalizeInviteReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
 
   readonly form = new FormGroup({
-    email: new FormControl(
-      '',
-      {
-        nonNullable: true,
-        validators: [
-          Validators.required,
-          Validators.email,
-        ],
-      },
-    ),
+    email: new FormControl('', {
+      nonNullable: true,
 
-    password: new FormControl(
-      '',
-      {
-        nonNullable: true,
-        validators: [
-          Validators.required,
-          Validators.minLength(6),
-        ],
-      },
-    ),
+      validators: [Validators.required, Validators.email],
+    }),
 
-    confirmPassword: new FormControl(
-      '',
-      {
-        nonNullable: true,
-        validators: [
-          Validators.required,
-        ],
-      },
-    ),
+    password: new FormControl('', {
+      nonNullable: true,
+
+      validators: [Validators.required, Validators.minLength(6)],
+    }),
+
+    confirmPassword: new FormControl('', {
+      nonNullable: true,
+
+      validators: [Validators.required],
+    }),
   });
 
   get email(): FormControl<string> {
@@ -83,11 +58,7 @@ export class RegisterPage {
   }
 
   get passwordsDoNotMatch(): boolean {
-    return (
-      this.confirmPassword.touched &&
-      this.password.value !==
-      this.confirmPassword.value
-    );
+    return this.confirmPassword.touched && this.password.value !== this.confirmPassword.value;
   }
 
   clearError(): void {
@@ -97,43 +68,58 @@ export class RegisterPage {
   async submit(): Promise<void> {
     this.auth.clearError();
 
-    if (
-      this.form.invalid ||
-      this.password.value !==
-      this.confirmPassword.value
-    ) {
+    if (this.form.invalid || this.password.value !== this.confirmPassword.value) {
       this.form.markAllAsTouched();
+
       return;
     }
 
-    const success =
-      await this.auth.register(
-        this.email.value,
-        this.password.value,
-      );
+    const success = await this.auth.register(this.email.value, this.password.value);
 
     if (!success) {
       return;
     }
 
-    await this.router.navigate([
-      '/onboarding/about-you',
-    ]);
+    await this.goToAboutYou();
   }
 
   async continueWithGoogle(): Promise<void> {
-    const success =
-      await this.auth.loginWithGoogle();
+    const success = await this.auth.loginWithGoogle();
 
     if (!success) {
       return;
     }
 
-    await this.onboarding
-      .ensureLoaded();
+    await this.onboarding.ensureLoaded();
 
-    await this.router.navigate([
-      this.onboarding.getIncompleteRoute(),
-    ]);
+    if (this.returnUrl !== null) {
+      const incompleteRoute = this.onboarding.getIncompleteRoute();
+
+      if (incompleteRoute === '/onboarding/about-you') {
+        await this.goToAboutYou();
+
+        return;
+      }
+
+      await this.router.navigateByUrl(this.returnUrl);
+
+      return;
+    }
+
+    await this.router.navigate([this.onboarding.getIncompleteRoute()]);
+  }
+
+  private async goToAboutYou(): Promise<void> {
+    if (this.returnUrl === null) {
+      await this.router.navigate(['/onboarding/about-you']);
+
+      return;
+    }
+
+    await this.router.navigate(['/onboarding/about-you'], {
+      queryParams: {
+        returnUrl: this.returnUrl,
+      },
+    });
   }
 }

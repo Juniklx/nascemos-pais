@@ -2,10 +2,204 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
     function isOwner(userId) {
-      return request.auth != null
+      return isAuthenticated()
         && request.auth.uid == userId;
+    }
+
+    function isBabyMember(babyId) {
+      return isAuthenticated()
+        && exists(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(request.auth.uid)
+        );
+    }
+
+    function isBabyOwner(babyId) {
+      return isBabyMember(babyId)
+        && get(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(request.auth.uid)
+        ).data.role == 'owner';
+    }
+
+    function isRemovingCaregiver(
+      babyId,
+      memberId
+    ) {
+      return isAuthenticated()
+        && request.auth.uid != memberId
+        && isBabyOwner(
+          babyId
+        )
+        && exists(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        )
+        && get(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        ).data.role == 'caregiver'
+        && !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(memberId)
+        );
+    }
+
+    function isValidAccessRemovedNotification(
+      data,
+      userId,
+      notificationId
+    ) {
+      return data.keys().hasOnly([
+          'type',
+          'babyId',
+          'babyName',
+          'createdAt',
+          'readAt'
+        ])
+        && data.keys().hasAll([
+          'type',
+          'babyId',
+          'babyName',
+          'createdAt',
+          'readAt'
+        ])
+        && data.type == 'baby-access-removed'
+        && data.babyId is string
+        && data.babyId.size() > 0
+        && data.babyId.size() <= 128
+        && notificationId
+          == 'baby-access-removed-' + data.babyId
+        && data.babyName is string
+        && data.babyName.size() >= 1
+        && data.babyName.size() <= 80
+        && data.babyName
+          == get(
+            /databases/$(database)/documents/babies/$(data.babyId)
+          ).data.name
+        && data.createdAt is timestamp
+        && data.createdAt == request.time
+        && data.readAt == null
+        && isRemovingCaregiver(
+          data.babyId,
+          userId
+        );
+    }
+
+    function hasAccessRemovedNotificationAfter(
+      babyId,
+      memberId
+    ) {
+      let notificationId =
+        'baby-access-removed-' + babyId;
+
+      return existsAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.type == 'baby-access-removed'
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.babyId == babyId
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.babyName
+          == get(
+            /databases/$(database)/documents/babies/$(babyId)
+          ).data.name
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.createdAt == request.time
+        && getAfter(
+          /databases/$(database)/documents/users/$(memberId)/notifications/$(notificationId)
+        ).data.readAt == null;
+    }
+
+    function isValidInviteId(inviteId) {
+      return inviteId is string
+        && inviteId.size() >= 32
+        && inviteId.size() <= 128;
+    }
+
+    function isAcceptingInviteForBaby(
+      babyId,
+      memberId
+    ) {
+      let invite =
+        get(
+          /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
+        ).data;
+
+      let acceptedInvite =
+        getAfter(
+          /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
+        ).data;
+
+      let currentProfile =
+        get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data;
+
+      let profile =
+        getAfter(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data;
+
+      return isAuthenticated()
+        && memberId == request.auth.uid
+        && 'inviteId' in request.resource.data
+        && isValidInviteId(
+          request.resource.data.inviteId
+        )
+
+        /*
+         * Estado anterior do convite.
+         */
+        && invite.status == 'pending'
+        && invite.babyId == babyId
+        && invite.createdByUid != request.auth.uid
+        && invite.expiresAt > request.time
+
+        /*
+         * Estado final obrigatório no
+         * mesmo batch/transaction.
+         */
+        && acceptedInvite.status == 'accepted'
+        && acceptedInvite.acceptedByUid == request.auth.uid
+        && acceptedInvite.acceptedAt == request.time
+        && acceptedInvite.babyId == babyId
+
+        /*
+         * Enquanto o MVP suporta somente um bebê
+         * ativo, um convite não pode substituir
+         * outro bebê já vinculado à conta.
+         */
+        && (
+          !(
+            'activeBabyId'
+            in currentProfile
+          )
+          || currentProfile.activeBabyId == babyId
+        )
+
+        /*
+         * O perfil deve passar a apontar
+         * para o mesmo bebê no mesmo lote.
+         */
+        && profile.activeBabyId == babyId;
+    }
+
+    function isCreatingInitialOwner(
+      babyId,
+      memberId
+    ) {
+      return isAuthenticated()
+        && memberId == request.auth.uid
+        && request.resource.data.role == 'owner'
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)
+        ).data.createdByUid == request.auth.uid;
     }
 
     function isValidTimestamp(value) {
@@ -35,7 +229,10 @@ service cloud.firestore {
           'updatedAt',
           'legacyMigrationVersion',
           'recordsMigrationVersion',
-          'recordsMigratedAt'
+          'recordsMigratedAt',
+          'activeBabyId',
+          'babyMigrationVersion',
+          'babyMigratedAt'
         ])
         && data.keys().hasAll([
           'caregiverName',
@@ -73,7 +270,176 @@ service cloud.firestore {
         && (
           !('recordsMigratedAt' in data)
           || data.recordsMigratedAt is string
+        )
+        && (
+          !('activeBabyId' in data)
+          || (
+            data.activeBabyId is string
+            && data.activeBabyId.size() > 0
+            && data.activeBabyId.size() <= 128
+          )
+        )
+        && (
+          !('babyMigrationVersion' in data)
+          || (
+            data.babyMigrationVersion is int
+            && data.babyMigrationVersion == 1
+          )
+        )
+        && (
+          !('babyMigratedAt' in data)
+          || data.babyMigratedAt is string
         );
+    }
+
+    function isValidBaby(data) {
+      return data.keys().hasOnly([
+          'name',
+          'birthDate',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'name',
+          'birthDate',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && data.birthDate is string
+        && data.birthDate.size() == 10
+        && data.createdByUid is string
+        && data.createdByUid.size() > 0
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidBabyMember(data) {
+      return data.keys().hasOnly([
+          'role',
+          'joinedAt',
+          'inviteId',
+          'caregiverName'
+        ])
+        && data.keys().hasAll([
+          'role',
+          'joinedAt'
+        ])
+        && (
+          data.role == 'owner'
+          || data.role == 'caregiver'
+        )
+        && data.joinedAt is string
+        && (
+          !('inviteId' in data)
+          || isValidInviteId(
+            data.inviteId
+          )
+        )
+        && (
+          !('caregiverName' in data)
+          || (
+            data.caregiverName is string
+            && data.caregiverName.size() >= 1
+            && data.caregiverName.size() <= 80
+          )
+        );
+    }
+
+    function isValidPendingInvite(data) {
+      return data.keys().hasOnly([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status'
+        ])
+        && data.keys().hasAll([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status'
+        ])
+        && data.babyId is string
+        && data.babyId.size() > 0
+        && data.babyId.size() <= 128
+        && data.createdByUid is string
+        && data.createdByUid == request.auth.uid
+        && data.createdAt is timestamp
+        && data.expiresAt is timestamp
+        && data.status == 'pending'
+        && data.createdAt <= request.time
+        && data.expiresAt > request.time
+        && data.expiresAt
+          <= request.time
+            + duration.value(
+              24,
+              'h'
+            );
+    }
+
+    function isValidInviteAcceptance(
+      inviteId
+    ) {
+      let acceptedMember =
+        getAfter(
+          /databases/$(database)/documents/babies/$(resource.data.babyId)/members/$(request.auth.uid)
+        ).data;
+
+      return isAuthenticated()
+        && isValidInviteId(
+          inviteId
+        )
+        && resource.data.status == 'pending'
+        && resource.data.expiresAt > request.time
+        && request.auth.uid != resource.data.createdByUid
+        && request.resource.data.keys().hasOnly([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status',
+          'acceptedByUid',
+          'acceptedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'babyId',
+          'createdByUid',
+          'createdAt',
+          'expiresAt',
+          'status',
+          'acceptedByUid',
+          'acceptedAt'
+        ])
+
+        /*
+         * Dados originais do convite
+         * permanecem imutáveis.
+         */
+        && request.resource.data.babyId == resource.data.babyId
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.expiresAt == resource.data.expiresAt
+
+        /*
+         * Única transição válida:
+         * pending -> accepted.
+         */
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.acceptedByUid == request.auth.uid
+        && request.resource.data.acceptedAt == request.time
+
+        /*
+         * O responsável precisa ser criado
+         * no mesmo batch/transaction.
+         */
+        && acceptedMember.role == 'caregiver'
+        && acceptedMember.inviteId == inviteId;
     }
 
     function isValidFeeding(data, feedingId) {
@@ -148,6 +514,142 @@ service cloud.firestore {
         && isValidTimestamp(data.recordedAt);
     }
 
+    /*
+     * Controle exclusivo das atividades
+     * que podem ficar em andamento.
+     */
+    function isValidActivityLock(data) {
+      return data.keys().hasOnly([
+          'recordId'
+        ])
+        && data.keys().hasAll([
+          'recordId'
+        ])
+        && data.recordId is string
+        && data.recordId.size() > 0
+        && data.recordId.size() <= 128;
+    }
+
+    function hasFeedingLockAfter(
+      babyId,
+      feedingId
+    ) {
+      return existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        ).data.recordId == feedingId;
+    }
+
+    function hasSleepLockAfter(
+      babyId,
+      sleepId
+    ) {
+      return existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        ).data.recordId == sleepId;
+    }
+
+    function isFeedingLockReleasedAfter(
+      babyId,
+      feedingId
+    ) {
+      return !exists(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        )
+        || get(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        ).data.recordId != feedingId
+        || !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/feeding
+        );
+    }
+
+    function isSleepLockReleasedAfter(
+      babyId,
+      sleepId
+    ) {
+      return !exists(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        )
+        || get(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        ).data.recordId != sleepId
+        || !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/activeActivities/sleep
+        );
+    }
+
+    function isValidFeedingLockAfter(
+      babyId,
+      data
+    ) {
+      return isValidActivityLock(
+          data
+        )
+        && existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        ).data.id == data.recordId
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(data.recordId)
+        ).data.endedAt == null;
+    }
+
+    function isValidSleepLockAfter(
+      babyId,
+      data
+    ) {
+      return isValidActivityLock(
+          data
+        )
+        && existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        ).data.id == data.recordId
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(data.recordId)
+        ).data.endedAt == null;
+    }
+
+    function isFeedingLockTargetClosedAfter(
+      babyId,
+      feedingId
+    ) {
+      return !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId)
+        )
+        || getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId)
+        ).data.endedAt != null;
+    }
+
+    function isSleepLockTargetClosedAfter(
+      babyId,
+      sleepId
+    ) {
+      return !existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(sleepId)
+        )
+        || getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/sleeps/$(sleepId)
+        ).data.endedAt != null;
+    }
+
+    /*
+     * Estrutura legada.
+     *
+     * Continua ativa durante a migração
+     * para a estrutura baseada em bebê.
+     */
     match /users/{userId} {
       allow read:
         if isOwner(userId);
@@ -160,6 +662,61 @@ service cloud.firestore {
 
       allow delete:
         if isOwner(userId);
+
+      match /notifications/{notificationId} {
+        allow read:
+          if isOwner(
+            userId
+          );
+
+        allow create:
+          if isValidAccessRemovedNotification(
+            request.resource.data,
+            userId,
+            notificationId
+          );
+
+        allow update:
+          if (
+            isValidAccessRemovedNotification(
+              request.resource.data,
+              userId,
+              notificationId
+            )
+          )
+          ||
+          (
+            isOwner(
+              userId
+            )
+            && request.resource.data.keys().hasOnly([
+              'type',
+              'babyId',
+              'babyName',
+              'createdAt',
+              'readAt'
+            ])
+            && request.resource.data.keys().hasAll([
+              'type',
+              'babyId',
+              'babyName',
+              'createdAt',
+              'readAt'
+            ])
+            && notificationId
+              == 'baby-access-removed-' + resource.data.babyId
+            && resource.data.type == 'baby-access-removed'
+            && request.resource.data.type == resource.data.type
+            && request.resource.data.babyId == resource.data.babyId
+            && request.resource.data.babyName == resource.data.babyName
+            && request.resource.data.createdAt == resource.data.createdAt
+            && resource.data.readAt == null
+            && request.resource.data.readAt == request.time
+          );
+
+        allow delete:
+          if false;
+      }
 
       match /feedings/{feedingId} {
         allow read:
@@ -204,6 +761,408 @@ service cloud.firestore {
 
         allow delete:
           if isOwner(userId);
+      }
+    }
+
+    /*
+     * Convites de compartilhamento.
+     */
+    match /babyInvites/{inviteId} {
+      allow get:
+        if isAuthenticated()
+        && (
+          resource.data.status == 'pending'
+          || resource.data.createdByUid == request.auth.uid
+          || (
+            resource.data.status == 'accepted'
+            && resource.data.acceptedByUid == request.auth.uid
+          )
+        );
+
+      allow list:
+        if false;
+
+      allow create:
+        if isAuthenticated()
+        && isValidInviteId(
+          inviteId
+        )
+        && isValidPendingInvite(
+          request.resource.data
+        )
+        && isBabyOwner(
+          request.resource.data.babyId
+        );
+
+      allow update:
+        if isValidInviteAcceptance(
+          inviteId
+        );
+
+      allow delete:
+        if isAuthenticated()
+        && resource.data.status == 'pending'
+        && isBabyOwner(
+          resource.data.babyId
+        );
+    }
+
+    match /babies/{babyId} {
+      allow create:
+        if isAuthenticated()
+        && isValidBaby(
+          request.resource.data
+        )
+        && request.resource.data.createdByUid == request.auth.uid;
+
+      allow read:
+        if isBabyMember(
+          babyId
+        );
+
+      allow update:
+        if isBabyOwner(
+          babyId
+        )
+        && isValidBaby(
+          request.resource.data
+        )
+        && request.resource.data.createdByUid
+          == resource.data.createdByUid
+        && request.resource.data.createdAt
+          == resource.data.createdAt;
+
+      /*
+       * Exclusão completa do bebê ainda
+       * não faz parte deste MVP.
+       */
+      allow delete:
+        if false;
+
+      match /members/{memberId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create:
+          if isValidBabyMember(
+            request.resource.data
+          )
+          && (
+            (
+              request.resource.data.role == 'caregiver'
+              && 'inviteId' in request.resource.data
+              && 'caregiverName' in request.resource.data
+              && isAcceptingInviteForBaby(
+                babyId,
+                memberId
+              )
+            )
+            ||
+            (
+              !(
+                'inviteId'
+                in request.resource.data
+              )
+              && isCreatingInitialOwner(
+                babyId,
+                memberId
+              )
+            )
+            ||
+            (
+              !(
+                'inviteId'
+                in request.resource.data
+              )
+              && isBabyOwner(
+                babyId
+              )
+              && request.resource.data.role == 'caregiver'
+            )
+          );
+
+        /*
+         * Um responsável pode alterar somente
+         * o próprio nome exibido no vínculo.
+         */
+        allow update:
+          if isAuthenticated()
+          && memberId == request.auth.uid
+          && resource.data.role == 'caregiver'
+          && isValidBabyMember(
+            request.resource.data
+          )
+          && 'caregiverName' in request.resource.data
+          && request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'caregiverName'
+          ]);
+
+        allow delete:
+          if isBabyOwner(
+            babyId
+          )
+          && memberId != request.auth.uid
+          && resource.data.role == 'caregiver'
+          && hasAccessRemovedNotificationAfter(
+            babyId,
+            memberId
+          );
+      }
+
+      /*
+       * Documento exclusivo que representa
+       * uma mamada ou sono ainda em andamento.
+       *
+       * Há no máximo um documento de cada tipo.
+       */
+      match /activeActivities/{activityType} {
+        allow read:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            activityType == 'feeding'
+            || activityType == 'sleep'
+          );
+
+        allow create:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            (
+              activityType == 'feeding'
+              && isValidFeedingLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidSleepLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+          );
+
+        /*
+         * Um lock existente nunca pode trocar
+         * diretamente para outro registro.
+         *
+         * Primeiro a atividade atual precisa
+         * ser encerrada e o lock removido.
+         */
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && request.resource.data.recordId
+            == resource.data.recordId
+          && (
+            (
+              activityType == 'feeding'
+              && isValidFeedingLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidSleepLockAfter(
+                babyId,
+                request.resource.data
+              )
+            )
+          );
+
+        /*
+         * O lock somente pode desaparecer se
+         * o registro correspondente tiver sido
+         * encerrado ou excluído na mesma operação.
+         */
+        allow delete:
+          if isBabyMember(
+            babyId
+          )
+          && (
+            (
+              activityType == 'feeding'
+              && isValidActivityLock(
+                resource.data
+              )
+              && isFeedingLockTargetClosedAfter(
+                babyId,
+                resource.data.recordId
+              )
+            )
+            ||
+            (
+              activityType == 'sleep'
+              && isValidActivityLock(
+                resource.data
+              )
+              && isSleepLockTargetClosedAfter(
+                babyId,
+                resource.data.recordId
+              )
+            )
+          );
+      }
+
+      match /feedings/{feedingId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        /*
+         * Uma mamada aberta só pode ser criada
+         * quando o lock do bebê aponta para ela.
+         */
+        allow create:
+          if isBabyMember(
+            babyId
+          )
+          && isValidFeeding(
+            request.resource.data,
+            feedingId
+          )
+          && (
+            request.resource.data.endedAt != null
+            || hasFeedingLockAfter(
+              babyId,
+              feedingId
+            )
+          );
+
+        /*
+         * Ao manter ou reabrir uma mamada,
+         * o lock precisa continuar apontando
+         * para o mesmo registro.
+         *
+         * Ao encerrar, o lock correspondente
+         * precisa ser removido.
+         */
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidFeeding(
+            request.resource.data,
+            feedingId
+          )
+          && (
+            (
+              request.resource.data.endedAt == null
+              && hasFeedingLockAfter(
+                babyId,
+                feedingId
+              )
+            )
+            ||
+            (
+              request.resource.data.endedAt != null
+              && isFeedingLockReleasedAfter(
+                babyId,
+                feedingId
+              )
+            )
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          )
+          && isFeedingLockReleasedAfter(
+            babyId,
+            feedingId
+          );
+      }
+
+      match /sleeps/{sleepId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create:
+          if isBabyMember(
+            babyId
+          )
+          && isValidSleep(
+            request.resource.data,
+            sleepId
+          )
+          && (
+            request.resource.data.endedAt != null
+            || hasSleepLockAfter(
+              babyId,
+              sleepId
+            )
+          );
+
+        allow update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidSleep(
+            request.resource.data,
+            sleepId
+          )
+          && (
+            (
+              request.resource.data.endedAt == null
+              && hasSleepLockAfter(
+                babyId,
+                sleepId
+              )
+            )
+            ||
+            (
+              request.resource.data.endedAt != null
+              && isSleepLockReleasedAfter(
+                babyId,
+                sleepId
+              )
+            )
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          )
+          && isSleepLockReleasedAfter(
+            babyId,
+            sleepId
+          );
+      }
+
+      match /diapers/{diaperId} {
+        allow read:
+          if isBabyMember(
+            babyId
+          );
+
+        allow create, update:
+          if isBabyMember(
+            babyId
+          )
+          && isValidDiaper(
+            request.resource.data,
+            diaperId
+          );
+
+        allow delete:
+          if isBabyMember(
+            babyId
+          );
       }
     }
   }

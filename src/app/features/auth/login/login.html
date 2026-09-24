@@ -1,35 +1,16 @@
 <main class="auth-page">
-  <section
-    class="auth-card"
-    aria-labelledby="login-title"
-  >
-    <a
-      class="auth-back"
-      routerLink="/"
-      aria-label="Voltar para a tela de boas-vindas"
-    >
+  <section class="auth-card" aria-labelledby="login-title">
+    <a class="auth-back" routerLink="/" aria-label="Voltar para a tela de boas-vindas">
       <span aria-hidden="true">←</span>
       Voltar
     </a>
 
     <div class="auth-brand">
-      <div
-        class="auth-brand__icon"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="9"
-          ></circle>
+      <div class="auth-brand__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9"></circle>
 
-          <path
-            d="M12 7V12L15 15"
-          ></path>
+          <path d="M12 7V12L15 15"></path>
         </svg>
       </div>
 
@@ -48,53 +29,33 @@
     </header>
 
     @if (auth.error(); as error) {
-      <p
-        class="auth-error"
-        role="alert"
-      >
-        {{ error }}
-      </p>
+    <p class="auth-error" role="alert">
+      {{ error }}
+    </p>
     }
 
-    <form
-      class="auth-form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      (input)="clearError()"
-      novalidate
-    >
+    <form class="auth-form" [formGroup]="form" (ngSubmit)="submit()" (input)="clearError()" novalidate>
       <div class="auth-field">
         <label for="login-email">
           E-mail
         </label>
 
-        <input
-          id="login-email"
-          type="email"
-          autocomplete="email"
-          placeholder="voce@exemplo.com"
-          formControlName="email"
+        <input id="login-email" type="email" autocomplete="email" placeholder="voce@exemplo.com" formControlName="email"
           [attr.aria-invalid]="
             email.touched && email.invalid
-          "
-          [attr.aria-describedby]="
+          " [attr.aria-describedby]="
             email.touched && email.invalid
               ? 'login-email-error'
               : null
-          "
-        />
+          " />
 
         @if (
-          email.touched &&
-          email.invalid
+        email.touched &&
+        email.invalid
         ) {
-          <p
-            id="login-email-error"
-            class="field-error"
-            role="alert"
-          >
-            Informe um e-mail válido.
-          </p>
+        <p id="login-email-error" class="field-error" role="alert">
+          Informe um e-mail válido.
+        </p>
         }
       </div>
 
@@ -103,73 +64,47 @@
           Senha
         </label>
 
-        <input
-          id="login-password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Digite sua senha"
-          formControlName="password"
-          [attr.aria-invalid]="
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="Digite sua senha"
+          formControlName="password" [attr.aria-invalid]="
             password.touched &&
             password.invalid
-          "
-          [attr.aria-describedby]="
+          " [attr.aria-describedby]="
             password.touched &&
             password.invalid
               ? 'login-password-error'
               : null
-          "
-        />
+          " />
 
         @if (
-          password.touched &&
-          password.invalid
+        password.touched &&
+        password.invalid
         ) {
-          <p
-            id="login-password-error"
-            class="field-error"
-            role="alert"
-          >
-            Informe sua senha.
-          </p>
+        <p id="login-password-error" class="field-error" role="alert">
+          Informe sua senha.
+        </p>
         }
       </div>
 
-      <button
-        class="auth-primary"
-        type="submit"
-        [disabled]="
+      <button class="auth-primary" type="submit" [disabled]="
           form.invalid ||
           auth.isLoading()
-        "
-      >
+        ">
         @if (auth.isLoading()) {
-          Entrando...
+        Entrando...
         } @else {
-          Entrar
+        Entrar
         }
       </button>
     </form>
 
-    <div
-      class="auth-divider"
-      aria-hidden="true"
-    >
+    <div class="auth-divider" aria-hidden="true">
       <span></span>
       <p>ou</p>
       <span></span>
     </div>
 
-    <button
-      class="auth-google"
-      type="button"
-      [disabled]="auth.isLoading()"
-      (click)="continueWithGoogle()"
-    >
-      <span
-        class="auth-google__mark"
-        aria-hidden="true"
-      >
+    <button class="auth-google" type="button" [disabled]="auth.isLoading()" (click)="continueWithGoogle()">
+      <span class="auth-google__mark" aria-hidden="true">
         G
       </span>
 
@@ -179,7 +114,11 @@
     <p class="auth-switch">
       Ainda não tem uma conta?
 
-      <a routerLink="/auth/register">
+      <a routerLink="/auth/register" [queryParams]="
+    returnUrl
+      ? { returnUrl: returnUrl }
+      : null
+  ">
         Criar conta
       </a>
     </p>

@@ -1,176 +1,146 @@
-import {
-  TestBed,
-} from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { Router, UrlTree } from '@angular/router';
 
-import {
-  Router,
-  UrlTree,
-} from '@angular/router';
+import { BabyContextService } from '../services/baby-context';
+import { onboardingCompleteGuard } from './onboarding-complete.guard';
+import { OnboardingService } from '../services/onboarding';
 
-import {
-  onboardingCompleteGuard,
-} from './onboarding-complete.guard';
+describe('onboardingCompleteGuard', () => {
+  it('aguarda os dados e bloqueia onboarding incompleto', async () => {
+    const onboarding = {
+      ensureLoaded: jasmine.createSpy('ensureLoaded').and.resolveTo(),
 
-import {
-  OnboardingService,
-} from '../services/onboarding';
+      isComplete: jasmine.createSpy('isComplete').and.returnValue(false),
 
-describe(
-  'onboardingCompleteGuard',
-  () => {
-    it(
-      'aguarda os dados e bloqueia onboarding incompleto',
-      async () => {
-        const onboarding = {
-          ensureLoaded:
-            jasmine
-              .createSpy(
-                'ensureLoaded',
-              )
-              .and.resolveTo(),
+      getIncompleteRoute: jasmine
+        .createSpy('getIncompleteRoute')
+        .and.returnValue('/onboarding/about-you'),
+    };
 
-          isComplete:
-            jasmine
-              .createSpy(
-                'isComplete',
-              )
-              .and.returnValue(
-                false,
-              ),
+    const babyContext = {
+      ensureLoaded: jasmine.createSpy('ensureLoaded').and.resolveTo(),
+    };
 
-          getIncompleteRoute:
-            jasmine
-              .createSpy(
-                'getIncompleteRoute',
-              )
-              .and.returnValue(
-                '/onboarding/about-you',
-              ),
-        };
+    const expectedTree = {} as UrlTree;
 
-        const expectedTree =
-          {} as UrlTree;
+    const router = {
+      createUrlTree: jasmine.createSpy('createUrlTree').and.returnValue(expectedTree),
+    };
 
-        const router = {
-          createUrlTree:
-            jasmine
-              .createSpy(
-                'createUrlTree',
-              )
-              .and.returnValue(
-                expectedTree,
-              ),
-        };
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: OnboardingService,
 
-        TestBed
-          .configureTestingModule({
-            providers: [
-              {
-                provide:
-                  OnboardingService,
+          useValue: onboarding,
+        },
+        {
+          provide: Router,
 
-                useValue:
-                  onboarding,
-              },
-              {
-                provide:
-                  Router,
+          useValue: router,
+        },
+        {
+          provide: BabyContextService,
+          useValue: babyContext,
+        },
+      ],
+    });
 
-                useValue:
-                  router,
-              },
-            ],
-          });
-
-        const result =
-          await TestBed
-            .runInInjectionContext(
-              () =>
-                onboardingCompleteGuard(
-                  {} as never,
-                  {} as never,
-                ),
-            );
-
-        expect(
-          onboarding.ensureLoaded,
-        ).toHaveBeenCalled();
-
-        expect(result)
-          .toBe(expectedTree);
-      },
+    const result = await TestBed.runInInjectionContext(() =>
+      onboardingCompleteGuard({} as never, {} as never),
     );
 
-    it(
-      'permite acesso com onboarding completo',
-      async () => {
-        const onboarding = {
-          ensureLoaded:
-            jasmine
-              .createSpy(
-                'ensureLoaded',
-              )
-              .and.resolveTo(),
+    expect(onboarding.ensureLoaded).toHaveBeenCalled();
 
-          isComplete:
-            jasmine
-              .createSpy(
-                'isComplete',
-              )
-              .and.returnValue(
-                true,
-              ),
+    expect(result).toBe(expectedTree);
+  });
 
-          getIncompleteRoute:
-            jasmine.createSpy(
-              'getIncompleteRoute',
-            ),
-        };
+  it('permite acesso com onboarding completo', async () => {
+    const onboarding = {
+      ensureLoaded: jasmine.createSpy('ensureLoaded').and.resolveTo(),
 
-        const router = {
-          createUrlTree:
-            jasmine.createSpy(
-              'createUrlTree',
-            ),
-        };
+      isComplete: jasmine.createSpy('isComplete').and.returnValue(true),
 
-        TestBed
-          .configureTestingModule({
-            providers: [
-              {
-                provide:
-                  OnboardingService,
+      getIncompleteRoute: jasmine.createSpy('getIncompleteRoute'),
+    };
 
-                useValue:
-                  onboarding,
-              },
-              {
-                provide:
-                  Router,
+    const router = {
+      createUrlTree: jasmine.createSpy('createUrlTree'),
+    };
 
-                useValue:
-                  router,
-              },
-            ],
-          });
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: OnboardingService,
 
-        const result =
-          await TestBed
-            .runInInjectionContext(
-              () =>
-                onboardingCompleteGuard(
-                  {} as never,
-                  {} as never,
-                ),
-            );
+          useValue: onboarding,
+        },
+        {
+          provide: Router,
 
-        expect(result)
-          .toBeTrue();
+          useValue: router,
+        },
+      ],
+    });
 
-        expect(
-          onboarding.ensureLoaded,
-        ).toHaveBeenCalled();
-      },
+    const result = await TestBed.runInInjectionContext(() =>
+      onboardingCompleteGuard({} as never, {} as never),
     );
-  },
-);
+
+    expect(result).toBeTrue();
+
+    expect(onboarding.ensureLoaded).toHaveBeenCalled();
+  });
+
+  it('sincroniza bebê compartilhado antes de redirecionar para o onboarding', async () => {
+    let complete = false;
+
+    const onboarding = {
+      ensureLoaded: jasmine.createSpy('ensureLoaded').and.resolveTo(),
+
+      reload: jasmine.createSpy('reload').and.callFake(async () => {
+        complete = true;
+      }),
+
+      isComplete: jasmine.createSpy('isComplete').and.callFake(() => complete),
+
+      getIncompleteRoute: jasmine
+        .createSpy('getIncompleteRoute')
+        .and.returnValue('/onboarding/about-baby'),
+    };
+
+    const babyContext = {
+      ensureLoaded: jasmine.createSpy('ensureLoaded').and.resolveTo(),
+    };
+
+    const router = {
+      createUrlTree: jasmine.createSpy('createUrlTree'),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: OnboardingService,
+          useValue: onboarding,
+        },
+        {
+          provide: BabyContextService,
+          useValue: babyContext,
+        },
+        {
+          provide: Router,
+          useValue: router,
+        },
+      ],
+    });
+
+    const result = await TestBed.runInInjectionContext(() =>
+      onboardingCompleteGuard({} as never, {} as never),
+    );
+
+    expect(result).toBeTrue();
+    expect(babyContext.ensureLoaded).toHaveBeenCalled();
+    expect(onboarding.reload).toHaveBeenCalled();
+    expect(router.createUrlTree).not.toHaveBeenCalled();
+  });
+});

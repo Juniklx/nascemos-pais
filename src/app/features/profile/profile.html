@@ -23,20 +23,19 @@
       <label [for]="field.key">{{ field.label }}</label>
 
       <input [id]="field.key" [type]="field.type" [attr.autocomplete]="field.autocomplete"
-        [attr.max]="field.type === 'date' ? today : null" [formControlName]="field.key" required [attr.aria-invalid]="
-            form.controls[field.key].touched &&
-            form.controls[field.key].invalid
+        [attr.max]="field.type === 'date' ? today : null" [attr.readonly]="
+            field.key !== 'caregiverName' && !isBabyOwner() ? true : null
+          " [attr.aria-readonly]="
+            field.key !== 'caregiverName' && !isBabyOwner() ? true : null
+          " [formControlName]="field.key" required [attr.aria-invalid]="
+            form.controls[field.key].touched && form.controls[field.key].invalid
           " [attr.aria-describedby]="
-            form.controls[field.key].touched &&
-            form.controls[field.key].invalid
+            form.controls[field.key].touched && form.controls[field.key].invalid
               ? field.key + '-error'
               : null
           " />
 
-      @if (
-      form.controls[field.key].touched &&
-      form.controls[field.key].invalid
-      ) {
+      @if (form.controls[field.key].touched && form.controls[field.key].invalid) {
       <p [id]="field.key + '-error'" class="field-error" role="alert">
         {{ field.error }}
       </p>
@@ -44,10 +43,16 @@
     </div>
     }
 
+    @if (isBabyOwner()) {
     <p class="profile-note">
-      Alterar esses dados mantém os registros de mamadas,
-      sono e fraldas.
+      Alterar os dados do bebê mantém os registros de mamadas, sono e fraldas.
     </p>
+    } @else {
+    <p class="profile-note">
+      Somente o proprietário pode alterar o nome e a data de nascimento do bebê.
+      Você pode atualizar normalmente o seu nome.
+    </p>
+    }
 
     <p class="profile-feedback" role="status">
       {{ message() }}
@@ -57,6 +62,93 @@
       Salvar alterações
     </button>
   </form>
+
+  @if (isBabyOwner()) {
+  <section class="profile-card caregivers" aria-labelledby="caregivers-title">
+    <div>
+      <h2 id="caregivers-title">
+        Responsáveis
+      </h2>
+
+      <p class="profile-note">
+        Convide outra pessoa para acompanhar e registrar mamadas, sono e trocas de fralda deste
+        bebê.
+      </p>
+    </div>
+
+    <div class="member-list" aria-live="polite">
+      @if (membersLoading()) {
+      <p class="profile-note">
+        Carregando responsáveis...
+      </p>
+      } @else if (membersError()) {
+      <p class="storage-warning" role="alert">
+        {{ membersError() }}
+      </p>
+      } @else {
+      @for (member of members(); track member.uid) {
+      <div class="member-item">
+        <div>
+          <strong>
+            {{ memberLabel(member) }}
+          </strong>
+
+          <span>
+            {{ member.role === 'owner' ? 'Proprietário' : 'Responsável' }}
+          </span>
+        </div>
+
+        @if (member.role === 'caregiver') {
+        <button type="button" class="member-remove" [disabled]="removingMemberUid() === member.uid"
+          (click)="removeMember(member)">
+          @if (removingMemberUid() === member.uid) {
+          Removendo...
+          } @else {
+          Remover
+          }
+        </button>
+        }
+      </div>
+      }
+      }
+    </div>
+
+    <button type="button" class="save-button" [disabled]="inviteLoading()" (click)="generateInvite()">
+      @if (inviteLoading()) {
+      Gerando convite...
+      } @else {
+      Convidar responsável
+      }
+    </button>
+
+    @if (inviteLink()) {
+    <div class="invite-result">
+      <label for="invite-link">
+        Link de convite
+      </label>
+
+      <div class="invite-result__actions">
+        <input id="invite-link" type="text" readonly [value]="inviteLink()" />
+
+        <button type="button" class="invite-copy" (click)="copyInvite()">
+          Copiar
+        </button>
+      </div>
+    </div>
+    }
+
+    @if (inviteMessage()) {
+    <p class="profile-feedback" role="status">
+      {{ inviteMessage() }}
+    </p>
+    }
+
+    <p class="profile-note">
+      Por segurança, cada convite expira após 24 horas e não pode ser reutilizado.
+    </p>
+  </section>
+  }
+
   <section class="profile-card appearance" aria-labelledby="appearance-title">
     <div>
       <h2 id="appearance-title">Aparência</h2>
@@ -112,8 +204,7 @@
     </button>
 
     <p class="profile-note">
-      Seus registros continuam
-      armazenados localmente neste navegador.
+      Seus dados e registros ficam sincronizados com sua conta na nuvem.
     </p>
   </section>
 </section>

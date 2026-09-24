@@ -1,289 +1,148 @@
-import {
-  Routes,
-} from '@angular/router';
+import { Routes } from '@angular/router';
 
-import {
-  activityReadyGuard,
-} from './core/guards/activity-ready.guard';
+import { activityReadyGuard } from './core/guards/activity-ready.guard';
+import { authGuard } from './core/guards/auth.guard';
+import { guestGuard } from './core/guards/guest.guard';
+import { onboardingCompleteGuard } from './core/guards/onboarding-complete.guard';
+import { onboardingReadyGuard } from './core/guards/onboarding-ready.guard';
+import { accessRemovalGuard } from './core/guards/access-removal.guard';
 
-import {
-  authGuard,
-} from './core/guards/auth.guard';
+export const routes: Routes = [
+  {
+    path: '',
+    pathMatch: 'full',
+    canActivate: [guestGuard],
 
-import {
-  guestGuard,
-} from './core/guards/guest.guard';
+    loadComponent: () => import('./features/welcome/welcome').then((m) => m.Welcome),
+  },
+  {
+    path: 'auth/login',
 
-import {
-  onboardingCompleteGuard,
-} from './core/guards/onboarding-complete.guard';
+    canActivate: [guestGuard],
 
-import {
-  onboardingReadyGuard,
-} from './core/guards/onboarding-ready.guard';
+    title: 'Entrar | Nascemos Pais',
 
-export const routes:
-  Routes = [
-    {
-      path: '',
-      pathMatch: 'full',
-      canActivate: [
-        guestGuard,
-      ],
+    loadComponent: () => import('./features/auth/login/login').then((m) => m.LoginPage),
+  },
+  {
+    path: 'auth/register',
 
-      loadComponent:
-        () =>
-          import(
-            './features/welcome/welcome'
-          ).then(
-            (m) =>
-              m.Welcome,
-          ),
-    },
-    {
-      path:
-        'auth/login',
+    canActivate: [guestGuard],
 
-      canActivate: [
-        guestGuard,
-      ],
+    title: 'Criar conta | Nascemos Pais',
 
-      title:
-        'Entrar | Nascemos Pais',
+    loadComponent: () => import('./features/auth/register/register').then((m) => m.RegisterPage),
+  },
+  {
+    path: 'invite/:token',
 
-      loadComponent:
-        () =>
-          import(
-            './features/auth/login/login'
-          ).then(
-            (m) =>
-              m.LoginPage,
-          ),
-    },
-    {
-      path:
-        'auth/register',
+    title: 'Convite | Nascemos Pais',
 
-      canActivate: [
-        guestGuard,
-      ],
+    loadComponent: () => import('./features/invite/invite').then((m) => m.InvitePage),
+  },
+  {
+    path: 'access-removed',
 
-      title:
-        'Criar conta | Nascemos Pais',
+    canActivate: [authGuard],
 
-      loadComponent:
-        () =>
-          import(
-            './features/auth/register/register'
-          ).then(
-            (m) =>
-              m.RegisterPage,
-          ),
-    },
-    {
-      path:
-        'onboarding/about-you',
+    title: 'Acesso removido | Nascemos Pais',
 
-      canActivate: [
-        authGuard,
-        onboardingReadyGuard,
-      ],
+    loadComponent: () =>
+      import('./features/access-removed/access-removed').then((m) => m.AccessRemovedPage),
+  },
+  {
+    path: 'onboarding/about-you',
 
-      loadComponent:
-        () =>
-          import(
-            './features/onboarding/about-you/about-you'
-          ).then(
-            (m) =>
-              m.AboutYou,
-          ),
-    },
-    {
-      path:
-        'onboarding/about-baby',
+    canActivate: [authGuard, accessRemovalGuard, onboardingReadyGuard],
 
-      canActivate: [
-        authGuard,
-        onboardingReadyGuard,
-      ],
+    loadComponent: () =>
+      import('./features/onboarding/about-you/about-you').then((m) => m.AboutYou),
+  },
+  {
+    path: 'onboarding/about-baby',
 
-      loadComponent:
-        () =>
-          import(
-            './features/onboarding/about-baby/about-baby'
-          ).then(
-            (m) =>
-              m.AboutBaby,
-          ),
-    },
-    {
-      path: '',
+    canActivate: [authGuard, accessRemovalGuard, onboardingReadyGuard],
 
-      canActivate: [
-        authGuard,
-        onboardingCompleteGuard,
-        activityReadyGuard,
-      ],
+    loadComponent: () =>
+      import('./features/onboarding/about-baby/about-baby').then((m) => m.AboutBaby),
+  },
+  {
+    path: '',
 
-      loadComponent:
-        () =>
-          import(
-            './layouts/app-shell/app-shell'
-          ).then(
-            (m) =>
-              m.AppShell,
-          ),
+    canActivate: [authGuard, accessRemovalGuard, onboardingCompleteGuard, activityReadyGuard],
 
-      children: [
-        {
-          path:
-            'profile',
+    loadComponent: () => import('./layouts/app-shell/app-shell').then((m) => m.AppShell),
 
-          title:
-            'Perfil | Nascemos Pais',
+    children: [
+      {
+        path: 'profile',
 
-          loadComponent:
-            () =>
-              import(
-                './features/profile/profile'
-              ).then(
-                (m) =>
-                  m.ProfilePage,
-              ),
-        },
-        {
-          path:
-            'home',
+        title: 'Perfil | Nascemos Pais',
 
-          title:
-            'Início | Nascemos Pais',
+        loadComponent: () => import('./features/profile/profile').then((m) => m.ProfilePage),
+      },
+      {
+        path: 'home',
 
-          loadComponent:
-            () =>
-              import(
-                './features/home/home'
-              ).then(
-                (m) =>
-                  m.Home,
-              ),
-        },
-        {
-          path:
-            'history',
+        title: 'Início | Nascemos Pais',
 
-          title:
-            'Histórico | Nascemos Pais',
+        loadComponent: () => import('./features/home/home').then((m) => m.Home),
+      },
+      {
+        path: 'history',
 
-          loadComponent:
-            () =>
-              import(
-                './features/history/history'
-              ).then(
-                (m) =>
-                  m.History,
-              ),
-        },
-        {
-          path:
-            'history/:type/:id',
+        title: 'Histórico | Nascemos Pais',
 
-          title:
-            'Detalhes do registro | Nascemos Pais',
+        loadComponent: () => import('./features/history/history').then((m) => m.History),
+      },
+      {
+        path: 'history/:type/:id',
 
-          loadComponent:
-            () =>
-              import(
-                './features/history/history-detail/history-detail'
-              ).then(
-                (m) =>
-                  m.HistoryDetail,
-              ),
-        },
-        {
-          path:
-            'routine',
+        title: 'Detalhes do registro | Nascemos Pais',
 
-          title:
-            'Rotina | Nascemos Pais',
+        loadComponent: () =>
+          import('./features/history/history-detail/history-detail').then((m) => m.HistoryDetail),
+      },
+      {
+        path: 'routine',
 
-          loadComponent:
-            () =>
-              import(
-                './features/routine/routine'
-              ).then(
-                (m) =>
-                  m.Routine,
-              ),
-        },
-        {
-          path:
-            'voice',
+        title: 'Rotina | Nascemos Pais',
 
-          title:
-            'Comando de voz | Nascemos Pais',
+        loadComponent: () => import('./features/routine/routine').then((m) => m.Routine),
+      },
+      {
+        path: 'voice',
 
-          loadComponent:
-            () =>
-              import(
-                './features/voice/voice'
-              ).then(
-                (m) =>
-                  m.VoicePage,
-              ),
-        },
-        {
-          path:
-            'diaper',
+        title: 'Comando de voz | Nascemos Pais',
 
-          title:
-            'Fralda | Nascemos Pais',
+        loadComponent: () => import('./features/voice/voice').then((m) => m.VoicePage),
+      },
+      {
+        path: 'diaper',
 
-          loadComponent:
-            () =>
-              import(
-                './features/diaper/diaper'
-              ).then(
-                (m) =>
-                  m.DiaperPage,
-              ),
-        },
-        {
-          path:
-            'sleep',
+        title: 'Fralda | Nascemos Pais',
 
-          title:
-            'Sono | Nascemos Pais',
+        loadComponent: () => import('./features/diaper/diaper').then((m) => m.DiaperPage),
+      },
+      {
+        path: 'sleep',
 
-          loadComponent:
-            () =>
-              import(
-                './features/sleep/sleep'
-              ).then(
-                (m) =>
-                  m.SleepPage,
-              ),
-        },
-        {
-          path:
-            'feeding',
+        title: 'Sono | Nascemos Pais',
 
-          title:
-            'Mamada | Nascemos Pais',
+        loadComponent: () => import('./features/sleep/sleep').then((m) => m.SleepPage),
+      },
+      {
+        path: 'feeding',
 
-          loadComponent:
-            () =>
-              import(
-                './features/feeding/feeding'
-              ).then(
-                (m) =>
-                  m.FeedingPage,
-              ),
-        },
-      ],
-    },
-    {
-      path: '**',
+        title: 'Mamada | Nascemos Pais',
 
-      redirectTo: '',
-    },
-  ];
+        loadComponent: () => import('./features/feeding/feeding').then((m) => m.FeedingPage),
+      },
+    ],
+  },
+  {
+    path: '**',
+
+    redirectTo: '',
+  },
+];
