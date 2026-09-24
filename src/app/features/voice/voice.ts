@@ -587,7 +587,7 @@ export class VoicePage {
 
   cancelPending(): void {
     this.pendingCommand.set(null);
-    this.voiceService.reset();
+    this.voiceService.stop();
     this.feedback.set('Registro cancelado. Nada foi salvo.');
   }
 
