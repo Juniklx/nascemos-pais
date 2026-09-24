@@ -123,6 +123,21 @@
 
     @if (inviteLink()) {
     <div class="invite-result">
+      <div class="invite-qr">
+        <div class="invite-qr__code">
+          <qrcode [qrdata]="inviteLink()" [width]="220" [margin]="2" [errorCorrectionLevel]="'M'"
+            [ariaLabel]="'QR Code do convite para compartilhar o bebê'"></qrcode>
+        </div>
+
+        <div class="invite-qr__content">
+          <strong>Escaneie para aceitar o convite</strong>
+
+          <p>
+            Aponte a câmera do celular para o QR Code para abrir o convite diretamente.
+          </p>
+        </div>
+      </div>
+
       <label for="invite-link">
         Link de convite
       </label>
