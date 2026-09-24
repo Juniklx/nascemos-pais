@@ -1,0 +1,45 @@
+<section class="my-data" aria-labelledby="my-data-title">
+  <a routerLink="/profile" class="my-data__back">← Voltar ao Perfil</a>
+  <header>
+    <span class="my-data__eyebrow">PRIVACIDADE</span>
+    <h1 id="my-data-title">Meus dados</h1>
+    <p>Entenda o que fica salvo na nuvem e tenha uma cópia dos registros aos quais sua conta tem acesso.</p>
+  </header>
+
+  <article class="my-data__card">
+    <h2>Baixar meus dados</h2>
+    <p>O arquivo JSON inclui informações do seu perfil, notificações, registros antigos ainda
+      associados à conta e registros de mamadas, sono e fraldas dos bebês vinculados.</p>
+    <p>A identificação pessoal de outros responsáveis não é incluída no arquivo. Para
+      evitar uma exportação desatualizada, é necessário estar conectado à internet.</p>
+    <button type="button" [disabled]="exporting()" (click)="downloadData()">
+      {{ exporting() ? 'Preparando arquivo…' : 'Baixar arquivo JSON' }}
+    </button>
+    @if (message()) {
+    <p class="my-data__success" role="status">{{ message() }}</p>
+    }
+    @if (error()) {
+    <p class="my-data__error" role="alert">{{ error() }}</p>
+    }
+    <small>O arquivo será salvo neste dispositivo e pode conter dados privados de crianças.
+      Não o compartilhe sem necessidade.</small>
+  </article>
+
+  <article class="my-data__card">
+    <h2>Quem pode acessar?</h2>
+    <p>As atividades de cada bebê ficam disponíveis apenas para contas que possuem vínculo
+      de acesso. O proprietário pode gerenciar os responsáveis na seção de Perfil.</p>
+    <a routerLink="/profile">Gerenciar responsáveis no Perfil</a>
+  </article>
+
+  <article class="my-data__card">
+    <h2>Correção, retirada de acesso e exclusão</h2>
+    <p>Você pode corrigir seus dados no Perfil. A exclusão permanente da conta requer
+      cuidados adicionais quando há bebês compartilhados; estamos desenvolvendo esse fluxo
+      para evitar perda acidental dos registros de outros responsáveis.</p>
+    <p>Leia a <a routerLink="/privacidade">Política de Privacidade</a> para conhecer as
+      informações sobre tratamento dos dados e os direitos previstos na LGPD.</p>
+    <p class="my-data__disclaimer">A funcionalidade de exclusão definitiva ainda não está
+      disponível. Não confunda sair da conta com excluir os dados armazenados.</p>
+  </article>
+</section>
