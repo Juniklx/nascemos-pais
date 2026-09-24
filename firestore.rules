@@ -1016,7 +1016,6 @@ service cloud.firestore {
         allow update:
           if isAuthenticated()
           && memberId == request.auth.uid
-          && resource.data.role == 'caregiver'
           && isValidBabyMember(
             request.resource.data
           )
