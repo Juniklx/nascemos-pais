@@ -246,8 +246,6 @@ describe('BabyInviteRepository', () => {
         inviteId: token,
         joinedAt: jasmine.any(String),
         caregiverName: 'Marcelo',
-          babyName: '',
-          babyBirthDate: '',
       }),
     );
 
@@ -366,6 +364,8 @@ describe('BabyInviteRepository', () => {
       if (path === 'users/user-a') {
         return {
           caregiverName: '',
+          babyName: '',
+          babyBirthDate: '',
         };
       }
 
