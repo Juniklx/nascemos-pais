@@ -180,8 +180,19 @@ As medidas implementadas fazem parte da proteção técnica do MVP e não substi
 A rota pública `/privacidade` reúne informações sobre os dados coletados, suas finalidades,
 a infraestrutura utilizada e os direitos dos titulares. O controlador está identificado como
 Marcelo Soares Teixeira Junior (pessoa física) e o canal informado para exercício de direitos
-e dúvidas é `privacidade@nascemospais.com.br`. O endereço de e-mail deve ser testado
-antes da publicação.
+e dúvidas é `privacidade@nascemospais.com.br`, cuja configuração e etapa de teste
+foram confirmadas pelo responsável pelo projeto.
+
+A localização informada pelo responsável para o Cloud Firestore é
+`southamerica-east1` (São Paulo, Brasil). Essa configuração se refere ao banco do Firestore;
+o Firebase Authentication processa dados nos Estados Unidos, e o site é distribuído pela
+infraestrutura global da Vercel. Ainda é necessário verificar os fluxos de dados, os
+contratos dos fornecedores e os mecanismos legais aplicáveis às transferências
+internacionais.
+
+Fontes técnicas: [localizações do Firestore](https://firebase.google.com/docs/firestore/locations),
+[privacidade e locais de processamento do Firebase](https://firebase.google.com/support/privacy)
+e [rede global da Vercel](https://vercel.com/docs/regions).
 
 A política permanece identificada como **rascunho** enquanto não forem revisados
 as bases legais específicas, a retenção, as condições de fornecedores e as transferências
