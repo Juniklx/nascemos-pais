@@ -102,7 +102,21 @@ export class PrivacyDataExportService {
       });
     }
 
-    this.assertSession(uid);
+    // Verifica novamente os vínculos após coletar os registros de todos os bebês.
+    for (const item of babies) {
+      const babyId = item.baby['id'];
+
+      if (typeof babyId !== 'string') {
+        throw new Error('Foi encontrada uma referência inválida. A exportação foi cancelada.');
+      }
+
+      const membership = await this.firestore.getFromServer(`babies/${babyId}/members/${uid}`);
+      this.assertSession(uid);
+
+      if (!membership) {
+        throw new Error('Seu acesso a um dos bebês mudou. Reinicie a exportação.');
+      }
+    }
 
     return {
       format: 'nascemos-pais-export',
