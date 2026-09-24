@@ -10,5 +10,5 @@ import { RouterLink } from '@angular/router';
 export class PrivacyPolicyPage {
   readonly updatedAt = '24 de setembro de 2026';
   readonly privacyContact = '';
-  readonly controller = '';
+  readonly controller = 'Marcelo Soares Teixeira Junior';
 }
