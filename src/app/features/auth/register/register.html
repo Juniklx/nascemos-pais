@@ -42,13 +42,14 @@
         </label>
 
         <input id="register-email" type="email" autocomplete="email" placeholder="voce@exemplo.com"
-          formControlName="email" />
+          formControlName="email" [attr.aria-invalid]="email.touched && email.invalid"
+          [attr.aria-describedby]="email.touched && email.invalid ? 'register-email-error' : null" />
 
         @if (
         email.touched &&
         email.invalid
         ) {
-        <p class="field-error" role="alert">
+        <p id="register-email-error" class="field-error" role="alert">
           Informe um e-mail válido.
         </p>
         }
@@ -60,13 +61,14 @@
         </label>
 
         <input id="register-password" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"
-          formControlName="password" />
+          formControlName="password" [attr.aria-invalid]="password.touched && password.invalid"
+          [attr.aria-describedby]="password.touched && password.invalid ? 'register-password-error' : null" />
 
         @if (
         password.touched &&
         password.invalid
         ) {
-        <p class="field-error" role="alert">
+        <p id="register-password-error" class="field-error" role="alert">
           A senha deve ter pelo menos
           6 caracteres.
         </p>
@@ -79,17 +81,18 @@
         </label>
 
         <input id="confirm-password" type="password" autocomplete="new-password" placeholder="Digite a senha novamente"
-          formControlName="confirmPassword" />
+          formControlName="confirmPassword" [attr.aria-invalid]="confirmPassword.touched && (confirmPassword.invalid || passwordsDoNotMatch)"
+          [attr.aria-describedby]="confirmPassword.touched && (confirmPassword.invalid || passwordsDoNotMatch) ? 'confirm-password-error' : null" />
 
         @if (
         confirmPassword.touched &&
         confirmPassword.invalid
         ) {
-        <p class="field-error" role="alert">
+        <p id="confirm-password-error" class="field-error" role="alert">
           Confirme sua senha.
         </p>
         } @else if (passwordsDoNotMatch) {
-        <p class="field-error" role="alert">
+        <p id="confirm-password-error" class="field-error" role="alert">
           As senhas não são iguais.
         </p>
         }
