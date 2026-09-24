@@ -8,13 +8,13 @@
   </header>
 
   <div class="privacy__content">
-    @if (!privacyContact || !controller) {
+    @if (!privacyContact) {
     <aside class="privacy__notice" role="note">
       <strong>Documento em revisão</strong>
-      <p>Antes de publicar esta versão, precisamos identificar formalmente o controlador dos
-        dados, divulgar um canal de contato e concluir a revisão das bases legais, prazos de
-        retenção e prestadores. Esta página ainda não deve ser apresentada como comprovação
-        de conformidade integral com a LGPD.</p>
+      <p>O controlador já está identificado. Antes da publicação, precisamos divulgar um
+        canal de contato funcional e concluir a revisão das bases legais, dos prazos de
+        retenção e dos prestadores. Esta página ainda não deve ser apresentada como
+        comprovação de conformidade integral com a LGPD.</p>
     </aside>
     }
 
@@ -42,7 +42,9 @@
     <section id="responsavel" aria-labelledby="responsavel-title">
       <h2 id="responsavel-title">2. Responsável pelo tratamento</h2>
       @if (controller) {
-      <p>Controlador: {{ controller }}.</p>
+      <p>O Nascemos Pais é desenvolvido e administrado de forma independente por
+        <strong>{{ controller }}</strong>, pessoa física responsável pelas principais decisões
+        relativas às finalidades e aos meios de tratamento dos dados pessoais na plataforma.</p>
       } @else {
       <p><strong>Pendente para publicação:</strong> identificação formal do controlador e seus
         dados de contato. O nome de autoria do projeto não substitui essa identificação.</p>
