@@ -175,6 +175,21 @@ Quando o reconhecimento de voz é utilizado, o processamento pode depender do se
 
 As medidas implementadas fazem parte da proteção técnica do MVP e não substituem uma análise jurídica completa de conformidade para uma operação comercial em produção.
 
+## Controle dos dados e privacidade
+
+A rota pública `/privacidade` reúne informações sobre os dados coletados, suas finalidades,
+a infraestrutura utilizada e os direitos dos titulares. Enquanto o controlador, o contato,
+as bases legais específicas, a retenção e os contratos não forem formalmente documentados,
+a política permanece identificada como **rascunho** e este PR não deve ser publicado.
+
+No Perfil, o usuário autenticado pode abrir `/meus-dados` e gerar um arquivo JSON de seus dados
+e dos registros de bebês aos quais possui acesso. A exportação exige consulta online ao Firestore,
+omite identificadores pessoais dos demais responsáveis e inclui registros legados que ainda possam
+estar associados à conta. Não se trata de um backup transacional nem de exportação de credenciais.
+
+A exclusão permanente de conta exige backend confiável e tratamento especial para bebês
+compartilhados; está registrada separadamente para impedir perda acidental de dados.
+
 ## Tecnologias
 
 - Angular 20
@@ -278,7 +293,8 @@ Nesta versão ainda não estão incluídos:
 - upload de fotos e arquivos;
 - notificações push;
 - painel administrativo;
-- recuperação avançada ou exportação de dados;
+- recuperação avançada de dados;
+- exclusão definitiva autônoma de conta (fluxo seguro em desenvolvimento);
 - presença online dos responsáveis;
 - resolução colaborativa de edições simultâneas do mesmo registro (última gravação válida prevalece);
 - aplicação nativa para Android ou iOS.
