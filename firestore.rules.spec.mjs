@@ -1510,3 +1510,231 @@ test('permite proprietário completar o próprio nome sem modificar o papel', as
   );
 });
 
+
+/*
+ * Testes do protocolo v2, apenas no Emulator Suite. O Angular ainda usa v1.
+ * Cada transição precisa proteger pai, último período e lock no mesmo lote.
+ */
+function v2Paths(id = 'feeding-v2') {
+  const root = `babies/${sharedBaby}/feedings/${id}`;
+
+  return {
+    root,
+    lock: `babies/${sharedBaby}/activeActivities/feeding`,
+    period: (index) => `${root}/periods/${String(index).padStart(8, '0')}`,
+  };
+}
+
+function startV2Batch(db, id = 'feeding-v2') {
+  const paths = v2Paths(id);
+  const batch = writeBatch(db);
+  batch.set(doc(db, paths.root), {
+    id,
+    storageVersion: 2,
+    startedAt: 1000,
+    endedAt: null,
+    side: null,
+    periodCount: 1,
+    lastPeriodId: '00000000',
+    lastPeriodStartedAt: 1000,
+    createdByUid: userA,
+  });
+  batch.set(doc(db, paths.period(0)), {
+    id: '00000000',
+    index: 0,
+    startedAt: 1000,
+    endedAt: null,
+    side: null,
+  });
+  batch.set(doc(db, paths.lock), { recordId: id });
+  return batch;
+}
+
+function switchV2Batch(db, index, time, side, id = 'feeding-v2') {
+  const paths = v2Paths(id);
+  const batch = writeBatch(db);
+  const prior = index - 1;
+  batch.set(doc(db, paths.period(prior)), { endedAt: time }, { merge: true });
+  batch.set(doc(db, paths.period(index)), {
+    id: String(index).padStart(8, '0'),
+    index,
+    startedAt: time,
+    endedAt: null,
+    side,
+  });
+  batch.set(doc(db, paths.root), {
+    periodCount: index + 1,
+    lastPeriodId: String(index).padStart(8, '0'),
+    lastPeriodStartedAt: time,
+    side,
+  }, { merge: true });
+  return batch;
+}
+
+function finishV2Batch(db, index, time, id = 'feeding-v2', uid = userA) {
+  const paths = v2Paths(id);
+  const batch = writeBatch(db);
+  batch.set(doc(db, paths.period(index)), { endedAt: time }, { merge: true });
+  batch.set(doc(db, paths.root), {
+    endedAt: time,
+    finishedByUid: uid,
+  }, { merge: true });
+  batch.delete(doc(db, paths.lock));
+  return batch;
+}
+
+test('v2: inicia, alterna e finaliza somente por transições atômicas', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const paths = v2Paths();
+
+  await assertSucceeds(startV2Batch(db).commit());
+  await assertSucceeds(switchV2Batch(db, 1, 1100, 'left').commit());
+  await assertSucceeds(switchV2Batch(db, 2, 1200, 'right').commit());
+  await assertSucceeds(finishV2Batch(db, 2, 1300).commit());
+
+  const parent = (await assertSucceeds(getDoc(doc(db, paths.root)))).data();
+  const periods = (await assertSucceeds(getDocs(collection(db, `${paths.root}/periods`)))).docs;
+  const lock = await assertSucceeds(getDoc(doc(db, paths.lock)));
+
+  assert.equal(parent.periodCount, 3);
+  assert.equal(parent.endedAt, 1300);
+  assert.equal(periods.length, 3);
+  assert.equal(lock.exists(), false);
+});
+
+test('v2: impede começar sem criar período e lock no mesmo lote', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const batch = startV2Batch(db);
+  const paths = v2Paths();
+  const incomplete = writeBatch(db);
+  incomplete.set(doc(db, paths.root), {
+    id: 'feeding-v2', storageVersion: 2, startedAt: 1000, endedAt: null, side: null,
+    periodCount: 1, lastPeriodId: '00000000', lastPeriodStartedAt: 1000,
+    createdByUid: userA,
+  });
+
+  await assertFails(incomplete.commit());
+  await assertSucceeds(batch.commit());
+  await assertFails(startV2Batch(db, 'feeding-other').commit());
+});
+
+test('v2: impede adição órfã, saltos de índice e mudança retroativa', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const paths = v2Paths();
+  await assertSucceeds(startV2Batch(db).commit());
+
+  await assertFails(setDoc(doc(db, paths.period(1)), {
+    id: '00000001', index: 1, startedAt: 1100, endedAt: null, side: 'left',
+  }));
+  await assertFails(switchV2Batch(db, 2, 1100, 'right').commit());
+  await assertSucceeds(switchV2Batch(db, 1, 1100, 'left').commit());
+
+  await assertFails(setDoc(doc(db, paths.period(0)), { endedAt: 999 }, { merge: true }));
+  await assertFails(setDoc(doc(db, paths.root), { side: 'right' }, { merge: true }));
+  await assertFails(setDoc(doc(db, paths.root), { periodCount: 17 }, { merge: true }));
+});
+
+test('v2: recusa transições parciais, side falso e exclusão de subdocumentos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const paths = v2Paths();
+  await assertSucceeds(startV2Batch(db).commit());
+
+  const partial = writeBatch(db);
+  partial.set(doc(db, paths.period(0)), { endedAt: 1100 }, { merge: true });
+  partial.set(doc(db, paths.root), {
+    lastPeriodId: '00000001', lastPeriodStartedAt: 1100,
+    periodCount: 2, side: 'right',
+  }, { merge: true });
+  await assertFails(partial.commit());
+
+  const wrongSide = writeBatch(db);
+  wrongSide.set(doc(db, paths.period(0)), { endedAt: 1100 }, { merge: true });
+  wrongSide.set(doc(db, paths.period(1)), {
+    id: '00000001', index: 1, startedAt: 1100, endedAt: null, side: 'left',
+  });
+  wrongSide.set(doc(db, paths.root), {
+    lastPeriodId: '00000001', lastPeriodStartedAt: 1100,
+    periodCount: 2, side: 'right',
+  }, { merge: true });
+  await assertFails(wrongSide.commit());
+
+  await assertFails(deleteDoc(doc(db, paths.period(0))));
+  await assertFails(deleteDoc(doc(db, paths.root)));
+  await assertFails(setDoc(doc(db, paths.root), { endedAt: 1200 }, { merge: true }));
+});
+
+test('v2: v1 não pode ser sobrescrito pelo formato novo', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const paths = v2Paths('old-feeding');
+  await assertSucceeds(setDoc(doc(db, paths.root), {
+    id: 'old-feeding', startedAt: 1000, endedAt: 1100,
+    side: 'left', periods: null, createdByUid: userA,
+  }));
+
+  const injected = writeBatch(db);
+  injected.set(doc(db, paths.root), {
+    storageVersion: 2, periodCount: 1, lastPeriodId: '00000000',
+    lastPeriodStartedAt: 1000,
+  }, { merge: true });
+  injected.set(doc(db, paths.period(0)), {
+    id: '00000000', index: 0, startedAt: 1000, endedAt: null, side: null,
+  });
+  await assertFails(injected.commit());
+});
+
+test('v2: protege períodos contra leituras e alterações de outras famílias', async () => {
+  const owner = testEnv.authenticatedContext(userA).firestore();
+  const stranger = testEnv.authenticatedContext(userC).firestore();
+  const paths = v2Paths();
+  await assertSucceeds(startV2Batch(owner).commit());
+
+  await assertFails(getDoc(doc(stranger, paths.period(0))));
+  await assertFails(setDoc(doc(stranger, paths.period(0)), { endedAt: 1100 }, { merge: true }));
+  await assertFails(setDoc(doc(stranger, paths.root), { side: 'right' }, { merge: true }));
+});
+
+test('v2: registra mais de seis períodos, com dois responsáveis, sem superar a cota', async () => {
+  const owner = testEnv.authenticatedContext(userA).firestore();
+  const caregiver = testEnv.authenticatedContext(userB).firestore();
+  const paths = v2Paths();
+
+  await assertSucceeds(startV2Batch(owner).commit());
+
+  for (let index = 1; index <= 12; index++) {
+    const db = index % 2 === 0 ? owner : caregiver;
+    const side = index % 2 === 0 ? 'right' : 'left';
+
+    await assertSucceeds(switchV2Batch(db, index, 1000 + index * 100, side).commit());
+  }
+
+  await assertSucceeds(finishV2Batch(caregiver, 12, 2300, 'feeding-v2', userB).commit());
+
+  const parent = (await assertSucceeds(getDoc(doc(owner, paths.root)))).data();
+  const list = (await assertSucceeds(getDocs(collection(owner, `${paths.root}/periods`)))).docs;
+
+  assert.equal(parent.periodCount, 13);
+  assert.equal(parent.finishedByUid, userB);
+  assert.equal(list.length, 13);
+  assert.equal(list.find((item) => item.id === '00000012').data().endedAt, 2300);
+});
+
+test('v2: trocas concorrentes não podem avançar duas vezes o mesmo índice', async () => {
+  const owner = testEnv.authenticatedContext(userA).firestore();
+  const caregiver = testEnv.authenticatedContext(userB).firestore();
+  const paths = v2Paths();
+
+  await assertSucceeds(startV2Batch(owner).commit());
+
+  const attempts = await Promise.allSettled([
+    switchV2Batch(owner, 1, 1100, 'left').commit(),
+    switchV2Batch(caregiver, 1, 1110, 'right').commit(),
+  ]);
+
+  assert.equal(attempts.filter((item) => item.status === 'fulfilled').length, 1);
+  assert.equal(attempts.filter((item) => item.status === 'rejected').length, 1);
+
+  const parent = (await assertSucceeds(getDoc(doc(owner, paths.root)))).data();
+  const periods = (await assertSucceeds(getDocs(collection(owner, `${paths.root}/periods`)))).docs;
+  assert.equal(parent.periodCount, 2);
+  assert.equal(periods.length, 2);
+});

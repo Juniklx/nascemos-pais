@@ -99,27 +99,35 @@
     }
 
     @if (feeding.endedAt === null) {
+    @if (feeding.storageVersion === 2) {
+    <p class="hint" role="status">
+      Esta mamada utiliza o novo formato e está disponível apenas para visualização.
+      Alterações e finalização serão liberadas após a integração segura.
+    </p>
+    }
     <fieldset class="side-selector">
       <legend>Lado atual · opcional</legend>
 
       <div class="side-options">
         <button type="button" [class.is-selected]="feeding.side === null" [attr.aria-pressed]="feeding.side === null"
-          (click)="setSide(null)" [disabled]="isSaving() || periodLimitReached()">
+          (click)="setSide(null)" [disabled]="isSaving() || periodLimitReached() || feeding.storageVersion === 2">
           Não informar
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'left'"
-          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving() || periodLimitReached()">
+          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving() || periodLimitReached() || feeding.storageVersion === 2">
           Esquerdo
         </button>
 
         <button type="button" [class.is-selected]="feeding.side === 'right'"
-          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving() || periodLimitReached()">
+          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving() || periodLimitReached() || feeding.storageVersion === 2">
           Direito
         </button>
       </div>
 
-      @if (legacyOversized()) {
+      @if (feeding.storageVersion === 2) {
+      <p class="hint">Os horários já registrados foram preservados.</p>
+      } @else if (legacyOversized()) {
       <p class="hint" role="alert">
         Esta mamada antiga tem mais de 6 períodos. Seus horários foram preservados,
         mas ela não pode ser alterada nem finalizada nesta versão. Aguarde a
@@ -143,7 +151,7 @@
       }
     </fieldset>
 
-    <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized()" (click)="finish()">
+    <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized() || feeding.storageVersion === 2" (click)="finish()">
       {{ isSaving() ? 'Salvando...' : 'Finalizar mamada' }}
     </button>
 

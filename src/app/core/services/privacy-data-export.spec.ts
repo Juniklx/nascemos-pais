@@ -108,6 +108,104 @@ describe('PrivacyDataExportService', () => {
     expect(listFromServer).not.toHaveBeenCalledWith('babies/baby-inacessivel/feedings');
   });
 
+  function seedVersionedFeeding(): void {
+    const parent = {
+      id: 'feeding-v2',
+      storageVersion: 2,
+      startedAt: 1000,
+      endedAt: 1800,
+      side: 'right',
+      periodCount: 8,
+      lastPeriodId: '00000007',
+      lastPeriodStartedAt: 1700,
+      createdByUid: 'user-b',
+      finishedByUid: 'user-a',
+    };
+
+    serverLists['babies/baby-a/feedings'].push(parent);
+    serverReads['babies/baby-a/feedings/feeding-v2'] = parent;
+    serverLists['babies/baby-a/feedings/feeding-v2/periods'] = Array.from(
+      { length: 8 },
+      (_, index) => ({
+        id: String(index).padStart(8, '0'),
+        index,
+        startedAt: 1000 + index * 100,
+        endedAt: 1100 + index * 100,
+        side: index % 2 === 0 ? 'left' : 'right',
+      }),
+    );
+  }
+
+  it('exporta mamadas v1 e todos os períodos filhos v2 em ordem, sem UIDs de terceiros', async () => {
+    seedVersionedFeeding();
+    serverLists['babies/baby-a/feedings/feeding-v2/periods'].reverse();
+
+    const result = await exporter.collect();
+    const [legacyFormat, versioned] = result.babies[0].records.feedings;
+    const periods = versioned['periods'] as Record<string, unknown>[];
+
+    expect(result.schemaVersion).toBe(1);
+    expect(legacyFormat['storageVersion']).toBeUndefined();
+    expect(versioned['storageVersion']).toBe(2);
+    expect(versioned['periodCount']).toBe(8);
+    expect(versioned['lastPeriodId']).toBe('00000007');
+    expect(versioned['createdBy']).toBe('outro_responsavel');
+    expect(versioned['finishedBy']).toBe('propria_conta');
+    expect(periods.length).toBe(8);
+    expect(periods.map((item) => item['startedAt'])).toEqual([
+      1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
+    ]);
+    expect(periods[7]['side']).toBe('right');
+    expect(JSON.stringify(result)).not.toContain('user-b');
+    expect(getFromServer).toHaveBeenCalledWith('babies/baby-a/feedings/feeding-v2');
+    expect(listFromServer).toHaveBeenCalledWith('babies/baby-a/feedings/feeding-v2/periods');
+  });
+
+  it('cancela a exportação v2 sem produzir histórico parcial quando falta um período', async () => {
+    seedVersionedFeeding();
+    serverLists['babies/baby-a/feedings/feeding-v2/periods'].pop();
+
+    await expectAsync(exporter.collect()).toBeRejectedWithError(
+      'A lista de períodos está incompleta ou possui elementos extras.',
+    );
+  });
+
+  it('cancela exportação v2 quando o resumo mudou durante a leitura', async () => {
+    seedVersionedFeeding();
+    serverReads['babies/baby-a/feedings/feeding-v2'] = {
+      ...serverReads['babies/baby-a/feedings/feeding-v2'],
+      endedAt: 1900,
+    };
+
+    await expectAsync(exporter.collect()).toBeRejectedWithError(
+      'A mamada mudou durante a consulta. Tente sincronizar novamente.',
+    );
+  });
+
+  it('cancela quando a conta muda durante a leitura dos períodos v2', async () => {
+    seedVersionedFeeding();
+    listFromServer.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-a/feedings/feeding-v2/periods') {
+        user.set({ uid: 'user-b', email: 'b@teste.com' } as User);
+      }
+
+      return serverLists[path] ?? [];
+    });
+
+    await expectAsync(exporter.collect()).toBeRejectedWithError(
+      'A conta mudou durante o carregamento das mamadas.',
+    );
+  });
+
+  it('não interpreta formato v2 em coleções legadas de usuário como histórico completo', async () => {
+    serverLists['users/user-a/feedings'] = [{ id: 'unexpected', storageVersion: 2 }];
+
+    await expectAsync(exporter.collect()).toBeRejectedWithError(
+      'Formato inesperado no histórico legado. A exportação foi cancelada.',
+    );
+    expect(listFromServer).not.toHaveBeenCalledWith('users/user-a/feedings/unexpected/periods');
+  });
+
   it('inclui registros legados ainda associados à própria conta', async () => {
     serverLists['users/user-a/sleeps'] = [{
       id: 'legacy-sleep',

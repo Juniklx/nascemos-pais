@@ -3,6 +3,7 @@ import type { DocumentData } from 'firebase/firestore';
 import { FirestoreGateway } from '../firebase/firestore.gateway';
 import { AuthService } from './auth';
 import { BabyContextService } from './baby-context';
+import { FeedingV2Reader } from './feeding-v2-reader';
 
 type ActivityCollection = 'feedings' | 'sleeps' | 'diapers';
 
@@ -28,6 +29,7 @@ export class PrivacyDataExportService {
   private readonly auth = inject(AuthService);
   private readonly context = inject(BabyContextService);
   private readonly firestore = inject(FirestoreGateway);
+  private readonly feedingV2Reader = inject(FeedingV2Reader);
 
   async collect(): Promise<PrivacyExport> {
     await this.auth.waitUntilReady();
@@ -143,13 +145,32 @@ export class PrivacyDataExportService {
   ): Promise<Record<ActivityCollection, readonly Record<string, unknown>[]>> {
     const feedings = await this.firestore.listFromServer(`${prefix}/feedings`);
     this.assertSession(uid);
+
+    // Mamadas v2 guardam os períodos em subcoleções. Nunca exportar somente
+    // o documento pai nem interpretar um formato desconhecido como v1.
+    let completeFeedings = feedings;
+
+    if (this.feedingV2Reader.hasVersioned(feedings)) {
+      if (!prefix.startsWith('babies/')) {
+        throw new Error('Formato inesperado no histórico legado. A exportação foi cancelada.');
+      }
+
+      const babyId = prefix.slice('babies/'.length);
+      const hydrated = await this.feedingV2Reader.hydrate(babyId, feedings);
+      this.assertSession(uid);
+
+      completeFeedings = feedings.map((item, index) =>
+        'storageVersion' in item ? { ...item, periods: hydrated[index].periods } : item,
+      );
+    }
+
     const sleeps = await this.firestore.listFromServer(`${prefix}/sleeps`);
     this.assertSession(uid);
     const diapers = await this.firestore.listFromServer(`${prefix}/diapers`);
     this.assertSession(uid);
 
     return {
-      feedings: feedings.map((item) => this.activity(item, 'feedings', uid)),
+      feedings: completeFeedings.map((item) => this.activity(item, 'feedings', uid)),
       sleeps: sleeps.map((item) => this.activity(item, 'sleeps', uid)),
       diapers: diapers.map((item) => this.activity(item, 'diapers', uid)),
     };
@@ -157,7 +178,10 @@ export class PrivacyDataExportService {
 
   private activity(data: DocumentData, kind: ActivityCollection, uid: string): Record<string, unknown> {
     const keys = kind === 'feedings'
-      ? ['startedAt', 'endedAt', 'side', 'periods']
+      ? data['storageVersion'] === 2
+        ? ['storageVersion', 'startedAt', 'endedAt', 'side', 'periodCount',
+          'lastPeriodId', 'lastPeriodStartedAt', 'periods']
+        : ['startedAt', 'endedAt', 'side', 'periods']
       : kind === 'sleeps'
         ? ['startedAt', 'endedAt']
         : ['type', 'recordedAt'];

@@ -637,6 +637,177 @@ service cloud.firestore {
         && isValidAttribution(data, true);
     }
 
+    // Protocolo experimental de mamadas v2. A interface atual continua v1.
+    // Cada transição v2 modifica pai e períodos no mesmo lote/transação.
+    function v2ParentPath(babyId, feedingId) {
+      return /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId);
+    }
+
+    function v2PeriodPath(babyId, feedingId, periodId) {
+      return /databases/$(database)/documents/babies/$(babyId)/feedings/$(feedingId)/periods/$(periodId);
+    }
+
+    function validV2Period(data, periodId) {
+      return periodId.matches('^[0-9]{8}$')
+        && data.keys().hasOnly(['id', 'index', 'startedAt', 'endedAt', 'side'])
+        && data.keys().hasAll(['id', 'index', 'startedAt', 'endedAt', 'side'])
+        && data.id == periodId
+        && data.index is int
+        && data.index >= 0
+        && data.index < 99999999
+        && int(periodId) == data.index
+        && isValidTimestamp(data.startedAt)
+        && isNullableTimestamp(data.endedAt)
+        && (data.endedAt == null || data.endedAt >= data.startedAt)
+        && isValidSide(data.side);
+    }
+
+    function validV2Parent(data, feedingId) {
+      return data.keys().hasOnly([
+          'id', 'storageVersion', 'startedAt', 'endedAt', 'side',
+          'periodCount', 'lastPeriodId', 'lastPeriodStartedAt',
+          'createdByUid', 'finishedByUid'
+        ])
+        && data.keys().hasAll([
+          'id', 'storageVersion', 'startedAt', 'endedAt', 'side',
+          'periodCount', 'lastPeriodId', 'lastPeriodStartedAt'
+        ])
+        && data.id == feedingId
+        && data.storageVersion == 2
+        && isValidTimestamp(data.startedAt)
+        && isNullableTimestamp(data.endedAt)
+        && (data.endedAt == null || data.endedAt >= data.startedAt)
+        && isValidSide(data.side)
+        && data.periodCount is int
+        && data.periodCount >= 1
+        && data.periodCount <= 99999999
+        && data.lastPeriodId is string
+        && data.lastPeriodId.matches('^[0-9]{8}$')
+        && int(data.lastPeriodId) == data.periodCount - 1
+        && isValidTimestamp(data.lastPeriodStartedAt)
+        && data.lastPeriodStartedAt >= data.startedAt
+        && (data.endedAt == null || data.endedAt >= data.lastPeriodStartedAt)
+        && isValidAttribution(data, true);
+    }
+
+    function validV2ParentStart(babyId, feedingId, data) {
+      return validV2Parent(data, feedingId)
+        && data.endedAt == null
+        && data.side == null
+        && data.periodCount == 1
+        && data.lastPeriodId == '00000000'
+        && data.lastPeriodStartedAt == data.startedAt
+        && !('finishedByUid' in data)
+        && hasFeedingLockAfter(babyId, feedingId)
+        && !exists(v2PeriodPath(babyId, feedingId, '00000000'))
+        && existsAfter(v2PeriodPath(babyId, feedingId, '00000000'))
+        && getAfter(v2PeriodPath(babyId, feedingId, '00000000')).data.index == 0
+        && getAfter(v2PeriodPath(babyId, feedingId, '00000000')).data.startedAt == data.startedAt
+        && getAfter(v2PeriodPath(babyId, feedingId, '00000000')).data.endedAt == null
+        && getAfter(v2PeriodPath(babyId, feedingId, '00000000')).data.side == null;
+    }
+
+    function validV2ParentSwitch(babyId, feedingId, before, after) {
+      return before.endedAt == null
+        && after.endedAt == null
+        && after.diff(before).affectedKeys().hasOnly([
+          'periodCount', 'lastPeriodId', 'lastPeriodStartedAt', 'side'
+        ])
+        && after.periodCount == before.periodCount + 1
+        && after.lastPeriodStartedAt >= before.lastPeriodStartedAt
+        && hasFeedingLockAfter(babyId, feedingId)
+        && exists(v2PeriodPath(babyId, feedingId, before.lastPeriodId))
+        && get(v2PeriodPath(babyId, feedingId, before.lastPeriodId)).data.endedAt == null
+        && getAfter(v2PeriodPath(babyId, feedingId, before.lastPeriodId)).data.endedAt
+          == after.lastPeriodStartedAt
+        && !exists(v2PeriodPath(babyId, feedingId, after.lastPeriodId))
+        && existsAfter(v2PeriodPath(babyId, feedingId, after.lastPeriodId))
+        && getAfter(v2PeriodPath(babyId, feedingId, after.lastPeriodId)).data.index
+          == before.periodCount
+        && getAfter(v2PeriodPath(babyId, feedingId, after.lastPeriodId)).data.startedAt
+          == after.lastPeriodStartedAt
+        && getAfter(v2PeriodPath(babyId, feedingId, after.lastPeriodId)).data.endedAt == null
+        && getAfter(v2PeriodPath(babyId, feedingId, after.lastPeriodId)).data.side == after.side;
+    }
+
+    function validV2ParentFinish(babyId, feedingId, before, after) {
+      return before.endedAt == null
+        && after.endedAt != null
+        && after.diff(before).affectedKeys().hasOnly(['endedAt', 'finishedByUid'])
+        && 'finishedByUid' in after
+        && after.finishedByUid == request.auth.uid
+        && exists(v2PeriodPath(babyId, feedingId, before.lastPeriodId))
+        && get(v2PeriodPath(babyId, feedingId, before.lastPeriodId)).data.endedAt == null
+        && getAfter(v2PeriodPath(babyId, feedingId, before.lastPeriodId)).data.endedAt
+          == after.endedAt
+        && isFeedingLockReleasedAfter(babyId, feedingId);
+    }
+
+    function validV2PeriodCreate(babyId, feedingId, periodId, data) {
+      let parentPath = v2ParentPath(babyId, feedingId);
+      let after = getAfter(parentPath).data;
+      return validV2Period(data, periodId)
+        && existsAfter(parentPath)
+        && after.storageVersion == 2
+        && after.endedAt == null
+        && after.lastPeriodId == periodId
+        && data.endedAt == null
+        && after.side == data.side
+        && after.lastPeriodStartedAt == data.startedAt
+        && (
+          (
+            !exists(parentPath)
+            && data.index == 0
+            && after.periodCount == 1
+            && data.startedAt == after.startedAt
+            && data.side == null
+            && hasFeedingLockAfter(babyId, feedingId)
+          )
+          ||
+          (
+            exists(parentPath)
+            && get(parentPath).data.storageVersion == 2
+            && get(parentPath).data.endedAt == null
+            && data.index == get(parentPath).data.periodCount
+            && after.periodCount == get(parentPath).data.periodCount + 1
+            && data.startedAt >= get(parentPath).data.lastPeriodStartedAt
+            && hasFeedingLockAfter(babyId, feedingId)
+          )
+        );
+    }
+
+    function validV2PeriodClose(babyId, feedingId, periodId, before, after) {
+      let parentPath = v2ParentPath(babyId, feedingId);
+      let parent = get(parentPath).data;
+      let next = getAfter(parentPath).data;
+      return validV2Period(after, periodId)
+        && before.endedAt == null
+        && after.endedAt != null
+        && after.diff(before).affectedKeys().hasOnly(['endedAt'])
+        && exists(parentPath)
+        && parent.storageVersion == 2
+        && parent.endedAt == null
+        && parent.lastPeriodId == periodId
+        && next.storageVersion == 2
+        && next.lastPeriodStartedAt >= parent.lastPeriodStartedAt
+        && (
+          (
+            next.endedAt == null
+            && next.periodCount == parent.periodCount + 1
+            && next.lastPeriodId != periodId
+            && next.lastPeriodStartedAt == after.endedAt
+          )
+          ||
+          (
+            next.endedAt == after.endedAt
+            && next.periodCount == parent.periodCount
+            && next.lastPeriodId == periodId
+            && next.side == parent.side
+            && isFeedingLockReleasedAfter(babyId, feedingId)
+          )
+        );
+    }
+
     function isValidSleep(data, sleepId) {
       return data.keys().hasOnly([
           'id',
@@ -1238,9 +1409,9 @@ service cloud.firestore {
           if isBabyMember(
             babyId
           )
-          && isValidFeeding(
-            request.resource.data,
-            feedingId
+          && (
+            isValidFeeding(request.resource.data, feedingId)
+            || validV2ParentStart(babyId, feedingId, request.resource.data)
           )
           && isAuthoredCreate(
             request.resource.data
@@ -1265,9 +1436,19 @@ service cloud.firestore {
           if isBabyMember(
             babyId
           )
-          && isValidFeeding(
-            request.resource.data,
-            feedingId
+          && (
+            (
+              !('storageVersion' in resource.data)
+              && isValidFeeding(request.resource.data, feedingId)
+            )
+            || (
+              resource.data.get('storageVersion', null) == 2
+              && validV2Parent(request.resource.data, feedingId)
+              && (
+                validV2ParentSwitch(babyId, feedingId, resource.data, request.resource.data)
+                || validV2ParentFinish(babyId, feedingId, resource.data, request.resource.data)
+              )
+            )
           )
           && preservesAttribution(
             request.resource.data,
@@ -1292,13 +1473,31 @@ service cloud.firestore {
           );
 
         allow delete:
-          if isBabyMember(
+          if !('storageVersion' in resource.data)
+          && isBabyMember(
             babyId
           )
           && isFeedingLockReleasedAfter(
             babyId,
             feedingId
           );
+        // Leitura v2 disponível apenas aos responsáveis autorizados.
+        // Nenhuma edição/exclusão livre de períodos: só transições atômicas.
+        match /periods/{periodId} {
+          allow read: if isBabyMember(babyId);
+
+          allow create:
+            if isBabyMember(babyId)
+            && validV2PeriodCreate(babyId, feedingId, periodId, request.resource.data);
+
+          allow update:
+            if isBabyMember(babyId)
+            && validV2PeriodClose(
+              babyId, feedingId, periodId, resource.data, request.resource.data
+            );
+
+          allow delete: if false;
+        }
       }
 
       match /sleeps/{sleepId} {

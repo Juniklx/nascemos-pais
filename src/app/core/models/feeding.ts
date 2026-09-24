@@ -16,6 +16,8 @@ export interface Feeding {
 
   // null identifica registros antigos, sem períodos registrados.
   readonly periods: readonly FeedingPeriod[] | null;
+  // Registros v2 são somente leitura até integração das transações e da exportação.
+  readonly storageVersion?: 2;
   readonly createdByUid?: string;
   readonly finishedByUid?: string;
 }

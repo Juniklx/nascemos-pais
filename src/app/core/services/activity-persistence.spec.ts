@@ -5,6 +5,7 @@ import { ActivityPersistenceService } from './activity-persistence';
 import { AuthService } from './auth';
 import { BabyContextService } from './baby-context';
 import { BabyDataRepository } from './baby-data.repository';
+import { FeedingV2Reader } from './feeding-v2-reader';
 import { UserDataRepository } from './user-data.repository';
 
 describe('ActivityPersistenceService', () => {
@@ -33,6 +34,8 @@ describe('ActivityPersistenceService', () => {
     watchRecords: jasmine.Spy;
     watchMembers: jasmine.Spy;
   };
+
+  let feedingV2Reader: { hasVersioned: jasmine.Spy; hydrate: jasmine.Spy };
 
   let streams: Array<{
     babyId: string;
@@ -147,6 +150,13 @@ describe('ActivityPersistenceService', () => {
     ]);
 
     streams = [];
+    feedingV2Reader = {
+      hasVersioned: jasmine.createSpy('hasVersioned').and.callFake((records: unknown[]) =>
+        records.some((record) => typeof record === 'object' && record !== null &&
+          'storageVersion' in record),
+      ),
+      hydrate: jasmine.createSpy('hydrate').and.resolveTo([]),
+    };
 
     babies.watchRecords.and.callFake(
       (babyId: string, collectionName: string,
@@ -206,6 +216,7 @@ describe('ActivityPersistenceService', () => {
           provide: UserDataRepository,
           useValue: repository,
         },
+        { provide: FeedingV2Reader, useValue: feedingV2Reader },
       ],
     });
 
@@ -594,6 +605,79 @@ describe('ActivityPersistenceService', () => {
     service.retryRealtime();
 
     expect(streams.filter((stream) => stream.collectionName === 'feedings').length).toBe(2);
+    expect(service.realtimeStatus()).toBe('connecting');
+  });
+
+  it('hidrata mamadas v2 no carregamento inicial e bloqueia alterações prematuras', async () => {
+    const parent = { id: 'feeding-v2', storageVersion: 2, periodCount: 1 };
+    const hydrated = {
+      id: 'feeding-v2', storageVersion: 2 as const, startedAt: 1000, endedAt: 1200,
+      side: 'left' as const, periods: [{ startedAt: 1000, endedAt: 1200, side: 'left' as const }],
+    };
+    mockBabyCloud({ feedings: [parent] });
+    feedingV2Reader.hydrate.and.resolveTo([hydrated]);
+
+    const result = await service.load();
+
+    expect(feedingV2Reader.hydrate).toHaveBeenCalledWith('baby-a', [parent]);
+    expect(result.feedings[0].storageVersion).toBe(2);
+    await expectAsync(service.saveFeeding(hydrated)).toBeRejectedWithError(
+      'Mamadas v2 estão disponíveis apenas para leitura nesta versão.',
+    );
+    await expectAsync(service.deleteFeeding('feeding-v2')).toBeRejectedWithError(
+      'A exclusão de mamadas v2 ainda não está disponível.',
+    );
+    expect(babies.saveRecord).not.toHaveBeenCalled();
+    expect(babies.deleteRecord).not.toHaveBeenCalled();
+  });
+
+  it('recusa carregamento parcial quando faltam períodos v2', async () => {
+    mockBabyCloud({ feedings: [{ id: 'feeding-v2', storageVersion: 2 }] });
+    feedingV2Reader.hydrate.and.rejectWith(new Error('períodos incompletos'));
+
+    await expectAsync(service.load()).toBeRejected();
+
+    expect(service.feedings()).toEqual([]);
+    expect(service.isReady()).toBeFalse();
+    expect(service.error()).toContain('Não foi possível carregar');
+  });
+
+  it('ignora hidratação v2 antiga que chega após snapshot mais recente', async () => {
+    await service.load();
+    const stream = streams.find((item) => item.collectionName === 'feedings')!;
+    const parent = { id: 'feeding-v2', storageVersion: 2 };
+    const finished = {
+      id: 'feeding-v2', storageVersion: 2 as const, startedAt: 1000, endedAt: 1300,
+      side: 'right' as const, periods: [{ startedAt: 1000, endedAt: 1300, side: 'right' as const }],
+    };
+    let resolveSlow!: (value: unknown[]) => void;
+    const slow = new Promise<unknown[]>((resolve) => { resolveSlow = resolve; });
+    feedingV2Reader.hydrate.and.returnValues(slow, Promise.resolve([finished]));
+
+    stream.next([parent], false, false);
+    stream.next([parent], false, false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(service.feedings()[0].endedAt).toBe(1300);
+
+    resolveSlow([{ ...finished, endedAt: 1100, periods: [
+      { startedAt: 1000, endedAt: 1100, side: 'right' as const },
+    ] }]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(service.feedings()[0].endedAt).toBe(1300);
+  });
+
+  it('não consulta filhos v2 com snapshots recebidos somente do cache', async () => {
+    await service.load();
+    const stream = streams.find((item) => item.collectionName === 'feedings')!;
+
+    stream.next([{ id: 'feeding-v2', storageVersion: 2 }], true, false);
+
+    expect(feedingV2Reader.hydrate).not.toHaveBeenCalled();
+    expect(service.feedings()).toEqual([]);
     expect(service.realtimeStatus()).toBe('connecting');
   });
 

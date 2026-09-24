@@ -6,6 +6,7 @@ import type { Sleep } from '../models/sleep';
 import { AuthService } from './auth';
 import { BabyContextService } from './baby-context';
 import { BabyDataRepository, type BabyRecordCollection } from './baby-data.repository';
+import { FeedingV2Reader } from './feeding-v2-reader';
 import { UserDataRepository } from './user-data.repository';
 
 export interface ActivitySnapshot {
@@ -30,6 +31,7 @@ interface ActiveListeners {
   readonly babyId: string;
   readonly unsubscribe: Array<() => void>;
   readonly fromServer: Set<BabyRecordCollection>;
+  feedingRevision: number;
 }
 
 interface MemberState {
@@ -57,6 +59,7 @@ export class ActivityPersistenceService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly babyContext = inject(BabyContextService);
   private readonly babies = inject(BabyDataRepository);
+  private readonly feedingV2Reader = inject(FeedingV2Reader);
 
   /*
    * O repositório de usuário continua
@@ -311,6 +314,10 @@ export class ActivityPersistenceService {
       throw new Error('Este registro possui mais de 6 períodos e deve ser migrado sem perda de dados.');
     }
 
+    if (previous?.storageVersion === 2 || feeding.storageVersion === 2) {
+      throw new Error('Mamadas v2 estão disponíveis apenas para leitura nesta versão.');
+    }
+
     const authored = previous === undefined ? { ...feeding, createdByUid: uid } :
       previous.createdByUid ? { ...feeding, createdByUid: previous.createdByUid } : feeding;
     const saved = previous?.endedAt === null && feeding.endedAt !== null
@@ -340,7 +347,11 @@ export class ActivityPersistenceService {
   }
 
   async deleteFeeding(id: string): Promise<void> {
-    const { uid, babyId } = this.requireReadyState();
+    const { uid, babyId, snapshot } = this.requireReadyState();
+
+    if (snapshot.feedings.some((record) => record.id === id && record.storageVersion === 2)) {
+      throw new Error('A exclusão de mamadas v2 ainda não está disponível.');
+    }
 
     this.clearError(uid, babyId);
 
@@ -484,6 +495,7 @@ export class ActivityPersistenceService {
       babyId,
       unsubscribe: [],
       fromServer: new Set<BabyRecordCollection>(),
+      feedingRevision: 0,
     };
 
     this.listeners = listeners;
@@ -500,29 +512,33 @@ export class ActivityPersistenceService {
               return;
             }
 
-            try {
-              const current = this.state();
-              const snapshot = this.normalizeSnapshot(
-                { ...current.snapshot, [collectionName]: records },
-                true,
-              );
+            const revision = collectionName === 'feedings' ? ++listeners.feedingRevision : 0;
 
-              this.state.set({ ...current, snapshot });
+            if (collectionName === 'feedings' && this.feedingV2Reader.hasVersioned(records)) {
+              // Pais v2 e períodos só entram no histórico após verificação completa.
+              // A revisão descarta resultados antigos de consultas assíncronas.
+              listeners.fromServer.delete('feedings');
+              this.realtime.set({ uid, babyId, status: 'connecting' });
 
               if (fromCache) {
-                listeners.fromServer.delete(collectionName);
-              } else {
-                listeners.fromServer.add(collectionName);
+                return;
               }
 
-              const isLive = listeners.fromServer.size === 3;
+              void this.feedingV2Reader.hydrate(babyId, records).then((hydrated) => {
+                if (this.isCurrentListener(listeners) && revision === listeners.feedingRevision) {
+                  this.applyRealtimeSnapshot(listeners, 'feedings', hydrated, false);
+                }
+              }).catch(() => {
+                if (this.isCurrentListener(listeners) && revision === listeners.feedingRevision) {
+                  this.failListening(listeners);
+                }
+              });
 
-              this.realtime.set({ uid, babyId, status: isLive ? 'live' : 'connecting' });
+              return;
+            }
 
-              if (isLive && this.state().error ===
-                'Não foi possível sincronizar os registros com a nuvem. Tente novamente.') {
-                this.clearError(uid, babyId);
-              }
+            try {
+              this.applyRealtimeSnapshot(listeners, collectionName, records, fromCache);
             } catch {
               this.failListening(listeners);
             }
@@ -553,6 +569,37 @@ export class ActivityPersistenceService {
       listeners.unsubscribe.push(unsubscribe);
     } catch {
       // Os nomes são opcionais; o acompanhamento das atividades continua funcionando.
+    }
+  }
+
+  private applyRealtimeSnapshot(
+    listeners: ActiveListeners,
+    collectionName: BabyRecordCollection,
+    records: readonly unknown[],
+    fromCache: boolean,
+  ): void {
+    if (!this.isCurrentListener(listeners)) {
+      return;
+    }
+
+    const { uid, babyId } = listeners;
+    const current = this.state();
+    const snapshot = this.normalizeSnapshot({ ...current.snapshot, [collectionName]: records }, true);
+
+    this.state.set({ ...current, snapshot });
+
+    if (fromCache) {
+      listeners.fromServer.delete(collectionName);
+    } else {
+      listeners.fromServer.add(collectionName);
+    }
+
+    const isLive = listeners.fromServer.size === 3;
+    this.realtime.set({ uid, babyId, status: isLive ? 'live' : 'connecting' });
+
+    if (isLive && this.state().error ===
+      'Não foi possível sincronizar os registros com a nuvem. Tente novamente.') {
+      this.clearError(uid, babyId);
     }
   }
 
@@ -615,6 +662,12 @@ export class ActivityPersistenceService {
 
     this.assertSameContext(uid, babyId);
 
+    const hydratedFeedings = this.feedingV2Reader.hasVersioned(rawFeedings)
+      ? await this.feedingV2Reader.hydrate(babyId, rawFeedings)
+      : rawFeedings;
+
+    this.assertSameContext(uid, babyId);
+
     return {
       babyId,
       /*
@@ -626,7 +679,7 @@ export class ActivityPersistenceService {
        */
       snapshot: this.normalizeSnapshot(
         {
-          feedings: rawFeedings,
+          feedings: hydratedFeedings,
           sleeps: rawSleeps,
           diapers: rawDiapers,
         },
@@ -959,6 +1012,7 @@ export class ActivityPersistenceService {
       endedAt,
       side,
       ...this.parseAttribution(value),
+      ...(legacy || value['storageVersion'] !== 2 ? {} : { storageVersion: 2 as const }),
     };
 
     if (legacy) {
