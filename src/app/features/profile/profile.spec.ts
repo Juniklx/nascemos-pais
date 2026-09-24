@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 
 import type { Baby, BabyMember } from '../../core/models/baby';
+import { ActivityPersistenceService } from '../../core/services/activity-persistence';
 import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
 import { BabyDataRepository } from '../../core/services/baby-data.repository';
@@ -31,6 +32,9 @@ describe('ProfilePage', () => {
   const removeBabyMember = jasmine.createSpy('removeMember');
   const updateBaby = jasmine.createSpy('updateBaby');
   const reloadBabyContext = jasmine.createSpy('reload');
+  const createBaby = jasmine.createSpy('createBaby');
+  const loadActivities = jasmine.createSpy('load');
+  const navigate = jasmine.createSpy('navigate');
   const updateProfile = jasmine.createSpy('updateProfile');
   const updateOwnCaregiverName = jasmine.createSpy('updateOwnCaregiverName');
   const reloadOnboarding = jasmine.createSpy('reload');
@@ -66,6 +70,9 @@ describe('ProfilePage', () => {
     removeBabyMember.calls.reset();
     updateBaby.calls.reset();
     reloadBabyContext.calls.reset();
+    createBaby.calls.reset();
+    loadActivities.calls.reset();
+    navigate.calls.reset();
     updateProfile.calls.reset();
 
     createInvite.and.resolveTo({
@@ -83,6 +90,20 @@ describe('ProfilePage', () => {
     removeBabyMember.and.resolveTo();
     updateBaby.and.resolveTo();
     reloadBabyContext.and.resolveTo();
+    createBaby.and.resolveTo({
+      id: 'baby-2',
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+      createdByUid: 'user-a',
+      createdAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    loadActivities.and.resolveTo({
+      feedings: [],
+      sleeps: [],
+      diapers: [],
+    });
+    navigate.and.resolveTo(true);
     updateProfile.and.resolveTo(true);
 
     const caregiverName = signal('Marcelo');
@@ -106,7 +127,13 @@ describe('ProfilePage', () => {
         {
           provide: Router,
           useValue: {
-            navigate: jasmine.createSpy('navigate'),
+            navigate,
+          },
+        },
+        {
+          provide: ActivityPersistenceService,
+          useValue: {
+            load: loadActivities,
           },
         },
         {
@@ -133,6 +160,7 @@ describe('ProfilePage', () => {
             isOwner: isOwner.asReadonly(),
             activeBabyId: activeBabyId.asReadonly(),
             reload: reloadBabyContext,
+            createBaby,
           },
         },
         {
@@ -154,6 +182,35 @@ describe('ProfilePage', () => {
     });
 
     page = TestBed.runInInjectionContext(() => new ProfilePage());
+  });
+
+  it('adiciona outro bebê e abre a home com ele ativo', async () => {
+    page.newBabyForm.setValue({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+
+    await page.createBaby();
+
+    expect(createBaby).toHaveBeenCalledOnceWith({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+    expect(loadActivities).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledOnceWith(['/home']);
+    expect(page.newBabyMessage()).toBe('');
+  });
+
+  it('não adiciona bebê com dados inválidos', async () => {
+    page.newBabyForm.setValue({
+      name: '   ',
+      birthDate: '',
+    });
+
+    await page.createBaby();
+
+    expect(createBaby).not.toHaveBeenCalled();
+    expect(loadActivities).not.toHaveBeenCalled();
   });
 
   it('permite proprietário gerar convite', async () => {

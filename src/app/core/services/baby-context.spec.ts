@@ -28,6 +28,7 @@ describe('BabyContextService', () => {
     ensureBabyReference: jasmine.createSpy('ensureBabyReference'),
     listLinkedBabies: jasmine.createSpy('listLinkedBabies'),
     setActiveBaby: jasmine.createSpy('setActiveBaby'),
+    createOwnedBaby: jasmine.createSpy('createOwnedBaby'),
   };
 
   const babyA = {
@@ -92,6 +93,7 @@ describe('BabyContextService', () => {
       baby: babyB,
       membership: caregiverB,
     });
+    babies.createOwnedBaby.and.resolveTo(babyB);
 
     TestBed.configureTestingModule({
       providers: [
@@ -130,6 +132,30 @@ describe('BabyContextService', () => {
     await service.ensureLoaded();
 
     expect(service.isOwner()).toBeTrue();
+  });
+
+  it('cria outro bebê e recarrega o contexto com ele ativo', async () => {
+    await service.ensureLoaded();
+
+    migration.ensureMigrated.and.resolveTo('baby-b');
+    babies.readBaby.and.resolveTo(babyB);
+    babies.readMembership.and.resolveTo({
+      ...caregiverB,
+      role: 'owner',
+      inviteId: undefined,
+    });
+
+    const created = await service.createBaby({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+
+    expect(babies.createOwnedBaby).toHaveBeenCalledOnceWith({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+    expect(created).toBe(babyB);
+    expect(service.activeBabyId()).toBe('baby-b');
   });
 
   it('troca o bebê ativo e atualiza o vínculo selecionado', async () => {

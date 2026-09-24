@@ -113,6 +113,26 @@ export class BabyContextService {
     }
   }
 
+  async createBaby(input: { readonly name: string; readonly birthDate: string }): Promise<Baby> {
+    await this.ensureLoaded();
+
+    const uid = this.auth.user()?.uid ?? null;
+
+    if (uid === null) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const baby = await this.babies.createOwnedBaby(input);
+
+    this.assertSameUser(uid);
+
+    await this.reload();
+
+    this.assertSameUser(uid);
+
+    return baby;
+  }
+
   async selectBaby(babyId: string): Promise<void> {
     await this.ensureLoaded();
 
