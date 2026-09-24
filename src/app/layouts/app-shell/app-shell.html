@@ -66,6 +66,10 @@
     <p class="baby-switcher__error" role="alert">
       {{ switchError() }}
     </p>
+    } @else if (contextError()) {
+    <p class="baby-switcher__error" role="alert">
+      {{ contextError() }}
+    </p>
     }
   </aside>
 
@@ -87,6 +91,10 @@
       @if (switchError()) {
       <p class="baby-switcher__error" role="alert">
         {{ switchError() }}
+      </p>
+      } @else if (contextError()) {
+      <p class="baby-switcher__error" role="alert">
+        {{ contextError() }}
       </p>
       }
     </div>
