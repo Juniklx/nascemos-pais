@@ -567,6 +567,43 @@ describe('ActivityPersistenceService', () => {
     expect(service.realtimeStatus()).toBe('connecting');
   });
 
+  it('identifica responsáveis e usa fallback para registros legados', async () => {
+    await service.load();
+
+    expect(service.actorName()).toBeNull();
+    expect(service.actorName('user-a')).toBe('Responsável');
+
+    const onMembers = babies.watchMembers.calls.mostRecent().args[1] as (
+      members: Array<{ uid: string; role: 'owner' | 'caregiver'; joinedAt: string; caregiverName?: string }>
+    ) => void;
+
+    onMembers([
+      { uid: 'user-a', role: 'owner', joinedAt: '2026-01-01', caregiverName: 'Marcelo' },
+      { uid: 'user-b', role: 'caregiver', joinedAt: '2026-01-02', caregiverName: 'Ana' },
+    ]);
+
+    expect(service.actorName('user-a')).toBe('Marcelo');
+    expect(service.actorName('user-b')).toBe('Ana');
+    expect(service.actorName('user-c')).toBe('Responsável');
+  });
+
+  it('cancela todas as assinaturas ao encerrar a sessão', async () => {
+    await service.load();
+    const oldStreams = [...streams];
+
+    user.set(null);
+    activeBabyId.set(null);
+
+    await expectAsync(service.load()).toBeRejectedWithError('Usuário não autenticado.');
+
+    for (const previous of oldStreams) {
+      expect(previous.unsubscribe).toHaveBeenCalled();
+    }
+
+    expect(service.realtimeStatus()).toBe('idle');
+    expect(service.actorName('user-a')).toBe('Responsável');
+  });
+
   it('registra autoria e preserva o autor de uma atividade existente', async () => {
     mockBabyCloud({ feedings: [feeding] });
     await service.load();
