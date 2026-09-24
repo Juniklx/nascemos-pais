@@ -120,6 +120,14 @@ describe('AccountDeletionPreflightService', () => {
     );
   });
 
+  it('recusa dados inconsistentes com mais de um proprietario', async () => {
+    lists['babies/baby-a/members'].push({ id: 'user-c', role: 'owner' });
+
+    await expectAsync(preflight.preview()).toBeRejectedWithError(
+      'A propriedade de um bebê está inconsistente. Solicite ajuda.',
+    );
+  });
+
   it('recusa acesso removido durante a consulta', async () => {
     reads['babies/baby-b/members/user-a'] = null;
 
