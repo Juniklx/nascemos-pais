@@ -164,6 +164,14 @@ describe('ProfilePage', () => {
     expect(page.inviteMessage()).toContain('válido por até 24 horas');
   });
 
+  it('gera link absoluto para uso no QR Code', async () => {
+    await page.generateInvite();
+
+    expect(page.inviteLink()).toBe(
+      `${window.location.origin}/invite/${'a'.repeat(64)}`,
+    );
+  });
+
   it('não permite responsável gerar convite', async () => {
     isOwner.set(false);
 

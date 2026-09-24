@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-
+import { QRCodeComponent } from 'angularx-qrcode';
 import type { BabyMember } from '../../core/models/baby';
 import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
@@ -13,7 +13,7 @@ import { trimmedRequired, validBirthDate } from '../../core/validators/onboardin
 
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [QRCodeComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
