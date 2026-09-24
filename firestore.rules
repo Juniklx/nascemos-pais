@@ -207,7 +207,8 @@ service cloud.firestore {
 
     function isValidTimestamp(value) {
       return value is int
-        && value >= 0;
+        && value >= 0
+        && value <= 8640000000000000;
     }
 
     function isNullableTimestamp(value) {
@@ -543,6 +544,167 @@ service cloud.firestore {
         );
     }
 
+    /*
+     * Firestore Rules não possuem um iterador de validação para listas.
+     * Limitamos o registro novo a 32 períodos para validar cada posição,
+     * mantendo períodos nulos dos registros legados como antes.
+     */
+    function isValidFeedingPeriod(period, startedAt) {
+      return period is map
+        && period.keys().hasOnly(['startedAt', 'endedAt', 'side'])
+        && period.keys().hasAll(['startedAt', 'endedAt', 'side'])
+        && isValidTimestamp(period.startedAt)
+        && period.startedAt >= startedAt
+        && isNullableTimestamp(period.endedAt)
+        && (
+          period.endedAt == null
+          || period.endedAt >= period.startedAt
+        )
+        && isValidSide(period.side);
+    }
+
+    function isValidFollowingPeriod(periods, index, startedAt) {
+      return isValidFeedingPeriod(periods[index], startedAt)
+        && periods[index - 1].endedAt != null
+        && periods[index].startedAt == periods[index - 1].endedAt;
+    }
+
+    function isValidFeedingPeriods(periods, startedAt, endedAt, side) {
+      return periods == null
+        || (
+          periods is list
+          && periods.size() > 0
+          && periods.size() <= 32
+          && isValidFeedingPeriod(periods[0], startedAt)
+        && (
+          periods.size() <= 1
+          || isValidFollowingPeriod(periods, 1, startedAt)
+        )
+        && (
+          periods.size() <= 2
+          || isValidFollowingPeriod(periods, 2, startedAt)
+        )
+        && (
+          periods.size() <= 3
+          || isValidFollowingPeriod(periods, 3, startedAt)
+        )
+        && (
+          periods.size() <= 4
+          || isValidFollowingPeriod(periods, 4, startedAt)
+        )
+        && (
+          periods.size() <= 5
+          || isValidFollowingPeriod(periods, 5, startedAt)
+        )
+        && (
+          periods.size() <= 6
+          || isValidFollowingPeriod(periods, 6, startedAt)
+        )
+        && (
+          periods.size() <= 7
+          || isValidFollowingPeriod(periods, 7, startedAt)
+        )
+        && (
+          periods.size() <= 8
+          || isValidFollowingPeriod(periods, 8, startedAt)
+        )
+        && (
+          periods.size() <= 9
+          || isValidFollowingPeriod(periods, 9, startedAt)
+        )
+        && (
+          periods.size() <= 10
+          || isValidFollowingPeriod(periods, 10, startedAt)
+        )
+        && (
+          periods.size() <= 11
+          || isValidFollowingPeriod(periods, 11, startedAt)
+        )
+        && (
+          periods.size() <= 12
+          || isValidFollowingPeriod(periods, 12, startedAt)
+        )
+        && (
+          periods.size() <= 13
+          || isValidFollowingPeriod(periods, 13, startedAt)
+        )
+        && (
+          periods.size() <= 14
+          || isValidFollowingPeriod(periods, 14, startedAt)
+        )
+        && (
+          periods.size() <= 15
+          || isValidFollowingPeriod(periods, 15, startedAt)
+        )
+        && (
+          periods.size() <= 16
+          || isValidFollowingPeriod(periods, 16, startedAt)
+        )
+        && (
+          periods.size() <= 17
+          || isValidFollowingPeriod(periods, 17, startedAt)
+        )
+        && (
+          periods.size() <= 18
+          || isValidFollowingPeriod(periods, 18, startedAt)
+        )
+        && (
+          periods.size() <= 19
+          || isValidFollowingPeriod(periods, 19, startedAt)
+        )
+        && (
+          periods.size() <= 20
+          || isValidFollowingPeriod(periods, 20, startedAt)
+        )
+        && (
+          periods.size() <= 21
+          || isValidFollowingPeriod(periods, 21, startedAt)
+        )
+        && (
+          periods.size() <= 22
+          || isValidFollowingPeriod(periods, 22, startedAt)
+        )
+        && (
+          periods.size() <= 23
+          || isValidFollowingPeriod(periods, 23, startedAt)
+        )
+        && (
+          periods.size() <= 24
+          || isValidFollowingPeriod(periods, 24, startedAt)
+        )
+        && (
+          periods.size() <= 25
+          || isValidFollowingPeriod(periods, 25, startedAt)
+        )
+        && (
+          periods.size() <= 26
+          || isValidFollowingPeriod(periods, 26, startedAt)
+        )
+        && (
+          periods.size() <= 27
+          || isValidFollowingPeriod(periods, 27, startedAt)
+        )
+        && (
+          periods.size() <= 28
+          || isValidFollowingPeriod(periods, 28, startedAt)
+        )
+        && (
+          periods.size() <= 29
+          || isValidFollowingPeriod(periods, 29, startedAt)
+        )
+        && (
+          periods.size() <= 30
+          || isValidFollowingPeriod(periods, 30, startedAt)
+        )
+        && (
+          periods.size() <= 31
+          || isValidFollowingPeriod(periods, 31, startedAt)
+        )
+          && periods[periods.size() - 1].endedAt == endedAt
+          && periods[periods.size() - 1].side == side
+        );
+    }
+
     function isValidFeeding(data, feedingId) {
       return data.keys().hasOnly([
           'id',
@@ -569,9 +731,11 @@ service cloud.firestore {
           || data.endedAt >= data.startedAt
         )
         && isValidSide(data.side)
-        && (
-          data.periods == null
-          || data.periods is list
+        && isValidFeedingPeriods(
+          data.periods,
+          data.startedAt,
+          data.endedAt,
+          data.side
         )
         && isValidAttribution(data, true);
     }
