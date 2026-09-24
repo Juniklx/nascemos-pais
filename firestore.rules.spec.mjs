@@ -171,7 +171,7 @@ async function createPendingInvite(token = inviteToken) {
   );
 }
 
-function createAcceptanceBatch(db, token = inviteToken) {
+function createAcceptanceBatch(db, token = inviteToken, profilePatch = {}) {
   const batch = writeBatch(db);
   const joinedAt = new Date().toISOString();
 
@@ -205,6 +205,7 @@ function createAcceptanceBatch(db, token = inviteToken) {
     doc(db, `users/${userC}`),
     {
       activeBabyId: sharedBaby,
+      ...profilePatch,
     },
     {
       merge: true,
@@ -790,11 +791,10 @@ test('não permite forjar migração no mesmo lote do convite', async () => {
 
   await createPendingInvite();
   const db = testEnv.authenticatedContext(userC).firestore();
-  const batch = createAcceptanceBatch(db);
-  batch.set(doc(db, `users/${userC}`), {
+  const batch = createAcceptanceBatch(db, inviteToken, {
     babyMigrationVersion: 1,
     babyMigratedAt: new Date().toISOString(),
-  }, { merge: true });
+  });
 
   await assertFails(batch.commit());
 });
