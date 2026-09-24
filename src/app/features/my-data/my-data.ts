@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth';
+import { AccountDeletionPreflightService, type DeletionPreflight } from '../../core/services/account-deletion-preflight';
 import { PrivacyDataExportService } from '../../core/services/privacy-data-export';
 
 @Component({
@@ -11,11 +12,36 @@ import { PrivacyDataExportService } from '../../core/services/privacy-data-expor
 })
 export class MyDataPage {
   private readonly exporter = inject(PrivacyDataExportService);
+  private readonly deletionPreflight = inject(AccountDeletionPreflightService);
   private readonly auth = inject(AuthService);
 
   readonly exporting = signal(false);
   readonly message = signal('');
   readonly error = signal('');
+  readonly checkingDeletion = signal(false);
+  readonly deletionPreview = signal<DeletionPreflight | null>(null);
+  readonly deletionPreviewError = signal('');
+
+  async checkDeletion(): Promise<void> {
+    if (this.checkingDeletion()) {
+      return;
+    }
+
+    this.checkingDeletion.set(true);
+    this.deletionPreview.set(null);
+    this.deletionPreviewError.set('');
+
+    try {
+      this.deletionPreview.set(await this.deletionPreflight.preview());
+    } catch {
+      this.deletionPreviewError.set(
+        'Não foi possível verificar todos os vínculos diretamente no servidor. ' +
+        'Não tome decisões com uma lista incompleta. Você ainda pode solicitar ajuda pelo e-mail.',
+      );
+    } finally {
+      this.checkingDeletion.set(false);
+    }
+  }
 
   async downloadData(): Promise<void> {
     if (this.exporting()) {
