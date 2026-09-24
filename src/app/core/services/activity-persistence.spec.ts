@@ -516,6 +516,14 @@ describe('ActivityPersistenceService', () => {
     expect(service.diapers()).toEqual([diaper]);
     expect(service.realtimeStatus()).toBe('live');
 
+    // Ao perder a ligação com o servidor, os dados em cache continuam disponíveis.
+    diaperStream.next([diaper], true, false);
+    expect(service.realtimeStatus()).toBe('connecting');
+    expect(service.diapers()).toEqual([diaper]);
+
+    diaperStream.next([diaper], false, false);
+    expect(service.realtimeStatus()).toBe('live');
+
     feedingStream.next([], false, false);
 
     expect(service.feedings()).toEqual([]);
