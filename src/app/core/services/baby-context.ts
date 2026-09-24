@@ -214,18 +214,27 @@ export class BabyContextService {
       throw new Error('O vínculo com o bebê está inconsistente.');
     }
 
-    await this.babies.ensureBabyReference(babyId, membership);
-
-    this.assertSameUser(uid);
-
-    const linkedBabies = await this.babies.listLinkedBabies();
-
-    this.assertSameUser(uid);
-
     const selected: LinkedBaby = {
       baby,
       membership,
     };
+
+    let linkedBabies: readonly LinkedBaby[] = [selected];
+    let linkedBabiesError: string | null = null;
+
+    try {
+      await this.babies.ensureBabyReference(babyId, membership);
+
+      this.assertSameUser(uid);
+
+      linkedBabies = await this.babies.listLinkedBabies();
+
+      this.assertSameUser(uid);
+    } catch {
+      this.assertSameUser(uid);
+
+      linkedBabiesError = 'Não foi possível carregar todos os bebês vinculados.';
+    }
 
     this.state.set({
       uid,
@@ -234,7 +243,7 @@ export class BabyContextService {
       linkedBabies: this.withSelectedBaby(linkedBabies, selected),
       ready: true,
       loading: false,
-      error: null,
+      error: linkedBabiesError,
     });
   }
 
