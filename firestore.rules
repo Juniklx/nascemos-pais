@@ -549,23 +549,23 @@ service cloud.firestore {
      * Limitamos o registro novo a 6 períodos para validar cada posição,
      * mantendo períodos nulos dos registros legados como antes.
      */
-    function isValidFeedingPeriod(period, startedAt) {
+    function isValidFeedingPeriod(period) {
       return period is map
         && period.keys().hasOnly(['startedAt', 'endedAt', 'side'])
         && period.keys().hasAll(['startedAt', 'endedAt', 'side'])
         && isValidTimestamp(period.startedAt)
-        && period.startedAt >= startedAt
-        && isNullableTimestamp(period.endedAt)
         && (
           period.endedAt == null
-          || period.endedAt >= period.startedAt
+          || (
+            isValidTimestamp(period.endedAt)
+            && period.endedAt >= period.startedAt
+          )
         )
         && isValidSide(period.side);
     }
 
-    function isValidFollowingPeriod(periods, index, startedAt) {
-      return isValidFeedingPeriod(periods[index], startedAt)
-        && periods[index - 1].endedAt != null
+    function isValidFollowingPeriod(periods, index) {
+      return isValidFeedingPeriod(periods[index])
         && periods[index].startedAt == periods[index - 1].endedAt;
     }
 
@@ -575,26 +575,27 @@ service cloud.firestore {
           periods is list
           && periods.size() > 0
           && periods.size() <= 6
-          && isValidFeedingPeriod(periods[0], startedAt)
+          && isValidFeedingPeriod(periods[0])
+          && periods[0].startedAt >= startedAt
         && (
           periods.size() <= 1
-          || isValidFollowingPeriod(periods, 1, startedAt)
+          || isValidFollowingPeriod(periods, 1)
         )
         && (
           periods.size() <= 2
-          || isValidFollowingPeriod(periods, 2, startedAt)
+          || isValidFollowingPeriod(periods, 2)
         )
         && (
           periods.size() <= 3
-          || isValidFollowingPeriod(periods, 3, startedAt)
+          || isValidFollowingPeriod(periods, 3)
         )
         && (
           periods.size() <= 4
-          || isValidFollowingPeriod(periods, 4, startedAt)
+          || isValidFollowingPeriod(periods, 4)
         )
         && (
           periods.size() <= 5
-          || isValidFollowingPeriod(periods, 5, startedAt)
+          || isValidFollowingPeriod(periods, 5)
         )
           && periods[periods.size() - 1].endedAt == endedAt
           && periods[periods.size() - 1].side == side
