@@ -58,9 +58,8 @@ describe('BabyDataRepository', () => {
     transactionContext.get.and.resolveTo(null);
 
     firestore.transaction.and.callFake(
-      async (
-        work: (context: typeof transactionContext) => Promise<unknown>,
-      ) => work(transactionContext),
+      async (work: (context: typeof transactionContext) => Promise<unknown>) =>
+        work(transactionContext),
     );
 
     TestBed.configureTestingModule({
@@ -120,6 +119,130 @@ describe('BabyDataRepository', () => {
     });
   });
 
+  it('reivindica bebê da migração em uma transação', async () => {
+    transactionContext.get.and.resolveTo({
+      caregiverName: 'Marcelo',
+      babyName: 'Helena',
+      babyBirthDate: '2026-01-01',
+      consentGiven: true,
+      consentAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const baby = await repository.claimOwnedBaby({
+      name: 'Helena',
+      birthDate: '2026-01-01',
+    });
+
+    expect(baby.id).toBe('baby-1');
+    expect(baby.createdByUid).toBe('user-a');
+
+    expect(transactionContext.get).toHaveBeenCalledOnceWith('users/user-a');
+
+    expect(transactionContext.set).toHaveBeenCalledWith(
+      'babies/baby-1',
+      jasmine.objectContaining({
+        name: 'Helena',
+        birthDate: '2026-01-01',
+        createdByUid: 'user-a',
+      }),
+      false,
+    );
+
+    expect(transactionContext.set).toHaveBeenCalledWith(
+      'babies/baby-1/members/user-a',
+      jasmine.objectContaining({
+        role: 'owner',
+      }),
+      false,
+    );
+
+    expect(transactionContext.set).toHaveBeenCalledWith(
+      'users/user-a',
+      {
+        activeBabyId: 'baby-1',
+      },
+      true,
+    );
+  });
+
+  it('reutiliza bebê criado por outra migração concorrente', async () => {
+    transactionContext.get.and.resolveTo({
+      activeBabyId: 'baby-existing',
+    });
+
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-existing') {
+        return {
+          name: 'Helena',
+          birthDate: '2026-01-01',
+          createdByUid: 'user-a',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-existing/members/user-a') {
+        return {
+          role: 'owner',
+          joinedAt: '2026-01-01T00:00:00.000Z',
+        };
+      }
+
+      return null;
+    });
+
+    const baby = await repository.claimOwnedBaby({
+      name: 'Helena',
+      birthDate: '2026-01-01',
+    });
+
+    expect(baby.id).toBe('baby-existing');
+
+    expect(firestore.createId).not.toHaveBeenCalled();
+    expect(transactionContext.set).not.toHaveBeenCalled();
+
+    expect(firestore.get).toHaveBeenCalledWith('babies/baby-existing');
+
+    expect(firestore.get).toHaveBeenCalledWith('babies/baby-existing/members/user-a');
+  });
+
+  it('não reutiliza bebê compartilhado durante migração própria', async () => {
+    transactionContext.get.and.resolveTo({
+      activeBabyId: 'baby-shared',
+    });
+
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-shared') {
+        return {
+          name: 'Outro bebê',
+          birthDate: '2026-01-01',
+          createdByUid: 'owner-user',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-shared/members/user-a') {
+        return {
+          role: 'caregiver',
+          joinedAt: '2026-01-01T00:00:00.000Z',
+          inviteId: 'a'.repeat(64),
+        };
+      }
+
+      return null;
+    });
+
+    await expectAsync(
+      repository.claimOwnedBaby({
+        name: 'Helena',
+        birthDate: '2026-01-01',
+      }),
+    ).toBeRejectedWithError('O bebê ativo não pertence a esta conta.');
+
+    expect(transactionContext.set).not.toHaveBeenCalled();
+  });
+
   it('lê bebê pelo identificador', async () => {
     firestore.get.and.resolveTo({
       name: 'Helena',
@@ -171,9 +294,7 @@ describe('BabyDataRepository', () => {
 
     const member = await repository.readMembership('baby-1');
 
-    expect(firestore.get).toHaveBeenCalledOnceWith(
-      'babies/baby-1/members/user-a',
-    );
+    expect(firestore.get).toHaveBeenCalledOnceWith('babies/baby-1/members/user-a');
     expect(member?.role).toBe('caregiver');
   });
 
@@ -197,9 +318,7 @@ describe('BabyDataRepository', () => {
   it('lista registros dentro do bebê', async () => {
     await repository.listRecords('baby-1', 'feedings');
 
-    expect(firestore.list).toHaveBeenCalledOnceWith(
-      'babies/baby-1/feedings',
-    );
+    expect(firestore.list).toHaveBeenCalledOnceWith('babies/baby-1/feedings');
   });
 
   it('salva mamada finalizada em transação', async () => {
@@ -267,9 +386,9 @@ describe('BabyDataRepository', () => {
       periods: null,
     };
 
-    await expectAsync(
-      repository.saveRecord('baby-1', 'feedings', record),
-    ).toBeRejectedWithError('Já existe uma mamada em andamento.');
+    await expectAsync(repository.saveRecord('baby-1', 'feedings', record)).toBeRejectedWithError(
+      'Já existe uma mamada em andamento.',
+    );
 
     expect(transactionContext.set).not.toHaveBeenCalled();
   });
@@ -311,9 +430,9 @@ describe('BabyDataRepository', () => {
       endedAt: null,
     };
 
-    await expectAsync(
-      repository.saveRecord('baby-1', 'sleeps', record),
-    ).toBeRejectedWithError('Já existe um sono em andamento.');
+    await expectAsync(repository.saveRecord('baby-1', 'sleeps', record)).toBeRejectedWithError(
+      'Já existe um sono em andamento.',
+    );
 
     expect(transactionContext.set).not.toHaveBeenCalled();
   });
@@ -327,11 +446,7 @@ describe('BabyDataRepository', () => {
 
     await repository.saveRecord('baby-1', 'diapers', record);
 
-    expect(firestore.set).toHaveBeenCalledOnceWith(
-      'babies/baby-1/diapers/diaper-1',
-      record,
-      true,
-    );
+    expect(firestore.set).toHaveBeenCalledOnceWith('babies/baby-1/diapers/diaper-1', record, true);
 
     expect(firestore.transaction).not.toHaveBeenCalled();
   });
@@ -339,9 +454,9 @@ describe('BabyDataRepository', () => {
   it('impede operação sem autenticação', async () => {
     user.set(null);
 
-    await expectAsync(
-      repository.readBaby('baby-1'),
-    ).toBeRejectedWithError('Usuário não autenticado.');
+    await expectAsync(repository.readBaby('baby-1')).toBeRejectedWithError(
+      'Usuário não autenticado.',
+    );
 
     expect(firestore.get).not.toHaveBeenCalled();
   });
@@ -359,15 +474,11 @@ describe('BabyDataRepository', () => {
       } as User);
     });
 
-    await expectAsync(
-      repository.saveRecord('baby-1', 'diapers', record),
-    ).toBeRejectedWithError('A sessão mudou durante a operação.');
-
-    expect(firestore.set).toHaveBeenCalledOnceWith(
-      'babies/baby-1/diapers/diaper-1',
-      record,
-      true,
+    await expectAsync(repository.saveRecord('baby-1', 'diapers', record)).toBeRejectedWithError(
+      'A sessão mudou durante a operação.',
     );
+
+    expect(firestore.set).toHaveBeenCalledOnceWith('babies/baby-1/diapers/diaper-1', record, true);
   });
 
   it('remove responsável e cria notificação no mesmo lote', async () => {
@@ -407,9 +518,7 @@ describe('BabyDataRepository', () => {
   });
 
   it('não remove o próprio vínculo por esta ação', async () => {
-    await expectAsync(
-      repository.removeMember('baby-1', 'user-a'),
-    ).toBeRejectedWithError(
+    await expectAsync(repository.removeMember('baby-1', 'user-a')).toBeRejectedWithError(
       'Não é possível remover o próprio vínculo por esta ação.',
     );
 
@@ -419,9 +528,9 @@ describe('BabyDataRepository', () => {
   it('não remove responsável quando o bebê não é encontrado', async () => {
     firestore.get.and.resolveTo(null);
 
-    await expectAsync(
-      repository.removeMember('baby-1', 'user-b'),
-    ).toBeRejectedWithError('Bebê não encontrado.');
+    await expectAsync(repository.removeMember('baby-1', 'user-b')).toBeRejectedWithError(
+      'Bebê não encontrado.',
+    );
 
     expect(firestore.batchWrite).not.toHaveBeenCalled();
   });
@@ -446,9 +555,9 @@ describe('BabyDataRepository', () => {
   });
 
   it('não atualiza nome inválido do responsável', async () => {
-    await expectAsync(
-      repository.updateOwnCaregiverName('baby-1', '   '),
-    ).toBeRejectedWithError('Nome do responsável inválido.');
+    await expectAsync(repository.updateOwnCaregiverName('baby-1', '   ')).toBeRejectedWithError(
+      'Nome do responsável inválido.',
+    );
 
     expect(firestore.batchSet).not.toHaveBeenCalled();
   });

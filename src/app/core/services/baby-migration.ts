@@ -12,16 +12,13 @@ import { UserDataRepository } from './user-data.repository';
 })
 export class BabyMigrationService {
   private readonly auth = inject(AuthService);
-
   private readonly users = inject(UserDataRepository);
-
   private readonly babies = inject(BabyDataRepository);
 
   async ensureMigrated(): Promise<string | null> {
     await this.auth.waitUntilReady();
 
     const uid = this.requireUid();
-
     const profile = await this.users.readProfile<Record<string, unknown>>();
 
     this.assertSameUser(uid);
@@ -51,7 +48,6 @@ export class BabyMigrationService {
       ) {
         await this.users.saveProfile({
           babyName: access.baby.name,
-
           babyBirthDate: access.baby.birthDate,
         });
 
@@ -62,7 +58,6 @@ export class BabyMigrationService {
     }
 
     const rawBabyName = profile['babyName'];
-
     const rawBirthDate = profile['babyBirthDate'];
 
     let babyId = activeBabyId;
@@ -85,11 +80,8 @@ export class BabyMigrationService {
 
         await this.users.saveProfile({
           babyName: access.baby.name,
-
           babyBirthDate: access.baby.birthDate,
-
           babyMigrationVersion: 1,
-
           babyMigratedAt: new Date().toISOString(),
         });
 
@@ -115,9 +107,16 @@ export class BabyMigrationService {
         throw new Error('Os dados atuais do bebê não permitem a migração.');
       }
 
-      const baby = await this.babies.createOwnedBaby({
+      /*
+       * A criação inicial é reivindicada em uma
+       * transação baseada no perfil do usuário.
+       *
+       * Se dois dispositivos iniciarem a migração
+       * simultaneamente, apenas um cria o bebê.
+       * O outro reutiliza o activeBabyId vencedor.
+       */
+      const baby = await this.babies.claimOwnedBaby({
         name: rawBabyName.trim(),
-
         birthDate: rawBirthDate,
       });
 
@@ -128,43 +127,33 @@ export class BabyMigrationService {
 
     const [feedings, sleeps, diapers] = await Promise.all([
       this.users.listRecords<Feeding>('feedings'),
-
       this.users.listRecords<Sleep>('sleeps'),
-
       this.users.listRecords<Diaper>('diapers'),
     ]);
 
     this.assertSameUser(uid);
 
     await this.babies.saveRecords(babyId, 'feedings', feedings);
-
     await this.babies.saveRecords(babyId, 'sleeps', sleeps);
-
     await this.babies.saveRecords(babyId, 'diapers', diapers);
 
     this.assertSameUser(uid);
 
     const [migratedFeedings, migratedSleeps, migratedDiapers] = await Promise.all([
       this.babies.listRecords<Feeding>(babyId, 'feedings'),
-
       this.babies.listRecords<Sleep>(babyId, 'sleeps'),
-
       this.babies.listRecords<Diaper>(babyId, 'diapers'),
     ]);
 
     this.assertSameUser(uid);
 
     this.assertCopied(feedings, migratedFeedings);
-
     this.assertCopied(sleeps, migratedSleeps);
-
     this.assertCopied(diapers, migratedDiapers);
 
     await this.users.saveProfile({
       activeBabyId: babyId,
-
       babyMigrationVersion: 1,
-
       babyMigratedAt: new Date().toISOString(),
     });
 
@@ -178,7 +167,6 @@ export class BabyMigrationService {
     uid: string,
   ): Promise<{
     readonly baby: Baby;
-
     readonly membership: BabyMember;
   }> {
     const baby = await this.babies.readBaby(babyId);
@@ -222,7 +210,6 @@ export class BabyMigrationService {
     }[],
   ): void {
     const targetIds = new Set(target.map((record) => record.id));
-
     const missing = source.some((record) => !targetIds.has(record.id));
 
     if (missing) {

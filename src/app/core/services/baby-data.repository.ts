@@ -11,6 +11,11 @@ interface UpdateBabyInput {
   readonly birthDate: string;
 }
 
+interface ClaimedBabyResult {
+  readonly babyId: string;
+  readonly baby: Baby | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -90,6 +95,112 @@ export class BabyDataRepository {
     ]);
 
     this.assertSameUser(uid);
+
+    return baby;
+  }
+
+  async claimOwnedBaby(input: CreateBabyInput): Promise<Baby> {
+    const uid = this.requireUid();
+    const name = input.name.trim();
+
+    if (name.length === 0 || name.length > 80 || !this.isBirthDate(input.birthDate)) {
+      throw new Error('Dados do bebê inválidos.');
+    }
+
+    const result = await this.firestore.transaction<ClaimedBabyResult>(async (transaction) => {
+      const profile = await transaction.get(this.userPath(uid));
+
+      this.assertSameUser(uid);
+
+      if (profile === null) {
+        throw new Error('Perfil do usuário não encontrado.');
+      }
+
+      const currentBabyId = profile['activeBabyId'];
+
+      if (currentBabyId !== undefined && currentBabyId !== null) {
+        if (
+          typeof currentBabyId !== 'string' ||
+          currentBabyId.trim().length === 0 ||
+          currentBabyId.includes('/')
+        ) {
+          throw new Error('A referência do bebê é inválida.');
+        }
+
+        return {
+          babyId: currentBabyId,
+          baby: null,
+        };
+      }
+
+      const babyId = this.firestore.createId('babies');
+
+      this.validateId(babyId);
+
+      const now = new Date().toISOString();
+
+      const baby: Baby = {
+        id: babyId,
+        name,
+        birthDate: input.birthDate,
+        createdByUid: uid,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      transaction.set(this.babyPath(babyId), this.toBabyDocument(baby), false);
+
+      transaction.set(
+        this.memberPath(babyId, uid),
+        {
+          role: 'owner',
+          joinedAt: now,
+        },
+        false,
+      );
+
+      transaction.set(
+        this.userPath(uid),
+        {
+          activeBabyId: babyId,
+        },
+        true,
+      );
+
+      return {
+        babyId,
+        baby,
+      };
+    });
+
+    this.assertSameUser(uid);
+
+    if (result.baby !== null) {
+      return result.baby;
+    }
+
+    /*
+     * Se a transação foi refeita porque outro
+     * dispositivo concluiu a criação primeiro,
+     * validamos que o bebê vencedor realmente
+     * pertence a esta conta.
+     */
+    const baby = await this.readBaby(result.babyId);
+
+    this.assertSameUser(uid);
+
+    const membership = await this.readMembership(result.babyId);
+
+    this.assertSameUser(uid);
+
+    if (
+      baby === null ||
+      membership === null ||
+      baby.createdByUid !== uid ||
+      membership.role !== 'owner'
+    ) {
+      throw new Error('O bebê ativo não pertence a esta conta.');
+    }
 
     return baby;
   }
