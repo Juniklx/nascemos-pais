@@ -299,9 +299,7 @@
     height: 100dvh;
     min-height: 0;
     min-width: 0;
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 86px 42px 64px;
+    padding: 86px max(42px, calc(50% - 560px + 42px)) 64px;
     overflow-y: auto;
     scrollbar-gutter: stable;
   }
@@ -313,8 +311,8 @@
   }
 
   .home {
-    padding-right: 48px;
-    padding-left: 48px;
+    padding-right: max(48px, calc(50% - 560px + 48px));
+    padding-left: max(48px, calc(50% - 560px + 48px));
   }
 }
 

@@ -121,7 +121,7 @@
         </span>
       </div>
 
-      <div class="timeline">
+      <div class="timeline" [class.timeline--empty]="events().length === 0">
         @for (event of events(); track event.id) {
         <article class="timeline-item">
           <span class="timeline-item__dot" [class.timeline-item__dot--active]="$first" aria-hidden="true"></span>
