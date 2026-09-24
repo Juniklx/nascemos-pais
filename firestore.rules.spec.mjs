@@ -1082,29 +1082,29 @@ test('aceita mamadas válidas com períodos e registros legados sem divisão', a
   }));
 });
 
-test('valida todas as posições até o limite de 12 períodos', async () => {
+test('valida todas as posições até o limite de 8 períodos', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
-  const periods = Array.from({ length: 12 }, (_, index) => ({
+  const periods = Array.from({ length: 8 }, (_, index) => ({
     startedAt: 1000 + index * 100,
     endedAt: 1100 + index * 100,
     side: index % 2 ? 'right' : 'left',
   }));
 
-  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-12`), {
-    id: 'feeding-12',
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-8`), {
+    id: 'feeding-8',
     startedAt: 1000,
-    endedAt: 2200,
+    endedAt: 1800,
     side: 'right',
     periods,
   }));
 
   const invalid = periods.map((period) => ({ ...period }));
-  invalid[10].endedAt = 999;
+  invalid[6].endedAt = 999;
 
   await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-invalid-16`), {
     id: 'feeding-invalid-16',
     startedAt: 1000,
-    endedAt: 2200,
+    endedAt: 1800,
     side: 'right',
     periods: invalid,
   }));
@@ -1137,7 +1137,7 @@ test('nega estrutura inválida de períodos em qualquer mamada', async () => {
     ],
     [valid[0], { ...valid[1], endedAt: 1550 }],
     [valid[0], { ...valid[1], side: 'left' }],
-    Array.from({ length: 13 }, (_, index) => ({
+    Array.from({ length: 9 }, (_, index) => ({
       startedAt: 1000 + index * 20,
       endedAt: 1020 + index * 20,
       side: 'right',
@@ -1157,18 +1157,18 @@ test('nega estrutura inválida de períodos em qualquer mamada', async () => {
   }
 });
 
-test('nega 13 períodos mesmo quando todos são estruturalmente válidos', async () => {
+test('nega 9 períodos mesmo quando todos são estruturalmente válidos', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
-  const periods = Array.from({ length: 13 }, (_, index) => ({
+  const periods = Array.from({ length: 9 }, (_, index) => ({
     startedAt: 1000 + index * 100,
     endedAt: 1100 + index * 100,
     side: 'right',
   }));
 
-  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-13`), {
-    id: 'feeding-13',
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-9`), {
+    id: 'feeding-9',
     startedAt: 1000,
-    endedAt: 2300,
+    endedAt: 1900,
     side: 'right',
     periods,
   }));
