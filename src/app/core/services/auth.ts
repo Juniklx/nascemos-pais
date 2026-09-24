@@ -169,22 +169,28 @@ export class AuthService implements OnDestroy {
   private handleError(
     error: unknown,
   ): void {
+    const code =
+      this.getErrorCode(error);
+
+    console.warn('Firebase Authentication:', code || 'erro sem código');
+
     this.errorState.set(
-      this.getErrorMessage(error),
+      this.getErrorMessage(code),
     );
   }
 
-  private getErrorMessage(
+  private getErrorCode(
     error: unknown,
   ): string {
-    const code =
-      typeof error === 'object' &&
+    return typeof error === 'object' &&
       error !== null &&
       'code' in error &&
       typeof error.code === 'string'
         ? error.code
         : '';
+  }
 
+  private getErrorMessage(code: string): string {
     switch (code) {
       case 'auth/email-already-in-use':
         return (
@@ -251,6 +257,15 @@ export class AuthService implements OnDestroy {
         return (
           'Este método de login não está habilitado.'
         );
+
+      case 'auth/unauthorized-domain':
+        return (
+          'Este endereço não está autorizado para entrar com Google. ' +
+          'Use o endereço oficial do site ou peça ao responsável para liberar o domínio.'
+        );
+
+      case 'auth/invalid-api-key':
+        return 'A configuração da autenticação está inválida. Avise o responsável pelo site.';
 
       default:
         return (
