@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
 import type { Diaper } from '../../core/models/diaper';
 import type { Feeding } from '../../core/models/feeding';
 import type { Sleep } from '../../core/models/sleep';
+import { ActivityPersistenceService } from '../../core/services/activity-persistence';
 import { BabyContextService } from '../../core/services/baby-context';
 import { DiaperService } from '../../core/services/diaper';
 import { FeedingService } from '../../core/services/feeding';
@@ -26,6 +27,7 @@ interface HistoryEvent {
   readonly dateTime: string;
   readonly timestamp: number;
   readonly description: string;
+  readonly attribution: string | null;
 }
 
 interface FilterOption {
@@ -41,6 +43,7 @@ interface FilterOption {
 })
 export class History {
   private readonly babyContext = inject(BabyContextService);
+  private readonly persistence = inject(ActivityPersistenceService);
   private readonly feedingService = inject(FeedingService);
   private readonly sleepService = inject(SleepService);
   private readonly diaperService = inject(DiaperService);
@@ -236,6 +239,7 @@ export class History {
         feeding,
         now,
       ),
+      attribution: this.activityAttribution(feeding.createdByUid, feeding.finishedByUid),
     };
   }
 
@@ -261,6 +265,7 @@ export class History {
         sleep,
         now,
       ),
+      attribution: this.activityAttribution(sleep.createdByUid, sleep.finishedByUid),
     };
   }
 
@@ -281,7 +286,23 @@ export class History {
       description: this.diaperService.label(
         diaper.type,
       ),
+      attribution: this.activityAttribution(diaper.createdByUid),
     };
+  }
+
+  private activityAttribution(createdByUid?: string, finishedByUid?: string): string | null {
+    const creator = this.persistence.actorName(createdByUid);
+    const finisher = this.persistence.actorName(finishedByUid);
+
+    if (creator && finisher) {
+      return `Iniciado por ${creator} · Finalizado por ${finisher}`;
+    }
+
+    if (creator) {
+      return `Registrado por ${creator}`;
+    }
+
+    return finisher ? `Finalizado por ${finisher}` : null;
   }
 
   private feedingDescription(
