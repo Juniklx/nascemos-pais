@@ -37,14 +37,13 @@ export class BabyMigrationService {
       const access = await this.readBabyAccess(activeBabyId, uid);
 
       /*
-       * O responsável pode trocar para
-       * um bebê compartilhado depois de
-       * já ter concluído sua migração.
+       * O perfil legado continua espelhando o bebê
+       * ativo para manter compatibilidade com fluxos
+       * que ainda consultam babyName/babyBirthDate.
        */
       if (
-        access.membership.role === 'caregiver' &&
-        (profile['babyName'] !== access.baby.name ||
-          profile['babyBirthDate'] !== access.baby.birthDate)
+        profile['babyName'] !== access.baby.name ||
+        profile['babyBirthDate'] !== access.baby.birthDate
       ) {
         await this.users.saveProfile({
           babyName: access.baby.name,

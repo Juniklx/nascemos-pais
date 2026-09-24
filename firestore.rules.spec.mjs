@@ -127,6 +127,16 @@ beforeEach(async () => {
       joinedAt: '2026-01-01T00:00:00.000Z',
     });
 
+    await setDoc(doc(db, `users/${userA}/babies/${sharedBaby}`), {
+      role: 'owner',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await setDoc(doc(db, `users/${userB}/babies/${sharedBaby}`), {
+      role: 'caregiver',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
     await setDoc(doc(db, `babies/${sharedBaby}/diapers/shared-diaper`), {
       id: 'shared-diaper',
 
@@ -163,6 +173,7 @@ async function createPendingInvite(token = inviteToken) {
 
 function createAcceptanceBatch(db, token = inviteToken) {
   const batch = writeBatch(db);
+  const joinedAt = new Date().toISOString();
 
   batch.set(
     doc(db, `babyInvites/${token}`),
@@ -180,9 +191,14 @@ function createAcceptanceBatch(db, token = inviteToken) {
 
   batch.set(doc(db, `babies/${sharedBaby}/members/${userC}`), {
     role: 'caregiver',
-    joinedAt: new Date().toISOString(),
+    joinedAt,
     inviteId: token,
     caregiverName: 'Conta C',
+  });
+
+  batch.set(doc(db, `users/${userC}/babies/${sharedBaby}`), {
+    role: 'caregiver',
+    joinedAt,
   });
 
   batch.set(
@@ -210,6 +226,7 @@ function createAccessRemovalBatch(db, memberId = userB) {
   });
 
   batch.delete(doc(db, `babies/${sharedBaby}/members/${memberId}`));
+  batch.delete(doc(db, `users/${memberId}/babies/${sharedBaby}`));
 
   return batch;
 }
@@ -226,6 +243,32 @@ test('permite usuário ler o próprio perfil', async () => {
   const snapshot = await assertSucceeds(getDoc(doc(db, `users/${userA}`)));
 
   assert.equal(snapshot.exists(), true);
+});
+
+test('permite usuário listar apenas os próprios vínculos de bebês', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const snapshot = await assertSucceeds(getDocs(collection(db, `users/${userA}/babies`)));
+
+  assert.equal(snapshot.docs.length, 1);
+  assert.equal(snapshot.docs[0].id, sharedBaby);
+});
+
+test('nega usuário lendo vínculos de bebês de outra conta', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(getDocs(collection(db, `users/${userB}/babies`)));
+});
+
+test('nega criar referência de bebê sem vínculo correspondente', async () => {
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `users/${userC}/babies/${sharedBaby}`), {
+      role: 'caregiver',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    }),
+  );
 });
 
 test('nega usuário A lendo perfil do usuário B', async () => {
@@ -462,6 +505,77 @@ test('permite responsável confirmar remoção e limpar o próprio perfil', asyn
   assert.notEqual(notification.data().readAt, null);
 });
 
+test('permite responsável selecionar outro bebê após perder acesso ao ativo', async () => {
+  const fallbackBaby = 'baby-fallback';
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+
+    await setDoc(doc(db, `babies/${fallbackBaby}`), {
+      name: 'Bebê fallback',
+      birthDate: '2026-02-01',
+      createdByUid: userB,
+      createdAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+
+    await setDoc(doc(db, `babies/${fallbackBaby}/members/${userB}`), {
+      role: 'owner',
+      joinedAt: '2026-02-01T00:00:00.000Z',
+    });
+
+    await setDoc(doc(db, `users/${userB}/babies/${fallbackBaby}`), {
+      role: 'owner',
+      joinedAt: '2026-02-01T00:00:00.000Z',
+    });
+
+    await setDoc(
+      doc(db, `users/${userB}`),
+      {
+        activeBabyId: sharedBaby,
+      },
+      {
+        merge: true,
+      },
+    );
+  });
+
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+  const removalBatch = createAccessRemovalBatch(ownerDb);
+
+  await assertSucceeds(removalBatch.commit());
+
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+  const acknowledgeBatch = writeBatch(caregiverDb);
+
+  acknowledgeBatch.set(
+    doc(caregiverDb, `users/${userB}/notifications/baby-access-removed-${sharedBaby}`),
+    {
+      readAt: serverTimestamp(),
+    },
+    {
+      merge: true,
+    },
+  );
+
+  acknowledgeBatch.set(
+    doc(caregiverDb, `users/${userB}`),
+    {
+      activeBabyId: fallbackBaby,
+    },
+    {
+      merge: true,
+    },
+  );
+
+  await assertSucceeds(acknowledgeBatch.commit());
+
+  const profile = await assertSucceeds(getDoc(doc(caregiverDb, `users/${userB}`)));
+
+  assert.equal(profile.data().activeBabyId, fallbackBaby);
+  await assertSucceeds(getDoc(doc(caregiverDb, `babies/${fallbackBaby}`)));
+});
+
 test('nega responsável acrescentando campos à notificação de remoção', async () => {
   const ownerDb = testEnv.authenticatedContext(userA).firestore();
 
@@ -507,6 +621,11 @@ test('permite criar bebê e proprietário no mesmo lote', async () => {
   batch.set(doc(db, `babies/${babyId}/members/${userC}`), {
     role: 'owner',
 
+    joinedAt: '2026-02-01T00:00:00.000Z',
+  });
+
+  batch.set(doc(db, `users/${userC}/babies/${babyId}`), {
+    role: 'owner',
     joinedAt: '2026-02-01T00:00:00.000Z',
   });
 
@@ -801,7 +920,7 @@ test('nega responsável removendo o próprio vínculo', async () => {
   await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)));
 });
 
-test('nega convite substituindo outro bebê ativo', async () => {
+test('permite convite adicionar outro bebê e torná-lo ativo', async () => {
   const currentBaby = 'baby-user-c';
 
   await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -836,7 +955,15 @@ test('nega convite substituindo outro bebê ativo', async () => {
   const db = testEnv.authenticatedContext(userC).firestore();
   const batch = createAcceptanceBatch(db);
 
-  await assertFails(batch.commit());
+  await assertSucceeds(batch.commit());
+
+  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
+  assert.equal(profile.data().activeBabyId, sharedBaby);
+
+  const reference = await assertSucceeds(
+    getDoc(doc(db, `users/${userC}/babies/${sharedBaby}`)),
+  );
+  assert.equal(reference.exists(), true);
 });
 
 test('permite responsável atualizar apenas o próprio nome', async () => {

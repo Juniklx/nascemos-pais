@@ -106,6 +106,19 @@ export class InvitePage implements OnInit {
     this.error.set('');
 
     try {
+      /*
+       * Se a conta já possuía dados completos
+       * de um bebê antes desta funcionalidade,
+       * concluímos primeiro a migração legada.
+       *
+       * Assim aceitar um novo convite adiciona
+       * outro bebê em vez de fazer os dados
+       * antigos ficarem sem um vínculo próprio.
+       */
+      if (this.onboarding.getIncompleteRoute() === '/home') {
+        await this.babyContext.ensureLoaded();
+      }
+
       await this.invites.acceptInvite(invite.id);
 
       /*

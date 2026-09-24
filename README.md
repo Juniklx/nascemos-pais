@@ -26,7 +26,7 @@ O Nascemos Pais centraliza essas informações em uma interface simples e acess�
 - login com e-mail e senha;
 - login com Google;
 - sessão autenticada com Firebase Authentication;
-- isolamento dos dados por usuário.
+- controle de acesso aos dados de cada bebê conforme o vínculo do usuário.
 
 ### Onboarding
 
@@ -77,6 +77,22 @@ A página inicial apresenta:
 - edição dos registros;
 - exclusão com confirmação.
 
+### Múltiplos bebês
+
+- adicionar mais de um bebê à mesma conta;
+- selecionar qual bebê está ativo;
+- alternar entre os bebês vinculados;
+- manter mamadas, sono, fraldas, Histórico e Home isolados por bebê;
+- editar no Perfil apenas o bebê atualmente selecionado.
+
+### Compartilhamento entre cuidadores
+
+- convidar outro responsável para acompanhar um bebê;
+- compartilhar o convite por link ou QR Code;
+- permitir que uma conta com bebê próprio também acompanhe um bebê compartilhado;
+- manter responsáveis, convites e registros vinculados ao bebê correto;
+- remover o acesso de um responsável sem afetar os demais bebês da conta.
+
 ### Comandos de voz
 
 A aplicação possui suporte a comandos de voz compatíveis com o recurso de reconhecimento de fala disponível no navegador.
@@ -93,36 +109,42 @@ O objetivo é permitir registros rápidos em situações em que digitar ou naveg
 
 ## Persistência de dados
 
-Os dados são armazenados no **Cloud Firestore** e associados ao UID fornecido pelo Firebase Authentication.
+Os dados são armazenados no **Cloud Firestore**. A conta autenticada mantém um índice dos bebês aos quais possui acesso e um `activeBabyId` que representa o bebê atualmente selecionado.
 
 Estrutura principal:
 
 ```text
 users/{uid}
+users/{uid}/babies/{babyId}
 
-users/{uid}/feedings/{feedingId}
-users/{uid}/sleeps/{sleepId}
-users/{uid}/diapers/{diaperId}
+babies/{babyId}
+babies/{babyId}/members/{uid}
+babies/{babyId}/feedings/{feedingId}
+babies/{babyId}/sleeps/{sleepId}
+babies/{babyId}/diapers/{diaperId}
+
+babyInvites/{inviteId}
 ```
 
-Cada usuário possui acesso apenas aos próprios dados.
+Os registros pertencem ao bebê, e não diretamente ao usuário. O acesso é autorizado conforme o vínculo em `babies/{babyId}/members/{uid}`, permitindo que diferentes cuidadores acompanhem o mesmo bebê sem misturar registros de outros bebês.
 
-Dados criados em versões anteriores que utilizavam `localStorage` podem ser migrados para o Firestore. Após a confirmação da migração, o armazenamento local deixa de ser a fonte de verdade.
+Dados criados em versões anteriores que utilizavam `localStorage` ou a estrutura legada por usuário podem ser migrados para a estrutura atual.
 
 ## Segurança
 
 O projeto utiliza regras do Cloud Firestore para restringir o acesso aos dados.
 
-Cada usuário autenticado pode acessar somente documentos vinculados ao próprio UID.
+Cada bebê possui vínculos de responsáveis com papéis de proprietário ou cuidador. As regras validam esses vínculos antes de permitir leitura ou gravação dos dados compartilhados.
 
 Também existem testes automatizados das regras utilizando o **Firebase Emulator Suite**.
 
 Entre os cenários testados estão:
 
 - acesso sem autenticação;
-- leitura dos próprios dados;
-- tentativa de acessar dados de outro usuário;
-- tentativa de gravar dados em outra conta;
+- acesso de proprietário e cuidador aos dados do bebê vinculado;
+- tentativa de acessar dados de um bebê sem vínculo;
+- criação e remoção de vínculos;
+- aceitação de convites;
 - rejeição de documentos inválidos.
 
 ## LGPD e privacidade
@@ -133,8 +155,8 @@ Neste MVP:
 
 - o usuário é informado sobre os dados utilizados durante o onboarding;
 - o consentimento é registrado;
-- os dados ficam associados à conta autenticada;
-- as regras do Firestore impedem que uma conta acesse os dados de outra;
+- os dados ficam associados aos bebês e aos vínculos autorizados de cada conta;
+- as regras do Firestore impedem o acesso a bebês sem vínculo válido;
 - o aplicativo não armazena o áudio utilizado nos comandos de voz.
 
 Quando o reconhecimento de voz é utilizado, o processamento pode depender do serviço disponibilizado pelo navegador.
@@ -213,8 +235,6 @@ Os arquivos compilados serão gerados no diretório `dist`.
 npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
-A suíte atual possui **84 testes Angular**.
-
 ### Testes das regras do Firestore
 
 Com o Firebase Emulator:
@@ -222,8 +242,6 @@ Com o Firebase Emulator:
 ```bash
 npx firebase-tools@latest emulators:exec --only firestore --project nascemos-pais "npm run test:firestore-rules"
 ```
-
-A suíte atual possui **6 testes das regras do Firestore**.
 
 Os testes Angular e os testes das regras do Firestore também são executados automaticamente pelo GitHub Actions nos Pull Requests direcionados à branch `master`.
 
@@ -245,7 +263,6 @@ sem retornar erro 404 do servidor.
 
 Nesta versão ainda não estão incluídos:
 
-- compartilhamento do mesmo bebê entre diferentes contas ou cuidadores;
 - upload de fotos e arquivos;
 - notificações push;
 - painel administrativo;

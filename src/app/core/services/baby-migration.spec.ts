@@ -315,6 +315,34 @@ describe('BabyMigrationService', () => {
     );
   });
 
+  it('sincroniza dados do bebê quando proprietário troca para outro bebê próprio', async () => {
+    users.readProfile.and.resolveTo({
+      ...baseProfile,
+      activeBabyId: 'baby-2',
+      babyMigrationVersion: 1,
+    });
+
+    babies.readBaby.and.resolveTo({
+      id: 'baby-2',
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+      createdByUid: 'user-a',
+      createdAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+
+    const babyId = await service.ensureMigrated();
+
+    expect(babyId).toBe('baby-2');
+
+    expect(users.saveProfile).toHaveBeenCalledOnceWith({
+      babyName: 'Lucas',
+      babyBirthDate: '2026-02-01',
+    });
+
+    expect(babies.saveRecords).not.toHaveBeenCalled();
+  });
+
   it('sincroniza dados do bebê quando responsável troca para bebê compartilhado', async () => {
     users.readProfile.and.resolveTo({
       caregiverName: 'Responsável',

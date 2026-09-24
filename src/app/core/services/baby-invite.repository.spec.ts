@@ -218,7 +218,7 @@ describe('BabyInviteRepository', () => {
 
     const entries = firestore.batchSet.calls.mostRecent().args[0];
 
-    expect(entries.length).toBe(3);
+    expect(entries.length).toBe(4);
 
     expect(entries[0].path).toBe(`babyInvites/${token}`);
 
@@ -244,6 +244,16 @@ describe('BabyInviteRepository', () => {
     );
 
     expect(entries[2]).toEqual({
+      path: 'users/user-a/babies/baby-1',
+
+      data: {
+        role: 'caregiver',
+
+        joinedAt: jasmine.any(String),
+      },
+    });
+
+    expect(entries[3]).toEqual({
       path: 'users/user-a',
 
       data: {
@@ -386,9 +396,9 @@ describe('BabyInviteRepository', () => {
 
     const entries = firestore.batchSet.calls.mostRecent().args[0];
 
-    expect(entries.length).toBe(4);
+    expect(entries.length).toBe(5);
 
-    expect(entries[3]).toEqual({
+    expect(entries[4]).toEqual({
       path: 'users/user-a/notifications/baby-access-removed-baby-1',
       data: {
         readAt: jasmine.anything(),
@@ -396,7 +406,7 @@ describe('BabyInviteRepository', () => {
     });
   });
 
-  it('não substitui outro bebê ativo ao aceitar convite', async () => {
+  it('aceita convite mesmo quando outro bebê já está ativo', async () => {
     firestore.get.and.callFake(async (path: string) => {
       if (path === `babyInvites/${token}`) {
         return pendingInvite();
@@ -412,10 +422,23 @@ describe('BabyInviteRepository', () => {
       return null;
     });
 
-    await expectAsync(repository.acceptInvite(token)).toBeRejectedWithError(
-      'Esta conta já está vinculada a outro bebê.',
+    await expectAsync(repository.acceptInvite(token)).toBeResolvedTo('baby-1');
+
+    const entries = firestore.batchSet.calls.mostRecent().args[0];
+
+    expect(entries).toContain(
+      jasmine.objectContaining({
+        path: 'users/user-a/babies/baby-1',
+      }),
     );
 
-    expect(firestore.batchSet).not.toHaveBeenCalled();
+    expect(entries).toContain(
+      jasmine.objectContaining({
+        path: 'users/user-a',
+        data: {
+          activeBabyId: 'baby-1',
+        },
+      }),
+    );
   });
 });

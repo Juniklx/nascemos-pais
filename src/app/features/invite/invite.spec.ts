@@ -27,6 +27,8 @@ describe('InvitePage', () => {
 
   const reloadBaby = jasmine.createSpy('reloadBaby');
 
+  const ensureBabyLoaded = jasmine.createSpy('ensureBabyLoaded');
+
   const getIncompleteRoute = jasmine.createSpy('getIncompleteRoute');
 
   const navigate = jasmine.createSpy('navigate');
@@ -47,6 +49,8 @@ describe('InvitePage', () => {
     reloadOnboarding.calls.reset();
 
     reloadBaby.calls.reset();
+
+    ensureBabyLoaded.calls.reset();
 
     getIncompleteRoute.calls.reset();
 
@@ -79,6 +83,8 @@ describe('InvitePage', () => {
     reloadOnboarding.and.resolveTo();
 
     reloadBaby.and.resolveTo();
+
+    ensureBabyLoaded.and.resolveTo();
 
     getIncompleteRoute.and.returnValue('/home');
 
@@ -146,6 +152,7 @@ describe('InvitePage', () => {
           provide: BabyContextService,
 
           useValue: {
+            ensureLoaded: ensureBabyLoaded,
             reload: reloadBaby,
           },
         },
@@ -213,6 +220,25 @@ describe('InvitePage', () => {
     expect(page.error()).toBe('Este convite expirou.');
 
     expect(page.canAccept()).toBeFalse();
+  });
+
+  it('migra bebê existente antes de aceitar outro convite', async () => {
+    await page.ngOnInit();
+
+    await page.accept();
+
+    expect(ensureBabyLoaded).toHaveBeenCalledBefore(acceptInvite);
+    expect(acceptInvite).toHaveBeenCalledOnceWith(token);
+  });
+
+  it('não tenta migrar bebê próprio quando a conta ainda não possui um', async () => {
+    getIncompleteRoute.and.returnValue('/onboarding/about-baby');
+
+    await page.ngOnInit();
+    await page.accept();
+
+    expect(ensureBabyLoaded).not.toHaveBeenCalled();
+    expect(acceptInvite).toHaveBeenCalledOnceWith(token);
   });
 
   it('aceita convite e recarrega contexto compartilhado', async () => {

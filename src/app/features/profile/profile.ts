@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { QRCodeComponent } from 'angularx-qrcode';
 import type { BabyMember } from '../../core/models/baby';
+import { ActivityPersistenceService } from '../../core/services/activity-persistence';
 import { AuthService } from '../../core/services/auth';
 import { BabyContextService } from '../../core/services/baby-context';
 import { BabyDataRepository } from '../../core/services/baby-data.repository';
@@ -20,6 +21,7 @@ import { trimmedRequired, validBirthDate } from '../../core/validators/onboardin
 export class ProfilePage {
   private readonly onboarding = inject(OnboardingService);
   private readonly router = inject(Router);
+  private readonly persistence = inject(ActivityPersistenceService);
   private readonly babies = inject(BabyDataRepository);
   private readonly babyContext = inject(BabyContextService);
   private readonly invites = inject(BabyInviteRepository);
@@ -37,6 +39,8 @@ export class ProfilePage {
   readonly inviteLink = signal('');
   readonly inviteMessage = signal('');
   readonly inviteLoading = signal(false);
+  readonly newBabyLoading = signal(false);
+  readonly newBabyMessage = signal('');
 
   readonly fields = [
     {
@@ -61,6 +65,17 @@ export class ProfilePage {
       error: 'Informe uma data válida, que não esteja no futuro.',
     },
   ] as const;
+
+  readonly newBabyForm = new FormGroup({
+    name: new FormControl('', {
+      nonNullable: true,
+      validators: [trimmedRequired],
+    }),
+    birthDate: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, validBirthDate],
+    }),
+  });
 
   readonly form = new FormGroup({
     caregiverName: new FormControl(this.onboarding.caregiverName(), {
@@ -178,6 +193,41 @@ export class ProfilePage {
     }
 
     return 'Responsável';
+  }
+
+  async createBaby(): Promise<void> {
+    this.newBabyMessage.set('');
+    this.newBabyForm.updateValueAndValidity();
+    this.newBabyForm.controls.birthDate.updateValueAndValidity();
+
+    if (this.newBabyForm.invalid || this.newBabyLoading()) {
+      this.newBabyForm.markAllAsTouched();
+      return;
+    }
+
+    this.newBabyLoading.set(true);
+
+    try {
+      const values = this.newBabyForm.getRawValue();
+
+      await this.babyContext.createBaby({
+        name: values.name.trim(),
+        birthDate: values.birthDate,
+      });
+
+      await this.persistence.load();
+
+      this.newBabyForm.reset({
+        name: '',
+        birthDate: '',
+      });
+
+      await this.router.navigate(['/home']);
+    } catch {
+      this.newBabyMessage.set('Não foi possível adicionar o bebê. Tente novamente.');
+    } finally {
+      this.newBabyLoading.set(false);
+    }
   }
 
   async generateInvite(): Promise<void> {

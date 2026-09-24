@@ -63,6 +63,55 @@
     </button>
   </form>
 
+  <section class="profile-card babies" aria-labelledby="babies-title">
+    <div>
+      <h2 id="babies-title">Adicionar bebê</h2>
+
+      <p class="profile-note">
+        Adicione outro bebê à sua conta. Cada bebê mantém seus próprios registros e responsáveis.
+      </p>
+    </div>
+
+    <div class="profile-field">
+      <label for="new-baby-name">Nome do bebê</label>
+      <input id="new-baby-name" type="text" autocomplete="off" [formControl]="newBabyForm.controls.name"
+        [attr.aria-invalid]="newBabyForm.controls.name.touched && newBabyForm.controls.name.invalid" />
+
+      @if (newBabyForm.controls.name.touched && newBabyForm.controls.name.invalid) {
+      <p class="field-error" role="alert">
+        Informe o nome do bebê. Não use apenas espaços.
+      </p>
+      }
+    </div>
+
+    <div class="profile-field">
+      <label for="new-baby-birth-date">Data de nascimento</label>
+      <input id="new-baby-birth-date" type="date" [attr.max]="today"
+        [formControl]="newBabyForm.controls.birthDate"
+        [attr.aria-invalid]="newBabyForm.controls.birthDate.touched && newBabyForm.controls.birthDate.invalid" />
+
+      @if (newBabyForm.controls.birthDate.touched && newBabyForm.controls.birthDate.invalid) {
+      <p class="field-error" role="alert">
+        Informe uma data válida, que não esteja no futuro.
+      </p>
+      }
+    </div>
+
+    @if (newBabyMessage()) {
+    <p class="profile-feedback" role="status">
+      {{ newBabyMessage() }}
+    </p>
+    }
+
+    <button type="button" class="save-button" [disabled]="newBabyLoading()" (click)="createBaby()">
+      @if (newBabyLoading()) {
+      Adicionando...
+      } @else {
+      Adicionar bebê
+      }
+    </button>
+  </section>
+
   @if (isBabyOwner()) {
   <section class="profile-card caregivers" aria-labelledby="caregivers-title">
     <div>

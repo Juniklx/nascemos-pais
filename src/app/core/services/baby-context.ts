@@ -1,20 +1,16 @@
-import { Injectable, computed, inject, signal } from '@angular/core'
-import type { Baby, BabyMember } from '../models/baby';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import type { Baby, BabyMember, LinkedBaby } from '../models/baby';
 import { AuthService } from './auth';
 import { BabyDataRepository } from './baby-data.repository';
 import { BabyMigrationService } from './baby-migration';
 
 interface BabyContextState {
   readonly uid: string | null;
-
   readonly baby: Baby | null;
-
   readonly membership: BabyMember | null;
-
+  readonly linkedBabies: readonly LinkedBaby[];
   readonly ready: boolean;
-
   readonly loading: boolean;
-
   readonly error: string | null;
 }
 
@@ -23,79 +19,41 @@ interface BabyContextState {
 })
 export class BabyContextService {
   private readonly auth = inject(AuthService);
-
   private readonly babies = inject(BabyDataRepository);
-
   private readonly migration = inject(BabyMigrationService);
 
   private readonly state = signal<BabyContextState>({
     uid: null,
     baby: null,
     membership: null,
+    linkedBabies: [],
     ready: false,
     loading: false,
     error: null,
   });
 
   private loadingUid: string | null = null;
-
   private loadPromise: Promise<void> | null = null;
 
-  readonly baby = computed(() => {
-    const uid = this.auth.user()?.uid ?? null;
-
-    const state = this.state();
-
-    if (uid === null || state.uid !== uid) {
-      return null;
-    }
-
-    return state.baby;
-  });
-
-  readonly membership = computed(() => {
-    const uid = this.auth.user()?.uid ?? null;
-
-    const state = this.state();
-
-    if (uid === null || state.uid !== uid) {
-      return null;
-    }
-
-    return state.membership;
-  });
-
+  readonly baby = computed(() => this.currentState()?.baby ?? null);
+  readonly membership = computed(() => this.currentState()?.membership ?? null);
+  readonly linkedBabies = computed(() => this.currentState()?.linkedBabies ?? []);
   readonly activeBabyId = computed(() => this.baby()?.id ?? null);
-
   readonly isOwner = computed(() => this.membership()?.role === 'owner');
 
   readonly isReady = computed(() => {
-    const uid = this.auth.user()?.uid ?? null;
+    const state = this.currentState();
 
-    const state = this.state();
-
-    return uid !== null && state.uid === uid && state.ready;
+    return state !== null && state.ready;
   });
 
   readonly isLoading = computed(() => {
-    const uid = this.auth.user()?.uid ?? null;
+    const state = this.currentState();
 
-    const state = this.state();
-
-    return uid !== null && state.uid === uid && state.loading;
+    return state !== null && state.loading;
   });
 
-  readonly error = computed(() => {
-    const uid = this.auth.user()?.uid ?? null;
-
-    const state = this.state();
-
-    if (uid === null || state.uid !== uid) {
-      return null;
-    }
-
-    return state.error;
-  });
+  readonly error = computed(() => this.currentState()?.error ?? null);
 
   async ensureLoaded(): Promise<void> {
     await this.auth.waitUntilReady();
@@ -104,7 +62,6 @@ export class BabyContextService {
 
     if (uid === null) {
       this.clearState();
-
       throw new Error('Usuário não autenticado.');
     }
 
@@ -122,15 +79,14 @@ export class BabyContextService {
       uid,
       baby: null,
       membership: null,
+      linkedBabies: [],
       ready: false,
       loading: true,
       error: null,
     });
 
     this.loadingUid = uid;
-
     const promise = this.loadForUser(uid);
-
     this.loadPromise = promise;
 
     try {
@@ -141,6 +97,7 @@ export class BabyContextService {
           uid,
           baby: null,
           membership: null,
+          linkedBabies: [],
           ready: false,
           loading: false,
           error: 'Não foi possível carregar os dados do bebê.',
@@ -151,9 +108,80 @@ export class BabyContextService {
     } finally {
       if (this.loadPromise === promise) {
         this.loadPromise = null;
-
         this.loadingUid = null;
       }
+    }
+  }
+
+  async createBaby(input: { readonly name: string; readonly birthDate: string }): Promise<Baby> {
+    await this.ensureLoaded();
+
+    const uid = this.auth.user()?.uid ?? null;
+
+    if (uid === null) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const baby = await this.babies.createOwnedBaby(input);
+
+    this.assertSameUser(uid);
+
+    await this.reload();
+
+    this.assertSameUser(uid);
+
+    return baby;
+  }
+
+  async selectBaby(babyId: string): Promise<void> {
+    await this.ensureLoaded();
+
+    const uid = this.auth.user()?.uid ?? null;
+
+    if (uid === null) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    if (this.activeBabyId() === babyId) {
+      return;
+    }
+
+    const current = this.state();
+
+    this.state.set({
+      ...current,
+      loading: true,
+      error: null,
+    });
+
+    try {
+      const selected = await this.babies.setActiveBaby(babyId);
+
+      this.assertSameUser(uid);
+
+      const linkedBabies = await this.babies.listLinkedBabies();
+
+      this.assertSameUser(uid);
+
+      this.state.set({
+        uid,
+        baby: selected.baby,
+        membership: selected.membership,
+        linkedBabies: this.withSelectedBaby(linkedBabies, selected),
+        ready: true,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      if (this.auth.user()?.uid === uid) {
+        this.state.set({
+          ...current,
+          loading: false,
+          error: 'Não foi possível trocar o bebê selecionado.',
+        });
+      }
+
+      throw error;
     }
   }
 
@@ -162,12 +190,7 @@ export class BabyContextService {
   }
 
   async reload(): Promise<void> {
-    /*
-     * Usado quando o bebê ativo muda,
-     * por exemplo após aceitar um convite.
-     */
     this.clearState();
-
     await this.ensureLoaded();
   }
 
@@ -182,7 +205,6 @@ export class BabyContextService {
 
     const [baby, membership] = await Promise.all([
       this.babies.readBaby(babyId),
-
       this.babies.readMembership(babyId),
     ]);
 
@@ -192,14 +214,59 @@ export class BabyContextService {
       throw new Error('O vínculo com o bebê está inconsistente.');
     }
 
+    const selected: LinkedBaby = {
+      baby,
+      membership,
+    };
+
+    let linkedBabies: readonly LinkedBaby[] = [selected];
+    let linkedBabiesError: string | null = null;
+
+    try {
+      await this.babies.ensureBabyReference(babyId, membership);
+
+      this.assertSameUser(uid);
+
+      linkedBabies = await this.babies.listLinkedBabies();
+
+      this.assertSameUser(uid);
+    } catch {
+      this.assertSameUser(uid);
+
+      linkedBabiesError = 'Não foi possível carregar todos os bebês vinculados.';
+    }
+
     this.state.set({
       uid,
       baby,
       membership,
+      linkedBabies: this.withSelectedBaby(linkedBabies, selected),
       ready: true,
       loading: false,
-      error: null,
+      error: linkedBabiesError,
     });
+  }
+
+  private withSelectedBaby(
+    linkedBabies: readonly LinkedBaby[],
+    selected: LinkedBaby,
+  ): readonly LinkedBaby[] {
+    const withoutSelected = linkedBabies.filter((item) => item.baby.id !== selected.baby.id);
+
+    return [selected, ...withoutSelected].sort((a, b) =>
+      a.baby.name.localeCompare(b.baby.name, 'pt-BR'),
+    );
+  }
+
+  private currentState(): BabyContextState | null {
+    const uid = this.auth.user()?.uid ?? null;
+    const state = this.state();
+
+    if (uid === null || state.uid !== uid) {
+      return null;
+    }
+
+    return state;
   }
 
   private clearState(): void {
@@ -207,13 +274,13 @@ export class BabyContextService {
       uid: null,
       baby: null,
       membership: null,
+      linkedBabies: [],
       ready: false,
       loading: false,
       error: null,
     });
 
     this.loadingUid = null;
-
     this.loadPromise = null;
   }
 

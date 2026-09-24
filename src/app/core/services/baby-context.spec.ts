@@ -1,328 +1,231 @@
-import {
-  signal,
-} from '@angular/core';
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import type { User } from 'firebase/auth';
+import { AuthService } from './auth';
+import { BabyContextService } from './baby-context';
+import { BabyDataRepository } from './baby-data.repository';
+import { BabyMigrationService } from './baby-migration';
 
-import {
-  TestBed,
-} from '@angular/core/testing';
+describe('BabyContextService', () => {
+  let service: BabyContextService;
 
-import type {
-  User,
-} from 'firebase/auth';
+  const user = signal<User | null>({
+    uid: 'user-a',
+  } as User);
 
-import {
-  AuthService,
-} from './auth';
+  const auth = {
+    user: user.asReadonly(),
+    waitUntilReady: jasmine.createSpy('waitUntilReady'),
+  };
 
-import {
-  BabyContextService,
-} from './baby-context';
+  const migration = {
+    ensureMigrated: jasmine.createSpy('ensureMigrated'),
+  };
 
-import {
-  BabyDataRepository,
-} from './baby-data.repository';
+  const babies = {
+    readBaby: jasmine.createSpy('readBaby'),
+    readMembership: jasmine.createSpy('readMembership'),
+    ensureBabyReference: jasmine.createSpy('ensureBabyReference'),
+    listLinkedBabies: jasmine.createSpy('listLinkedBabies'),
+    setActiveBaby: jasmine.createSpy('setActiveBaby'),
+    createOwnedBaby: jasmine.createSpy('createOwnedBaby'),
+  };
 
-import {
-  BabyMigrationService,
-} from './baby-migration';
+  const babyA = {
+    id: 'baby-a',
+    name: 'Helena',
+    birthDate: '2026-01-01',
+    createdByUid: 'user-a',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
 
-describe(
-  'BabyContextService',
-  () => {
-    let service:
-      BabyContextService;
+  const babyB = {
+    id: 'baby-b',
+    name: 'Lucas',
+    birthDate: '2026-02-01',
+    createdByUid: 'user-b',
+    createdAt: '2026-02-01T00:00:00.000Z',
+    updatedAt: '2026-02-01T00:00:00.000Z',
+  };
 
-    const user =
-      signal<User | null>(
+  const ownerA = {
+    uid: 'user-a',
+    role: 'owner' as const,
+    joinedAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  const caregiverB = {
+    uid: 'user-a',
+    role: 'caregiver' as const,
+    joinedAt: '2026-02-02T00:00:00.000Z',
+    inviteId: 'a'.repeat(64),
+  };
+
+  beforeEach(() => {
+    user.set({
+      uid: 'user-a',
+    } as User);
+
+    for (const spy of Object.values(babies)) {
+      spy.calls.reset();
+    }
+
+    auth.waitUntilReady.calls.reset();
+    migration.ensureMigrated.calls.reset();
+
+    auth.waitUntilReady.and.resolveTo();
+    migration.ensureMigrated.and.resolveTo('baby-a');
+    babies.readBaby.and.resolveTo(babyA);
+    babies.readMembership.and.resolveTo(ownerA);
+    babies.ensureBabyReference.and.resolveTo();
+    babies.listLinkedBabies.and.resolveTo([
+      {
+        baby: babyA,
+        membership: ownerA,
+      },
+      {
+        baby: babyB,
+        membership: caregiverB,
+      },
+    ]);
+    babies.setActiveBaby.and.resolveTo({
+      baby: babyB,
+      membership: caregiverB,
+    });
+    babies.createOwnedBaby.and.resolveTo(babyB);
+
+    TestBed.configureTestingModule({
+      providers: [
+        BabyContextService,
         {
-          uid:
-            'user-a',
-        } as User,
-      );
-
-    const auth = {
-      user:
-        user.asReadonly(),
-
-      waitUntilReady:
-        jasmine.createSpy(
-          'waitUntilReady',
-        ),
-    };
-
-    const migration = {
-      ensureMigrated:
-        jasmine.createSpy(
-          'ensureMigrated',
-        ),
-    };
-
-    const babies = {
-      readBaby:
-        jasmine.createSpy(
-          'readBaby',
-        ),
-
-      readMembership:
-        jasmine.createSpy(
-          'readMembership',
-        ),
-    };
-
-    const babyA = {
-      id:
-        'baby-a',
-
-      name:
-        'Helena',
-
-      birthDate:
-        '2026-01-01',
-
-      createdByUid:
-        'user-a',
-
-      createdAt:
-        '2026-01-01T00:00:00.000Z',
-
-      updatedAt:
-        '2026-01-01T00:00:00.000Z',
-    };
-
-    const ownerA = {
-      uid:
-        'user-a',
-
-      role:
-        'owner' as const,
-
-      joinedAt:
-        '2026-01-01T00:00:00.000Z',
-    };
-
-    beforeEach(() => {
-      user.set(
+          provide: AuthService,
+          useValue: auth,
+        },
         {
-          uid:
-            'user-a',
-        } as User,
-      );
-
-      auth
-        .waitUntilReady
-        .calls.reset();
-
-      migration
-        .ensureMigrated
-        .calls.reset();
-
-      babies
-        .readBaby
-        .calls.reset();
-
-      babies
-        .readMembership
-        .calls.reset();
-
-      auth
-        .waitUntilReady
-        .and.resolveTo();
-
-      migration
-        .ensureMigrated
-        .and.resolveTo(
-          'baby-a',
-        );
-
-      babies
-        .readBaby
-        .and.resolveTo(
-          babyA,
-        );
-
-      babies
-        .readMembership
-        .and.resolveTo(
-          ownerA,
-        );
-
-      TestBed
-        .configureTestingModule({
-          providers: [
-            BabyContextService,
-
-            {
-              provide:
-                AuthService,
-
-              useValue:
-                auth,
-            },
-
-            {
-              provide:
-                BabyDataRepository,
-
-              useValue:
-                babies,
-            },
-
-            {
-              provide:
-                BabyMigrationService,
-
-              useValue:
-                migration,
-            },
-          ],
-        });
-
-      service =
-        TestBed.inject(
-          BabyContextService,
-        );
+          provide: BabyDataRepository,
+          useValue: babies,
+        },
+        {
+          provide: BabyMigrationService,
+          useValue: migration,
+        },
+      ],
     });
 
-    it(
-      'carrega bebê ativo e vínculo do usuário',
-      async () => {
-        await service
-          .ensureLoaded();
+    service = TestBed.inject(BabyContextService);
+  });
 
-        expect(
-          service
-            .activeBabyId(),
-        ).toBe(
-          'baby-a',
-        );
+  it('carrega bebê ativo e todos os vínculos do usuário', async () => {
+    await service.ensureLoaded();
 
-        expect(
-          service
-            .baby()?.name,
-        ).toBe(
-          'Helena',
-        );
+    expect(service.activeBabyId()).toBe('baby-a');
+    expect(service.baby()?.name).toBe('Helena');
+    expect(service.membership()?.uid).toBe('user-a');
+    expect(service.linkedBabies().map((item) => item.baby.id)).toEqual(['baby-a', 'baby-b']);
+    expect(service.isReady()).toBeTrue();
+    expect(babies.ensureBabyReference).toHaveBeenCalledOnceWith('baby-a', ownerA);
+    expect(babies.listLinkedBabies).toHaveBeenCalledTimes(1);
+  });
 
-        expect(
-          service
-            .membership()?.uid,
-        ).toBe(
-          'user-a',
-        );
+  it('preserva bebê ativo quando o índice de múltiplos bebês falha', async () => {
+    babies.ensureBabyReference.and.rejectWith(new Error('permission-denied'));
 
-        expect(
-          service.isReady(),
-        ).toBeTrue();
-      },
+    await service.ensureLoaded();
+
+    expect(service.activeBabyId()).toBe('baby-a');
+    expect(service.baby()?.name).toBe('Helena');
+    expect(service.membership()?.role).toBe('owner');
+    expect(service.isOwner()).toBeTrue();
+    expect(service.linkedBabies().map((item) => item.baby.id)).toEqual(['baby-a']);
+    expect(service.isReady()).toBeTrue();
+    expect(service.error()).toBe('Não foi possível carregar todos os bebês vinculados.');
+  });
+
+  it('identifica proprietário do bebê ativo', async () => {
+    await service.ensureLoaded();
+
+    expect(service.isOwner()).toBeTrue();
+  });
+
+  it('cria outro bebê e recarrega o contexto com ele ativo', async () => {
+    await service.ensureLoaded();
+
+    migration.ensureMigrated.and.resolveTo('baby-b');
+    babies.readBaby.and.resolveTo(babyB);
+    babies.readMembership.and.resolveTo({
+      ...caregiverB,
+      role: 'owner',
+      inviteId: undefined,
+    });
+
+    const created = await service.createBaby({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+
+    expect(babies.createOwnedBaby).toHaveBeenCalledOnceWith({
+      name: 'Lucas',
+      birthDate: '2026-02-01',
+    });
+    expect(created).toBe(babyB);
+    expect(service.activeBabyId()).toBe('baby-b');
+  });
+
+  it('troca o bebê ativo e atualiza o vínculo selecionado', async () => {
+    await service.ensureLoaded();
+    await service.selectBaby('baby-b');
+
+    expect(babies.setActiveBaby).toHaveBeenCalledOnceWith('baby-b');
+    expect(service.activeBabyId()).toBe('baby-b');
+    expect(service.baby()?.name).toBe('Lucas');
+    expect(service.membership()?.role).toBe('caregiver');
+    expect(service.isOwner()).toBeFalse();
+    expect(service.linkedBabies().map((item) => item.baby.id)).toEqual(['baby-a', 'baby-b']);
+  });
+
+  it('não grava novamente quando o bebê solicitado já está ativo', async () => {
+    await service.ensureLoaded();
+    await service.selectBaby('baby-a');
+
+    expect(babies.setActiveBaby).not.toHaveBeenCalled();
+  });
+
+  it('não carrega novamente quando contexto já está pronto', async () => {
+    await service.ensureLoaded();
+    await service.ensureLoaded();
+
+    expect(migration.ensureMigrated).toHaveBeenCalledTimes(1);
+    expect(babies.readBaby).toHaveBeenCalledTimes(1);
+  });
+
+  it('não expõe bebê da sessão anterior', async () => {
+    await service.ensureLoaded();
+
+    user.set({
+      uid: 'user-b',
+    } as User);
+
+    expect(service.activeBabyId()).toBeNull();
+    expect(service.baby()).toBeNull();
+    expect(service.membership()).toBeNull();
+    expect(service.linkedBabies()).toEqual([]);
+  });
+
+  it('não aplica resultado se a sessão mudar durante o carregamento', async () => {
+    babies.readBaby.and.callFake(async () => {
+      user.set({
+        uid: 'user-b',
+      } as User);
+
+      return babyA;
+    });
+
+    await expectAsync(service.ensureLoaded()).toBeRejectedWithError(
+      'A sessão mudou durante o carregamento do bebê.',
     );
 
-    it(
-      'identifica proprietário do bebê',
-      async () => {
-        await service
-          .ensureLoaded();
-
-        expect(
-          service.isOwner(),
-        ).toBeTrue();
-      },
-    );
-
-    it(
-      'não carrega novamente quando contexto já está pronto',
-      async () => {
-        await service
-          .ensureLoaded();
-
-        await service
-          .ensureLoaded();
-
-        expect(
-          migration
-            .ensureMigrated,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(
-          babies
-            .readBaby,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-      },
-    );
-
-    it(
-      'não expõe bebê da sessão anterior',
-      async () => {
-        await service
-          .ensureLoaded();
-
-        expect(
-          service
-            .activeBabyId(),
-        ).toBe(
-          'baby-a',
-        );
-
-        user.set(
-          {
-            uid:
-              'user-b',
-          } as User,
-        );
-
-        expect(
-          service
-            .activeBabyId(),
-        ).toBeNull();
-
-        expect(
-          service.baby(),
-        ).toBeNull();
-
-        expect(
-          service
-            .membership(),
-        ).toBeNull();
-      },
-    );
-
-    it(
-      'não aplica resultado se a sessão mudar durante o carregamento',
-      async () => {
-        babies
-          .readBaby
-          .and.callFake(
-            async () => {
-              user.set(
-                {
-                  uid:
-                    'user-b',
-                } as User,
-              );
-
-              return babyA;
-            },
-          );
-
-        await expectAsync(
-          service
-            .ensureLoaded(),
-        ).toBeRejectedWithError(
-          'A sessão mudou durante o carregamento do bebê.',
-        );
-
-        expect(
-          service.baby(),
-        ).toBeNull();
-
-        expect(
-          service
-            .activeBabyId(),
-        ).toBeNull();
-      },
-    );
-  },
-);
+    expect(service.baby()).toBeNull();
+    expect(service.activeBabyId()).toBeNull();
+  });
+});

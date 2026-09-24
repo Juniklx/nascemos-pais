@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { DocumentData, serverTimestamp } from 'firebase/firestore';
 import { FirestoreGateway } from '../firebase/firestore.gateway';
-import { Baby, BabyMember, BabyMemberRole, CreateBabyInput } from '../models/baby';
+import { Baby, BabyMember, BabyMemberRole, CreateBabyInput, LinkedBaby } from '../models/baby';
 import { AuthService } from './auth';
 
 export type BabyRecordCollection = 'feedings' | 'sleeps' | 'diapers';
@@ -87,6 +87,13 @@ export class BabyDataRepository {
         },
       },
       {
+        path: this.userBabyPath(uid, babyId),
+        data: {
+          role: 'owner',
+          joinedAt: now,
+        },
+      },
+      {
         path: this.userPath(uid),
         data: {
           activeBabyId: babyId,
@@ -160,6 +167,15 @@ export class BabyDataRepository {
       );
 
       transaction.set(
+        this.userBabyPath(uid, babyId),
+        {
+          role: 'owner',
+          joinedAt: now,
+        },
+        false,
+      );
+
+      transaction.set(
         this.userPath(uid),
         {
           activeBabyId: babyId,
@@ -202,7 +218,107 @@ export class BabyDataRepository {
       throw new Error('O bebê ativo não pertence a esta conta.');
     }
 
+    await this.ensureBabyReference(result.babyId, membership);
+
     return baby;
+  }
+
+  async ensureBabyReference(babyId: string, membership?: BabyMember): Promise<void> {
+    const uid = this.requireUid();
+
+    this.validateId(babyId);
+
+    const currentMembership = membership ?? (await this.readMembership(babyId));
+
+    this.assertSameUser(uid);
+
+    if (currentMembership === null) {
+      throw new Error('Vínculo com o bebê não encontrado.');
+    }
+
+    await this.firestore.set(
+      this.userBabyPath(uid, babyId),
+      {
+        role: currentMembership.role,
+        joinedAt: currentMembership.joinedAt,
+      },
+      true,
+    );
+
+    this.assertSameUser(uid);
+  }
+
+  async listLinkedBabies(): Promise<LinkedBaby[]> {
+    const uid = this.requireUid();
+    const references = await this.firestore.list(this.userBabiesPath(uid));
+
+    this.assertSameUser(uid);
+
+    const linked: LinkedBaby[] = [];
+
+    for (const reference of references) {
+      const babyId = reference['id'];
+
+      if (typeof babyId !== 'string') {
+        continue;
+      }
+
+      try {
+        this.validateId(babyId);
+
+        const [baby, membership] = await Promise.all([
+          this.readBaby(babyId),
+          this.readMembership(babyId),
+        ]);
+
+        this.assertSameUser(uid);
+
+        if (baby !== null && membership !== null) {
+          linked.push({
+            baby,
+            membership,
+          });
+        }
+      } catch {
+        this.assertSameUser(uid);
+      }
+    }
+
+    return linked.sort((a, b) => a.baby.name.localeCompare(b.baby.name, 'pt-BR'));
+  }
+
+  async setActiveBaby(babyId: string): Promise<LinkedBaby> {
+    const uid = this.requireUid();
+
+    this.validateId(babyId);
+
+    const [baby, membership] = await Promise.all([
+      this.readBaby(babyId),
+      this.readMembership(babyId),
+    ]);
+
+    this.assertSameUser(uid);
+
+    if (baby === null || membership === null) {
+      throw new Error('Você não possui acesso a este bebê.');
+    }
+
+    await this.ensureBabyReference(babyId, membership);
+
+    await this.firestore.set(
+      this.userPath(uid),
+      {
+        activeBabyId: babyId,
+      },
+      true,
+    );
+
+    this.assertSameUser(uid);
+
+    return {
+      baby,
+      membership,
+    };
   }
 
   async readBaby(babyId: string): Promise<Baby | null> {
@@ -316,6 +432,10 @@ export class BabyDataRepository {
       {
         type: 'delete',
         path: this.memberPath(babyId, memberUid),
+      },
+      {
+        type: 'delete',
+        path: this.userBabyPath(memberUid, babyId),
       },
     ]);
 
@@ -485,6 +605,14 @@ export class BabyDataRepository {
 
   private userPath(uid: string): string {
     return `users/${uid}`;
+  }
+
+  private userBabiesPath(uid: string): string {
+    return `${this.userPath(uid)}/babies`;
+  }
+
+  private userBabyPath(uid: string, babyId: string): string {
+    return `${this.userBabiesPath(uid)}/${babyId}`;
   }
 
   private notificationsPath(uid: string): string {

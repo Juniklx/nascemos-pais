@@ -10,9 +10,9 @@ import { RouterLink } from '@angular/router';
 import type { Diaper } from '../../core/models/diaper';
 import type { Feeding } from '../../core/models/feeding';
 import type { Sleep } from '../../core/models/sleep';
+import { BabyContextService } from '../../core/services/baby-context';
 import { DiaperService } from '../../core/services/diaper';
 import { FeedingService } from '../../core/services/feeding';
-import { OnboardingService } from '../../core/services/onboarding';
 import { SleepService } from '../../core/services/sleep';
 
 type RoutineKind = 'feeding' | 'sleep' | 'diaper';
@@ -34,7 +34,7 @@ interface RoutineEvent {
   styleUrl: './routine.css',
 })
 export class Routine {
-  private readonly onboarding = inject(OnboardingService);
+  private readonly babyContext = inject(BabyContextService);
   private readonly feedingService = inject(FeedingService);
   private readonly sleepService = inject(SleepService);
   private readonly diaperService = inject(DiaperService);
@@ -50,7 +50,7 @@ export class Routine {
     },
   );
 
-  readonly babyName = this.onboarding.babyName;
+  readonly babyName = computed(() => this.babyContext.baby()?.name ?? '');
 
   readonly storageError = computed(
     () =>

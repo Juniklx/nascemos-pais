@@ -45,7 +45,25 @@ export class UserNotificationRepository {
 
     const activeBabyId = profile?.['activeBabyId'];
 
-    const shouldClearBaby = activeBabyId === notification.babyId;
+    const shouldReplaceActiveBaby = activeBabyId === notification.babyId;
+    let fallbackBabyId: string | null = null;
+
+    if (shouldReplaceActiveBaby) {
+      const references = await this.firestore.list(this.userBabiesPath(uid));
+
+      this.assertSameUser(uid);
+
+      fallbackBabyId =
+        references
+          .map((reference) => reference['id'])
+          .find(
+            (babyId): babyId is string =>
+              typeof babyId === 'string' &&
+              babyId.trim().length > 0 &&
+              !babyId.includes('/') &&
+              babyId !== notification.babyId,
+          ) ?? null;
+    }
 
     await this.firestore.batchWrite([
       {
@@ -56,18 +74,23 @@ export class UserNotificationRepository {
         },
         merge: true,
       },
-      ...(shouldClearBaby
+      ...(shouldReplaceActiveBaby
         ? [
             {
               type: 'set' as const,
               path: this.userPath(uid),
-              data: {
-                babyName: '',
-                babyBirthDate: '',
-                activeBabyId: deleteField(),
-                babyMigrationVersion: deleteField(),
-                babyMigratedAt: deleteField(),
-              },
+              data:
+                fallbackBabyId === null
+                  ? {
+                      babyName: '',
+                      babyBirthDate: '',
+                      activeBabyId: deleteField(),
+                      babyMigrationVersion: deleteField(),
+                      babyMigratedAt: deleteField(),
+                    }
+                  : {
+                      activeBabyId: fallbackBabyId,
+                    },
               merge: true,
             },
           ]
@@ -106,6 +129,10 @@ export class UserNotificationRepository {
       createdAt: createdAt.toMillis(),
       readAt: readAt instanceof Timestamp ? readAt.toMillis() : null,
     };
+  }
+
+  private userBabiesPath(uid: string): string {
+    return `${this.userPath(uid)}/babies`;
   }
 
   private notificationsPath(uid: string): string {
