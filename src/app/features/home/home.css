@@ -542,7 +542,7 @@ a {
   margin-top: 22px;
 }
 
-.timeline::before {
+.timeline:not(.timeline--empty)::before {
   content: '';
 
   position: absolute;
