@@ -86,9 +86,9 @@ beforeEach(async () => {
     await setDoc(doc(db, `users/${userC}`), {
       caregiverName: 'Conta C',
 
-      babyName: 'Bebê C',
+      babyName: '',
 
-      babyBirthDate: '2026-01-03',
+      babyBirthDate: '',
 
       consentGiven: true,
 
@@ -740,6 +740,65 @@ test('permite aceitar convite em operação atômica', async () => {
   assert.equal(baby.exists(), true);
 });
 
+test('nega convite para conta legada antes de migrar seus dados', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+
+    await setDoc(doc(db, `users/${userC}`), {
+      babyName: 'Bebê legado',
+      babyBirthDate: '2026-02-01',
+    }, { merge: true });
+
+    await setDoc(doc(db, `users/${userC}/diapers/diaper-antiga`), {
+      id: 'diaper-antiga',
+      type: 'wet',
+      recordedAt: 1234,
+    });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(createAcceptanceBatch(db).commit());
+
+  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
+  assert.equal(profile.data().babyName, 'Bebê legado');
+  assert.equal(profile.data().activeBabyId, undefined);
+  const diaper = await assertSucceeds(getDoc(doc(db, `users/${userC}/diapers/diaper-antiga`)));
+  assert.equal(diaper.exists(), true);
+});
+
+test('nega convite quando houve migração interrompida', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `users/${userC}`), {
+      activeBabyId: 'baby-interrompido',
+    }, { merge: true });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+  await assertFails(createAcceptanceBatch(db).commit());
+});
+
+test('não permite forjar migração no mesmo lote do convite', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), `users/${userC}`), {
+      babyName: 'Bebê legado',
+      babyBirthDate: '2026-02-01',
+    }, { merge: true });
+  });
+
+  await createPendingInvite();
+  const db = testEnv.authenticatedContext(userC).firestore();
+  const batch = createAcceptanceBatch(db);
+  batch.set(doc(db, `users/${userC}`), {
+    babyMigrationVersion: 1,
+    babyMigratedAt: new Date().toISOString(),
+  }, { merge: true });
+
+  await assertFails(batch.commit());
+});
+
 test('nega aceitar convite sem nome do responsável no vínculo', async () => {
   await createPendingInvite();
 
@@ -943,6 +1002,8 @@ test('permite convite adicionar outro bebê e torná-lo ativo', async () => {
       doc(db, `users/${userC}`),
       {
         activeBabyId: currentBaby,
+        babyMigrationVersion: 1,
+        babyMigratedAt: '2026-01-01T00:00:00.000Z',
       },
       {
         merge: true,
