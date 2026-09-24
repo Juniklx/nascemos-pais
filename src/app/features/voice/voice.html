@@ -31,6 +31,8 @@
       " [class.voice-state--success]="
         status() === 'recognized' &&
         commandExecuted()
+      " [class.voice-state--pending]="
+        pendingCommand() !== null
       " [class.voice-state--error]="
         status() === 'error' ||
         status() === 'permission-denied' ||
@@ -43,7 +45,7 @@
         }
 
         @case ('recognized') {
-        ✓
+        {{ pendingCommand() ? '?' : '✓' }}
         }
 
         @case ('error') {
@@ -74,7 +76,7 @@
       }
 
       @case ('recognized') {
-      <strong>Comando reconhecido</strong>
+      <strong>{{ pendingCommand() ? 'Confirme o registro' : 'Comando reconhecido' }}</strong>
 
       @if (transcript(); as spokenText) {
       <blockquote>
@@ -82,7 +84,12 @@
       </blockquote>
       }
 
+      @if (pendingCommand(); as pending) {
+      <p class="voice-state__summary">{{ pending.summary }}</p>
+      <p>Nada será salvo até você confirmar.</p>
+      } @else {
       <p>{{ feedback() }}</p>
+      }
       }
 
       @case ('error') {
@@ -124,7 +131,14 @@
     </div>
 
     <div class="voice-actions">
-      @if (status() === 'listening') {
+      @if (pendingCommand()) {
+      <button type="button" class="microphone-button" [disabled]="confirming()" (click)="confirmPending()">
+        {{ confirming() ? 'Salvando...' : 'Confirmar registro' }}
+      </button>
+      <button type="button" class="cancel-button" [disabled]="confirming()" (click)="cancelPending()">
+        Cancelar
+      </button>
+      } @else if (status() === 'listening') {
       <button type="button" class="cancel-button" (click)="cancelListening()">
         Cancelar
       </button>
@@ -194,6 +208,16 @@
           <p>
             “Finalizar sono”
           </p>
+
+          <p>“Lucas dormiu há 15 minutos”</p>
+        </div>
+      </li>
+
+      <li>
+        <span aria-hidden="true">♢</span>
+        <div>
+          <strong>Mamadeira</strong>
+          <p>“Registrar mamadeira de 120 ml”</p>
         </div>
       </li>
 

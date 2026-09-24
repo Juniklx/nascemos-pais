@@ -332,7 +332,9 @@ export class Home {
                     'feeding',
 
                   title:
-                    feeding.endedAt ===
+                    feeding.bottleMl !== undefined
+                      ? 'Mamadeira'
+                      : feeding.endedAt ===
                     null
                       ? 'Mamada em andamento'
                       : 'Mamada',
@@ -610,6 +612,10 @@ export class Home {
   feedingDescription(
     feeding: Feeding,
   ): string {
+    if (feeding.bottleMl !== undefined) {
+      return `Mamadeira · ${feeding.bottleMl} ml`;
+    }
+
     const times =
       this.feedingService
         .durations(

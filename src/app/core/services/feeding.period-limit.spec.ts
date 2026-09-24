@@ -101,4 +101,20 @@ describe('FeedingService: limite de períodos', () => {
     expect(service.activeFeeding()?.periods?.length).toBe(MAX_FEEDING_PERIODS);
     expect(service.periodLimitReached()).toBeTrue();
   });
+
+  it('registra mamadeira concluída e impede repetição no mesmo horário', async () => {
+    feedings.set([]);
+    const recordedAt = Date.now();
+
+    const bottle = await service.registerBottle(120, recordedAt);
+
+    expect(bottle).toEqual(jasmine.objectContaining({
+      startedAt: recordedAt, endedAt: recordedAt,
+      side: null, periods: null, bottleMl: 120,
+    }));
+    expect(await service.registerBottle(120, recordedAt)).toBeNull();
+    expect(saveFeeding).toHaveBeenCalledTimes(1);
+    expect(await service.registerBottle(0, recordedAt)).toBeNull();
+    expect(saveFeeding).toHaveBeenCalledTimes(1);
+  });
 });

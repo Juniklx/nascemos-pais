@@ -16,6 +16,7 @@ export interface Feeding {
 
   // null identifica registros antigos, sem períodos registrados.
   readonly periods: readonly FeedingPeriod[] | null;
+  readonly bottleMl?: number;
   readonly createdByUid?: string;
   readonly finishedByUid?: string;
 }

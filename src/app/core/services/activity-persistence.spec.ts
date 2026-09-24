@@ -474,6 +474,21 @@ describe('ActivityPersistenceService', () => {
     expect(service.diapers()).toEqual([{ ...diaper, createdByUid: 'user-a' }]);
   });
 
+  it('carrega e preserva volume da mamadeira na nuvem', async () => {
+    const bottle = {
+      id: 'bottle-a', startedAt: 1000, endedAt: 1000,
+      side: null, periods: null, bottleMl: 120, createdByUid: 'user-a',
+    };
+    mockBabyCloud({ feedings: [bottle] });
+
+    await service.load();
+    expect(service.feedings()[0].bottleMl).toBe(120);
+
+    await service.saveFeeding(bottle);
+    expect(babies.saveRecord).toHaveBeenCalledWith('baby-a', 'feedings',
+      jasmine.objectContaining({ bottleMl: 120, createdByUid: 'user-a' }));
+  });
+
   it('remove registro do bebê ativo e atualiza o estado', async () => {
     mockBabyCloud({
       feedings: [feeding],

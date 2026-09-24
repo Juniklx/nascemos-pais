@@ -26,6 +26,8 @@ import type {
 import {
   DiaperService,
 } from '../../core/services/diaper';
+import { AuthService } from '../../core/services/auth';
+import { BabyContextService } from '../../core/services/baby-context';
 
 import {
   FeedingService,
@@ -128,7 +130,13 @@ describe(
           null,
         );
 
+      const user = signal<{ uid: string } | null>({ uid: 'user-a' });
+      const baby = signal({ id: 'baby-a', name: 'Lucas' });
+      const activeBabyId = signal('baby-a');
+
       return {
+        auth: { user },
+        babyContext: { baby, activeBabyId },
         voice: {
           transcript,
           status,
@@ -199,6 +207,13 @@ describe(
         feeding: {
           activeFeeding,
 
+          registerBottle: jasmine.createSpy('registerBottle').and.callFake(
+            async (volumeMl: number, recordedAt: number) => ({
+              ...feeding, startedAt: recordedAt, endedAt: recordedAt,
+              periods: null, bottleMl: volumeMl,
+            }),
+          ),
+
           storageError:
             signal<
               string | null
@@ -234,6 +249,10 @@ describe(
 
         sleep: {
           activeSleep,
+
+          startAt: jasmine.createSpy('startAt').and.callFake(
+            async (startedAt: number) => ({ ...sleep, startedAt }),
+          ),
 
           storageError:
             signal<
@@ -314,6 +333,8 @@ describe(
             ],
 
             providers: [
+              { provide: AuthService, useValue: mocks.auth },
+              { provide: BabyContextService, useValue: mocks.babyContext },
               {
                 provide:
                   VoiceService,
@@ -415,6 +436,8 @@ describe(
 
     function expectNoAction():
       void {
+      expect(mocks.feeding.registerBottle).not.toHaveBeenCalled();
+      expect(mocks.sleep.startAt).not.toHaveBeenCalled();
       expect(
         mocks.feeding
           .start,
@@ -457,6 +480,54 @@ describe(
       ).not
         .toHaveBeenCalled();
     }
+
+    it('confirma um sono retroativo sem salvar antes da revisão', async () => {
+      const heardAt = Date.now();
+      await say('Lucas dormiu há quinze minutos');
+
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()?.summary).toContain('Lucas');
+
+      await fixture.componentInstance.confirmPending();
+
+      expect(mocks.sleep.startAt).toHaveBeenCalledTimes(1);
+      expect(Math.abs(mocks.sleep.startAt.calls.mostRecent().args[0] - (heardAt - 900_000)))
+        .toBeLessThan(2_000);
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+    });
+
+    it('cancela uma mamadeira sem gravar e confirma volume em nova tentativa', async () => {
+      await say('registrar mamadeira de cento e vinte ml');
+      expectNoAction();
+      fixture.componentInstance.cancelPending();
+      expectNoAction();
+
+      await say('registrar mamadeira de 120 ml');
+      await fixture.componentInstance.confirmPending();
+
+      expect(mocks.feeding.registerBottle).toHaveBeenCalledTimes(1);
+      expect(mocks.feeding.registerBottle.calls.mostRecent().args[0]).toBe(120);
+    });
+
+    it('recusa bebê diferente e mudança de bebê entre ouvir e confirmar', async () => {
+      await say('Sara dormiu há 15 minutos');
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+
+      await say('Lucas dormiu há 15 minutos');
+      mocks.babyContext.activeBabyId.set('baby-b');
+      await fixture.componentInstance.confirmPending();
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+    });
+
+    it('não infere volume ausente ou fora do limite', async () => {
+      await say('registrar mamadeira');
+      expectNoAction();
+      await say('registrar mamadeira de 1200 ml');
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+    });
 
     for (
       const command of [

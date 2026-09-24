@@ -81,6 +81,39 @@ export class FeedingService {
       .then(() => undefined);
   }
 
+  async registerBottle(volumeMl: number, recordedAt: number): Promise<Feeding | null> {
+    if (!Number.isSafeInteger(volumeMl) || volumeMl < 1 || volumeMl > 1000 ||
+      !Number.isSafeInteger(recordedAt) || recordedAt < 0 || recordedAt > Date.now() ||
+      !(await this.prepareWrite()) || this.savingState()) {
+      return null;
+    }
+
+    if (this.feedings().some((feeding) => feeding.bottleMl === volumeMl &&
+      Math.abs(feeding.startedAt - recordedAt) < 120_000)) {
+      return null;
+    }
+
+    const bottle: Feeding = {
+      id: crypto.randomUUID(),
+      startedAt: recordedAt,
+      endedAt: recordedAt,
+      side: null,
+      periods: null,
+      bottleMl: volumeMl,
+    };
+
+    this.savingState.set(true);
+
+    try {
+      await this.persistence.saveFeeding(bottle);
+      return bottle;
+    } catch {
+      return null;
+    } finally {
+      this.savingState.set(false);
+    }
+  }
+
   async start():
     Promise<Feeding | null> {
     if (
@@ -616,6 +649,18 @@ export class FeedingService {
 
     const rawPeriods =
       value['periods'];
+
+    const bottleMl = value['bottleMl'];
+
+    if (bottleMl !== undefined) {
+      if (!Number.isSafeInteger(bottleMl) || (bottleMl as number) < 1 ||
+        (bottleMl as number) > 1000 || endedAt !== startedAt || side !== null ||
+        rawPeriods !== null) {
+        throw new Error('Dados da mamadeira inválidos.');
+      }
+
+      return { ...base, periods: null, bottleMl: bottleMl as number };
+    }
 
     if (
       rawPeriods ===

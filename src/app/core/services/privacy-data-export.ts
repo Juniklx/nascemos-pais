@@ -157,7 +157,7 @@ export class PrivacyDataExportService {
 
   private activity(data: DocumentData, kind: ActivityCollection, uid: string): Record<string, unknown> {
     const keys = kind === 'feedings'
-      ? ['startedAt', 'endedAt', 'side', 'periods']
+      ? ['startedAt', 'endedAt', 'side', 'periods', 'bottleMl']
       : kind === 'sleeps'
         ? ['startedAt', 'endedAt']
         : ['type', 'recordedAt'];

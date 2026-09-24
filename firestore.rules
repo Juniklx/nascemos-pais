@@ -609,6 +609,7 @@ service cloud.firestore {
           'endedAt',
           'side',
           'periods',
+          'bottleMl',
           'createdByUid',
           'finishedByUid'
         ])
@@ -633,6 +634,17 @@ service cloud.firestore {
           data.startedAt,
           data.endedAt,
           data.side
+        )
+        && (
+          !('bottleMl' in data)
+          || (
+            data.bottleMl is int
+            && data.bottleMl >= 1
+            && data.bottleMl <= 1000
+            && data.endedAt == data.startedAt
+            && data.side == null
+            && data.periods == null
+          )
         )
         && isValidAttribution(data, true);
     }

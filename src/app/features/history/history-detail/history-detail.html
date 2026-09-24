@@ -31,7 +31,7 @@
         <h1>
           @switch (activity.kind) {
           @case ('feeding') {
-          Mamada
+          {{ activity.record.bottleMl !== undefined ? 'Mamadeira' : 'Mamada' }}
           }
 
           @case ('sleep') {
@@ -58,6 +58,18 @@
 
       @switch (activity.kind) {
       @case ('feeding') {
+      @if (activity.record.bottleMl !== undefined) {
+      <div class="edit-grid">
+        <label class="edit-field">
+          <span>Data e horário</span>
+          <input type="datetime-local" required [value]="startedAtInput()" (input)="onStartedAtInput($event)" />
+        </label>
+        <label class="edit-field">
+          <span>Volume (ml)</span>
+          <input type="number" required min="1" max="1000" step="1" [value]="bottleMlInput()" (input)="onBottleMlInput($event)" />
+        </label>
+      </div>
+      } @else {
       <div class="edit-grid">
         <label class="edit-field">
           <span>Início da mamada</span>
@@ -99,6 +111,7 @@
         cada lado serão ajustados
         proporcionalmente à nova duração.
       </p>
+      }
       }
 
       @case ('sleep') {
@@ -166,6 +179,12 @@
     @switch (activity.kind) {
     @case ('feeding') {
     <dl class="detail-list">
+      @if (activity.record.bottleMl !== undefined) {
+      <div>
+        <dt>Volume</dt>
+        <dd>{{ activity.record.bottleMl }} ml</dd>
+      </div>
+      } @else {
       <div>
         <dt>Início</dt>
 
@@ -249,6 +268,7 @@
           }}
         </dd>
       </div>
+      }
     </dl>
     }
 

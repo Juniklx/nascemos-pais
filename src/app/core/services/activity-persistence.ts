@@ -970,6 +970,18 @@ export class ActivityPersistenceService {
 
     const rawPeriods = value['periods'];
 
+    const bottleMl = value['bottleMl'];
+
+    if (bottleMl !== undefined) {
+      if (!Number.isSafeInteger(bottleMl) || (bottleMl as number) < 1 ||
+        (bottleMl as number) > 1000 || endedAt !== startedAt || side !== null ||
+        rawPeriods !== null) {
+        throw new Error('Registro de mamadeira inválido.');
+      }
+
+      return { ...base, periods: null, bottleMl: bottleMl as number };
+    }
+
     if (rawPeriods === null) {
       return {
         ...base,

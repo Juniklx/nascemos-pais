@@ -45,6 +45,9 @@ describe('PrivacyDataExportService', () => {
         createdByUid: 'user-a',
         finishedByUid: 'user-b',
         extraSecret: 'nunca exportar',
+      }, {
+        id: 'bottle-a', startedAt: 3000, endedAt: 3000,
+        side: null, periods: null, bottleMl: 120,
       }],
       'babies/baby-a/sleeps': [],
       'babies/baby-a/diapers': [{
@@ -104,6 +107,7 @@ describe('PrivacyDataExportService', () => {
     expect(result.babies[0].records.feedings[0]['createdBy']).toBe('propria_conta');
     expect(result.babies[0].records.feedings[0]['finishedBy']).toBe('outro_responsavel');
     expect(result.babies[0].records.feedings[0]['extraSecret']).toBeUndefined();
+    expect(result.babies[0].records.feedings[1]['bottleMl']).toBe(120);
     expect(result.babies[0].records.diapers[0]['createdBy']).toBe('outro_responsavel');
     expect(listFromServer).not.toHaveBeenCalledWith('babies/baby-inacessivel/feedings');
   });

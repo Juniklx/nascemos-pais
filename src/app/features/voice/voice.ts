@@ -18,6 +18,8 @@ import type {
 import {
   DiaperService,
 } from '../../core/services/diaper';
+import { AuthService } from '../../core/services/auth';
+import { BabyContextService } from '../../core/services/baby-context';
 
 import {
   FeedingService,
@@ -30,6 +32,14 @@ import {
 import {
   VoiceService,
 } from '../../core/services/voice';
+
+type PendingVoiceCommand = {
+  readonly babyId: string;
+  readonly uid: string;
+  readonly recordedAt: number;
+  readonly issuedAt: number;
+  readonly summary: string;
+} & ({ readonly kind: 'sleep' } | { readonly kind: 'bottle'; readonly volumeMl: number });
 
 @Component({
   selector: 'app-voice',
@@ -46,6 +56,9 @@ export class VoicePage {
 
   private readonly voiceService =
     inject(VoiceService);
+
+  private readonly auth = inject(AuthService);
+  private readonly babyContext = inject(BabyContextService);
 
   private readonly feedingService =
     inject(FeedingService);
@@ -82,6 +95,9 @@ export class VoicePage {
   readonly commandExecuted =
     signal(false);
 
+  readonly pendingCommand = signal<PendingVoiceCommand | null>(null);
+  readonly confirming = signal(false);
+
   constructor() {
     effect(() => {
       const transcript =
@@ -111,6 +127,7 @@ export class VoicePage {
   }
 
   startListening(): void {
+    this.pendingCommand.set(null);
     this.lastProcessedTranscript =
       null;
 
@@ -126,6 +143,7 @@ export class VoicePage {
   }
 
   cancelListening(): void {
+    this.pendingCommand.set(null);
     this.awaitingDiaperType =
       false;
 
@@ -144,6 +162,7 @@ export class VoicePage {
   }
 
   goHome(): void {
+    this.pendingCommand.set(null);
     this.voiceService.stop();
 
     void this.router.navigate([
@@ -153,6 +172,7 @@ export class VoicePage {
 
   useManualRegistration():
     void {
+    this.pendingCommand.set(null);
     this.voiceService.stop();
 
     void this.router.navigate([
@@ -171,6 +191,8 @@ export class VoicePage {
     this.commandExecuted.set(
       false,
     );
+
+    this.pendingCommand.set(null);
 
     if (
       /^(cancelar|cancele)$/.test(
@@ -198,6 +220,11 @@ export class VoicePage {
         'Para registrar, diga um comando direto e completo.',
       );
 
+      return;
+    }
+
+    if (this.prepareNaturalCommand(command)) {
+      this.awaitingDiaperType = false;
       return;
     }
 
@@ -440,6 +467,153 @@ export class VoicePage {
     this.feedback.set(
       'Nenhuma ação foi executada. Diga apenas um comando por vez.',
     );
+  }
+
+  private prepareNaturalCommand(command: string): boolean {
+    const sleepMatch = command.match(/^(?:(.+?) )?dormiu ha (.+?) (minuto|minutos|hora|horas)$/);
+    const bottleMatch = command.match(/^(?:registrar )?mamadeira(?: de)? (.+?) (ml|mililitro|mililitros)$/);
+
+    if (!sleepMatch && !bottleMatch) {
+      if (/\b(dormiu ha|mamadeira)\b/.test(command)) {
+        this.voiceService.reportError('Informe um tempo ou volume claro. Exemplos: “Lucas dormiu há 15 minutos” ou “registrar mamadeira de 120 ml”.');
+        this.feedback.set('Nenhum registro foi salvo.');
+        return true;
+      }
+
+      return false;
+    }
+
+    const baby = this.babyContext.baby();
+    const uid = this.auth.user()?.uid;
+
+    if (!baby || !uid) {
+      this.voiceService.reportError('Selecione um bebê e entre na sua conta antes de registrar.');
+      return true;
+    }
+
+    const issuedAt = Date.now();
+
+    if (sleepMatch) {
+      const spokenName = sleepMatch[1]?.replace(/^(o|a) /, '');
+      const amount = this.parseAmount(sleepMatch[2]);
+      const minutes = amount === null ? null : amount * (sleepMatch[3].startsWith('hora') ? 60 : 1);
+
+      if (spokenName && spokenName !== this.normalize(baby.name)) {
+        this.voiceService.reportError(`O nome informado não corresponde ao bebê ativo (${baby.name}). Nenhum sono foi registrado.`);
+        return true;
+      }
+
+      if (minutes === null || minutes < 1 || minutes > 1440) {
+        this.voiceService.reportError('Informe um tempo entre 1 minuto e 24 horas. Nenhum sono foi registrado.');
+        return true;
+      }
+
+      const startedAt = issuedAt - minutes * 60_000;
+      const when = new Date(startedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      this.pendingCommand.set({
+        kind: 'sleep', babyId: baby.id, uid, recordedAt: startedAt, issuedAt,
+        summary: `Iniciar sono de ${baby.name} em ${when} (há ${minutes} min).`,
+      });
+    } else if (bottleMatch) {
+      const volumeMl = this.parseAmount(bottleMatch[1]);
+
+      if (volumeMl === null || volumeMl < 1 || volumeMl > 1000) {
+        this.voiceService.reportError('Informe um volume inteiro entre 1 e 1000 ml. Nenhuma mamadeira foi registrada.');
+        return true;
+      }
+
+      const when = new Date(issuedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+      this.pendingCommand.set({
+        kind: 'bottle', babyId: baby.id, uid, recordedAt: issuedAt, issuedAt, volumeMl,
+        summary: `Registrar mamadeira de ${volumeMl} ml para ${baby.name} em ${when}.`,
+      });
+    }
+
+    this.feedback.set('Confira os dados e confirme antes de salvar.');
+    return true;
+  }
+
+  async confirmPending(): Promise<void> {
+    const pending = this.pendingCommand();
+
+    if (!pending || this.confirming()) {
+      return;
+    }
+
+    if (Date.now() - pending.issuedAt > 120_000 ||
+      this.auth.user()?.uid !== pending.uid ||
+      this.babyContext.activeBabyId() !== pending.babyId) {
+      this.pendingCommand.set(null);
+      this.voiceService.reportError('A confirmação expirou ou o bebê/conta mudou. Diga o comando novamente.');
+      return;
+    }
+
+    this.confirming.set(true);
+
+    try {
+      if (pending.kind === 'sleep') {
+        if (this.sleepService.activeSleep()) {
+          this.pendingCommand.set(null);
+          this.voiceService.reportError('Já existe um sono em andamento. Nenhum novo sono foi criado.');
+          return;
+        }
+
+        const sleep = await this.sleepService.startAt(pending.recordedAt);
+
+        if (!sleep) {
+          this.pendingCommand.set(null);
+          this.reportSyncFailure(this.sleepService.storageError(), 'Não foi possível iniciar o sono.');
+          return;
+        }
+
+        this.pendingCommand.set(null);
+        this.completeCommand('Sono registrado no horário confirmado.');
+      } else {
+        const bottle = await this.feedingService.registerBottle(pending.volumeMl, pending.recordedAt);
+
+        if (!bottle) {
+          this.pendingCommand.set(null);
+          this.reportSyncFailure(this.feedingService.storageError(), 'Não foi possível registrar a mamadeira. Confira se já existe um registro igual neste horário.');
+          return;
+        }
+
+        this.pendingCommand.set(null);
+        this.completeCommand(`Mamadeira de ${pending.volumeMl} ml registrada.`);
+      }
+    } finally {
+      this.confirming.set(false);
+    }
+  }
+
+  cancelPending(): void {
+    this.pendingCommand.set(null);
+    this.voiceService.stop();
+    this.feedback.set('Registro cancelado. Nada foi salvo.');
+  }
+
+  private parseAmount(value: string): number | null {
+    if (/^\d{1,4}$/.test(value)) {
+      return Number(value);
+    }
+
+    const words: Record<string, number> = {
+      um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5,
+      seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+      treze: 13, quatorze: 14, quinze: 15, dezesseis: 16, dezessete: 17,
+      dezoito: 18, dezenove: 19, vinte: 20, trinta: 30, quarenta: 40,
+      cinquenta: 50, sessenta: 60, cem: 100, cento: 100,
+    };
+
+    if (Object.prototype.hasOwnProperty.call(words, value)) {
+      return words[value];
+    }
+
+    const compound = value.match(/^(vinte|trinta|quarenta|cinquenta|sessenta|cento) e (.+)$/);
+    const suffix = compound ? words[compound[2]] : null;
+
+    return compound && suffix !== undefined && suffix !== null &&
+      (compound[1] === 'cento' ? suffix <= 90 : suffix < 10)
+      ? words[compound[1]] + suffix : null;
   }
 
   private async startFeeding(
