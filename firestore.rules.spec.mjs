@@ -127,6 +127,16 @@ beforeEach(async () => {
       joinedAt: '2026-01-01T00:00:00.000Z',
     });
 
+    await setDoc(doc(db, `users/${userA}/babies/${sharedBaby}`), {
+      role: 'owner',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    await setDoc(doc(db, `users/${userB}/babies/${sharedBaby}`), {
+      role: 'caregiver',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    });
+
     await setDoc(doc(db, `babies/${sharedBaby}/diapers/shared-diaper`), {
       id: 'shared-diaper',
 
@@ -185,6 +195,11 @@ function createAcceptanceBatch(db, token = inviteToken) {
     caregiverName: 'Conta C',
   });
 
+  batch.set(doc(db, `users/${userC}/babies/${sharedBaby}`), {
+    role: 'caregiver',
+    joinedAt: new Date().toISOString(),
+  });
+
   batch.set(
     doc(db, `users/${userC}`),
     {
@@ -210,6 +225,7 @@ function createAccessRemovalBatch(db, memberId = userB) {
   });
 
   batch.delete(doc(db, `babies/${sharedBaby}/members/${memberId}`));
+  batch.delete(doc(db, `users/${memberId}/babies/${sharedBaby}`));
 
   return batch;
 }
@@ -226,6 +242,32 @@ test('permite usuário ler o próprio perfil', async () => {
   const snapshot = await assertSucceeds(getDoc(doc(db, `users/${userA}`)));
 
   assert.equal(snapshot.exists(), true);
+});
+
+test('permite usuário listar apenas os próprios vínculos de bebês', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  const snapshot = await assertSucceeds(getDocs(collection(db, `users/${userA}/babies`)));
+
+  assert.equal(snapshot.docs.length, 1);
+  assert.equal(snapshot.docs[0].id, sharedBaby);
+});
+
+test('nega usuário lendo vínculos de bebês de outra conta', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(getDocs(collection(db, `users/${userB}/babies`)));
+});
+
+test('nega criar referência de bebê sem vínculo correspondente', async () => {
+  const db = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `users/${userC}/babies/${sharedBaby}`), {
+      role: 'caregiver',
+      joinedAt: '2026-01-01T00:00:00.000Z',
+    }),
+  );
 });
 
 test('nega usuário A lendo perfil do usuário B', async () => {
@@ -510,6 +552,11 @@ test('permite criar bebê e proprietário no mesmo lote', async () => {
     joinedAt: '2026-02-01T00:00:00.000Z',
   });
 
+  batch.set(doc(db, `users/${userC}/babies/${babyId}`), {
+    role: 'owner',
+    joinedAt: '2026-02-01T00:00:00.000Z',
+  });
+
   await assertSucceeds(batch.commit());
 });
 
@@ -656,7 +703,15 @@ test('nega aceitar convite sem nome do responsável no vínculo', async () => {
     },
   );
 
-  await assertFails(batch.commit());
+  await assertSucceeds(batch.commit());
+
+  const profile = await assertSucceeds(getDoc(doc(db, `users/${userC}`)));
+  assert.equal(profile.data().activeBabyId, sharedBaby);
+
+  const reference = await assertSucceeds(
+    getDoc(doc(db, `users/${userC}/babies/${sharedBaby}`)),
+  );
+  assert.equal(reference.exists(), true);
 });
 
 test('nega aceitação de convite expirado', async () => {
@@ -801,7 +856,7 @@ test('nega responsável removendo o próprio vínculo', async () => {
   await assertFails(deleteDoc(doc(db, `babies/${sharedBaby}/members/${userB}`)));
 });
 
-test('nega convite substituindo outro bebê ativo', async () => {
+test('permite convite adicionar outro bebê e torná-lo ativo', async () => {
   const currentBaby = 'baby-user-c';
 
   await testEnv.withSecurityRulesDisabled(async (context) => {

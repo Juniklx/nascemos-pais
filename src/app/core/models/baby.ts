@@ -27,3 +27,8 @@ export interface CreateBabyInput {
 
   readonly birthDate: string;
 }
+
+export interface LinkedBaby {
+  readonly baby: Baby;
+  readonly membership: BabyMember;
+}

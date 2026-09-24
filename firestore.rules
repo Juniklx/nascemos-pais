@@ -136,11 +136,6 @@ service cloud.firestore {
           /databases/$(database)/documents/babyInvites/$(request.resource.data.inviteId)
         ).data;
 
-      let currentProfile =
-        get(
-          /databases/$(database)/documents/users/$(request.auth.uid)
-        ).data;
-
       let profile =
         getAfter(
           /databases/$(database)/documents/users/$(request.auth.uid)
@@ -169,19 +164,6 @@ service cloud.firestore {
         && acceptedInvite.acceptedByUid == request.auth.uid
         && acceptedInvite.acceptedAt == request.time
         && acceptedInvite.babyId == babyId
-
-        /*
-         * Enquanto o MVP suporta somente um bebê
-         * ativo, um convite não pode substituir
-         * outro bebê já vinculado à conta.
-         */
-        && (
-          !(
-            'activeBabyId'
-            in currentProfile
-          )
-          || currentProfile.activeBabyId == babyId
-        )
 
         /*
          * O perfil deve passar a apontar
@@ -348,6 +330,35 @@ service cloud.firestore {
             && data.caregiverName.size() <= 80
           )
         );
+    }
+
+    function isValidUserBabyReference(
+      data,
+      userId,
+      babyId
+    ) {
+      return data.keys().hasOnly([
+          'role',
+          'joinedAt'
+        ])
+        && data.keys().hasAll([
+          'role',
+          'joinedAt'
+        ])
+        && (
+          data.role == 'owner'
+          || data.role == 'caregiver'
+        )
+        && data.joinedAt is string
+        && existsAfter(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+        )
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+        ).data.role == data.role
+        && getAfter(
+          /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+        ).data.joinedAt == data.joinedAt;
     }
 
     function isValidPendingInvite(data) {
@@ -662,6 +673,45 @@ service cloud.firestore {
 
       allow delete:
         if isOwner(userId);
+
+      match /babies/{babyId} {
+        allow read:
+          if isOwner(
+            userId
+          );
+
+        allow create, update:
+          if isOwner(
+            userId
+          )
+          && isValidUserBabyReference(
+            request.resource.data,
+            userId,
+            babyId
+          );
+
+        allow delete:
+          if isOwner(
+            userId
+          )
+          ||
+          (
+            isAuthenticated()
+            && request.auth.uid != userId
+            && isBabyOwner(
+              babyId
+            )
+            && exists(
+              /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+            )
+            && get(
+              /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+            ).data.role == 'caregiver'
+            && !existsAfter(
+              /databases/$(database)/documents/babies/$(babyId)/members/$(userId)
+            )
+          );
+      }
 
       match /notifications/{notificationId} {
         allow read:

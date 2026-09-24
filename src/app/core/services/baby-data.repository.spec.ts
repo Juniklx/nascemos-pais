@@ -93,7 +93,7 @@ describe('BabyDataRepository', () => {
 
     const entries = firestore.batchSet.calls.mostRecent().args[0];
 
-    expect(entries.length).toBe(3);
+    expect(entries.length).toBe(4);
     expect(entries[0].path).toBe('babies/baby-1');
 
     expect(entries[0].data).toEqual(
@@ -112,9 +112,17 @@ describe('BabyDataRepository', () => {
       }),
     );
 
-    expect(entries[2].path).toBe('users/user-a');
+    expect(entries[2]).toEqual({
+      path: 'users/user-a/babies/baby-1',
+      data: {
+        role: 'owner',
+        joinedAt: jasmine.any(String),
+      },
+    });
 
-    expect(entries[2].data).toEqual({
+    expect(entries[3].path).toBe('users/user-a');
+
+    expect(entries[3].data).toEqual({
       activeBabyId: 'baby-1',
     });
   });
@@ -153,6 +161,15 @@ describe('BabyDataRepository', () => {
       jasmine.objectContaining({
         role: 'owner',
       }),
+      false,
+    );
+
+    expect(transactionContext.set).toHaveBeenCalledWith(
+      'users/user-a/babies/baby-1',
+      {
+        role: 'owner',
+        joinedAt: jasmine.any(String),
+      },
       false,
     );
 
@@ -256,6 +273,112 @@ describe('BabyDataRepository', () => {
 
     expect(firestore.get).toHaveBeenCalledOnceWith('babies/baby-1');
     expect(baby?.id).toBe('baby-1');
+  });
+
+  it('lista bebês vinculados ao usuário', async () => {
+    firestore.list.and.resolveTo([
+      {
+        id: 'baby-1',
+        role: 'owner',
+        joinedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'baby-2',
+        role: 'caregiver',
+        joinedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ]);
+
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-1') {
+        return {
+          name: 'Helena',
+          birthDate: '2026-01-01',
+          createdByUid: 'user-a',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-1/members/user-a') {
+        return {
+          role: 'owner',
+          joinedAt: '2026-01-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-2') {
+        return {
+          name: 'Lucas',
+          birthDate: '2026-02-01',
+          createdByUid: 'user-b',
+          createdAt: '2026-02-01T00:00:00.000Z',
+          updatedAt: '2026-02-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-2/members/user-a') {
+        return {
+          role: 'caregiver',
+          joinedAt: '2026-02-02T00:00:00.000Z',
+          inviteId: 'a'.repeat(64),
+        };
+      }
+
+      return null;
+    });
+
+    const linked = await repository.listLinkedBabies();
+
+    expect(firestore.list).toHaveBeenCalledOnceWith('users/user-a/babies');
+    expect(linked.map((item) => item.baby.id)).toEqual(['baby-1', 'baby-2']);
+    expect(linked[1].membership.role).toBe('caregiver');
+  });
+
+  it('troca o bebê ativo somente quando existe vínculo', async () => {
+    firestore.get.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-2') {
+        return {
+          name: 'Lucas',
+          birthDate: '2026-02-01',
+          createdByUid: 'user-b',
+          createdAt: '2026-02-01T00:00:00.000Z',
+          updatedAt: '2026-02-01T00:00:00.000Z',
+        };
+      }
+
+      if (path === 'babies/baby-2/members/user-a') {
+        return {
+          role: 'caregiver',
+          joinedAt: '2026-02-02T00:00:00.000Z',
+          inviteId: 'a'.repeat(64),
+        };
+      }
+
+      return null;
+    });
+
+    const linked = await repository.setActiveBaby('baby-2');
+
+    expect(linked.baby.id).toBe('baby-2');
+    expect(linked.membership.role).toBe('caregiver');
+
+    expect(firestore.set).toHaveBeenCalledWith(
+      'users/user-a/babies/baby-2',
+      {
+        role: 'caregiver',
+        joinedAt: '2026-02-02T00:00:00.000Z',
+      },
+      true,
+    );
+
+    expect(firestore.set).toHaveBeenCalledWith(
+      'users/user-a',
+      {
+        activeBabyId: 'baby-2',
+      },
+      true,
+    );
   });
 
   it('atualiza nome e nascimento do bebê', async () => {
@@ -496,7 +619,7 @@ describe('BabyDataRepository', () => {
 
     const operations = firestore.batchWrite.calls.mostRecent().args[0];
 
-    expect(operations.length).toBe(2);
+    expect(operations.length).toBe(3);
 
     expect(operations[0]).toEqual({
       type: 'set',
@@ -514,6 +637,11 @@ describe('BabyDataRepository', () => {
     expect(operations[1]).toEqual({
       type: 'delete',
       path: 'babies/baby-1/members/user-b',
+    });
+
+    expect(operations[2]).toEqual({
+      type: 'delete',
+      path: 'users/user-b/babies/baby-1',
     });
   });
 

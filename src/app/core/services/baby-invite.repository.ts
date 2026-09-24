@@ -133,12 +133,6 @@ export class BabyInviteRepository {
 
     const caregiverName = profile?.['caregiverName'];
 
-    const activeBabyId = profile?.['activeBabyId'];
-
-    if (activeBabyId !== undefined && activeBabyId !== invite.babyId) {
-      throw new Error('Esta conta já está vinculada a outro bebê.');
-    }
-
     if (
       typeof caregiverName !== 'string' ||
       caregiverName.trim().length === 0 ||
@@ -196,6 +190,16 @@ export class BabyInviteRepository {
           inviteId: normalizedToken,
 
           caregiverName: caregiverName.trim(),
+        },
+      },
+
+      {
+        path: this.userBabyPath(uid, invite.babyId),
+
+        data: {
+          role: 'caregiver',
+
+          joinedAt,
         },
       },
 
@@ -347,6 +351,10 @@ export class BabyInviteRepository {
 
   private userPath(uid: string): string {
     return `users/${uid}`;
+  }
+
+  private userBabyPath(uid: string, babyId: string): string {
+    return `${this.userPath(uid)}/babies/${babyId}`;
   }
 
   private validateId(id: string): void {
