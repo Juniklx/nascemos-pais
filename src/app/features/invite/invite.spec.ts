@@ -231,6 +231,17 @@ describe('InvitePage', () => {
     expect(acceptInvite).toHaveBeenCalledOnceWith(token);
   });
 
+  it('não aceita convite se a migração do bebê legado falhar', async () => {
+    ensureBabyLoaded.and.rejectWith(new Error('falha de migração'));
+
+    await page.ngOnInit();
+    await page.accept();
+
+    expect(ensureBabyLoaded).toHaveBeenCalled();
+    expect(acceptInvite).not.toHaveBeenCalled();
+    expect(page.error()).toContain('Não foi possível aceitar o convite');
+  });
+
   it('não tenta migrar bebê próprio quando a conta ainda não possui um', async () => {
     getIncompleteRoute.and.returnValue('/onboarding/about-baby');
 
