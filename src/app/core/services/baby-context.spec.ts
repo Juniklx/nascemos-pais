@@ -128,6 +128,20 @@ describe('BabyContextService', () => {
     expect(babies.listLinkedBabies).toHaveBeenCalledTimes(1);
   });
 
+  it('preserva bebê ativo quando o índice de múltiplos bebês falha', async () => {
+    babies.ensureBabyReference.and.rejectWith(new Error('permission-denied'));
+
+    await service.ensureLoaded();
+
+    expect(service.activeBabyId()).toBe('baby-a');
+    expect(service.baby()?.name).toBe('Helena');
+    expect(service.membership()?.role).toBe('owner');
+    expect(service.isOwner()).toBeTrue();
+    expect(service.linkedBabies().map((item) => item.baby.id)).toEqual(['baby-a']);
+    expect(service.isReady()).toBeTrue();
+    expect(service.error()).toBe('Não foi possível carregar todos os bebês vinculados.');
+  });
+
   it('identifica proprietário do bebê ativo', async () => {
     await service.ensureLoaded();
 
