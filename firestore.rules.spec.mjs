@@ -1193,3 +1193,113 @@ test('nega segundo sono em andamento para o mesmo bebê', async () => {
 
   await assertFails(secondBatch.commit());
 });
+
+
+test('permite autoria de cuidadores autorizados e preserva registros sem autor', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertSucceeds(getDoc(doc(db, `babies/${sharedBaby}/diapers/shared-diaper`)));
+
+  await assertSucceeds(
+    setDoc(doc(db, `babies/${sharedBaby}/diapers/diaper-authored`), {
+      id: 'diaper-authored',
+      type: 'wet',
+      recordedAt: 2000,
+      createdByUid: userB,
+    }),
+  );
+
+  await assertSucceeds(
+    setDoc(doc(db, `babies/${sharedBaby}/diapers/diaper-authored`), {
+      type: 'dirty',
+    }, { merge: true }),
+  );
+
+  const saved = await getDoc(doc(db, `babies/${sharedBaby}/diapers/diaper-authored`));
+
+  assert.equal(saved.data().createdByUid, userB);
+  assert.equal(saved.data().type, 'dirty');
+});
+
+test('nega autoria falsa e alteração posterior do autor', async () => {
+  const db = testEnv.authenticatedContext(userB).firestore();
+
+  await assertFails(
+    setDoc(doc(db, `babies/${sharedBaby}/diapers/diaper-forged`), {
+      id: 'diaper-forged',
+      type: 'wet',
+      recordedAt: 2000,
+      createdByUid: userA,
+    }),
+  );
+
+  const path = `babies/${sharedBaby}/diapers/diaper-authored`;
+
+  await assertSucceeds(
+    setDoc(doc(db, path), {
+      id: 'diaper-authored',
+      type: 'wet',
+      recordedAt: 2000,
+      createdByUid: userB,
+    }),
+  );
+
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(
+    setDoc(doc(ownerDb, path), {
+      createdByUid: userA,
+    }, { merge: true }),
+  );
+
+  await assertFails(
+    setDoc(doc(ownerDb, path), {
+      createdByUid: deleteField(),
+    }, { merge: true }),
+  );
+
+  const outsideDb = testEnv.authenticatedContext(userC).firestore();
+
+  await assertFails(getDoc(doc(outsideDb, path)));
+});
+
+test('permite encerrar sono em outro aparelho identificando quem finalizou', async () => {
+  const ownerDb = testEnv.authenticatedContext(userA).firestore();
+  const caregiverDb = testEnv.authenticatedContext(userB).firestore();
+  const path = `babies/${sharedBaby}/sleeps/sleep-authored`;
+  const lockPath = `babies/${sharedBaby}/activeActivities/sleep`;
+
+  const start = writeBatch(ownerDb);
+  start.set(doc(ownerDb, path), {
+    id: 'sleep-authored',
+    startedAt: 1000,
+    endedAt: null,
+    createdByUid: userA,
+  });
+  start.set(doc(ownerDb, lockPath), { recordId: 'sleep-authored' });
+
+  await assertSucceeds(start.commit());
+
+  const forgedEnd = writeBatch(caregiverDb);
+  forgedEnd.set(doc(caregiverDb, path), {
+    endedAt: 3000,
+    finishedByUid: userA,
+  }, { merge: true });
+  forgedEnd.delete(doc(caregiverDb, lockPath));
+
+  await assertFails(forgedEnd.commit());
+
+  const validEnd = writeBatch(caregiverDb);
+  validEnd.set(doc(caregiverDb, path), {
+    endedAt: 3000,
+    finishedByUid: userB,
+  }, { merge: true });
+  validEnd.delete(doc(caregiverDb, lockPath));
+
+  await assertSucceeds(validEnd.commit());
+
+  const saved = await getDoc(doc(caregiverDb, path));
+
+  assert.equal(saved.data().createdByUid, userA);
+  assert.equal(saved.data().finishedByUid, userB);
+});
