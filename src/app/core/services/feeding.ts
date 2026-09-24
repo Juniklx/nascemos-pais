@@ -5,11 +5,12 @@ import {
   signal,
 } from '@angular/core';
 
-import type {
-  Feeding,
-  FeedingDurations,
-  FeedingPeriod,
-  FeedingSide,
+import {
+  MAX_FEEDING_PERIODS,
+  type Feeding,
+  type FeedingDurations,
+  type FeedingPeriod,
+  type FeedingSide,
 } from '../models/feeding';
 
 import {
@@ -53,6 +54,10 @@ export class FeedingService {
               null,
           ) ?? null,
     );
+
+  readonly periodLimitReached = computed(
+    () => (this.activeFeeding()?.periods?.length ?? 0) >= MAX_FEEDING_PERIODS,
+  );
 
   readonly completedFeedings =
     computed(
@@ -170,6 +175,12 @@ export class FeedingService {
       lastPeriod.side === side
     ) {
       return true;
+    }
+
+    // As Firestore Rules validam cada posição até este limite.
+    // Preservamos a mamada em andamento e permitimos finalizá-la.
+    if (periods.length >= MAX_FEEDING_PERIODS) {
+      return false;
     }
 
     if (this.savingState()) {
