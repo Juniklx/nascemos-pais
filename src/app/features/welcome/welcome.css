@@ -712,3 +712,19 @@
   }
 }
 
+.welcome__legal {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 8px;
+}
+
+.welcome__legal a {
+  color: var(--color-sage);
+  font-size: 13px;
+  text-underline-offset: 3px;
+}
+
+.welcome__legal a:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 4px;
+}
