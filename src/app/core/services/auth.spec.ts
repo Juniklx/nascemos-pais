@@ -219,6 +219,15 @@ describe('AuthService', () => {
     },
   );
 
+  it('identifica quando o domínio do login com Google não está autorizado', async () => {
+    gateway.loginWithGoogle.and.rejectWith({ code: 'auth/unauthorized-domain' });
+
+    const result = await service.loginWithGoogle();
+
+    expect(result).toBeFalse();
+    expect(service.error()).toContain('não está autorizado para entrar com Google');
+  });
+
   it(
     'encerra a sessão pelo gateway',
     async () => {
