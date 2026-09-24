@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocFromServer,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
   runTransaction,
   setDoc,
@@ -59,12 +60,6 @@ export class FirestoreGateway {
     return snapshot.data();
   }
 
-  async getFromServer(path: string): Promise<DocumentData | null> {
-    const snapshot = await getDocFromServer(doc(this.firestore, path));
-
-    return snapshot.exists() ? snapshot.data() : null;
-  }
-
   async list(path: string): Promise<DocumentData[]> {
     const snapshot = await getDocs(collection(this.firestore, path));
 
@@ -91,6 +86,18 @@ export class FirestoreGateway {
       },
       onError,
     );
+  }
+
+  async getFromServer(path: string): Promise<DocumentData | null> {
+    const snapshot = await getDocFromServer(doc(this.firestore, path));
+
+    return snapshot.exists() ? snapshot.data() : null;
+  }
+
+  async listFromServer(path: string): Promise<DocumentData[]> {
+    const snapshot = await getDocsFromServer(collection(this.firestore, path));
+
+    return snapshot.docs.map((item) => ({ ...item.data(), id: item.id }));
   }
 
   set(path: string, data: DocumentData, merge = true): Promise<void> {

@@ -34,6 +34,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/register/register').then((m) => m.RegisterPage),
   },
   {
+    path: 'privacidade',
+    title: 'Política de Privacidade | Nascemos Pais',
+    loadComponent: () =>
+      import('./features/privacy/privacy-policy').then((m) => m.PrivacyPolicyPage),
+  },
+  {
     path: 'invite/:token',
 
     title: 'Convite | Nascemos Pais',
@@ -74,6 +80,11 @@ export const routes: Routes = [
     loadComponent: () => import('./layouts/app-shell/app-shell').then((m) => m.AppShell),
 
     children: [
+      {
+        path: 'meus-dados',
+        title: 'Meus dados | Nascemos Pais',
+        loadComponent: () => import('./features/my-data/my-data').then((m) => m.MyDataPage),
+      },
       {
         path: 'profile',
 

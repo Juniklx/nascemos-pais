@@ -1,0 +1,96 @@
+<section class="my-data" aria-labelledby="my-data-title">
+  <a routerLink="/profile" class="my-data__back">← Voltar ao Perfil</a>
+  <header>
+    <span class="my-data__eyebrow">PRIVACIDADE</span>
+    <h1 id="my-data-title">Meus dados</h1>
+    <p>Entenda o que fica salvo na nuvem e tenha uma cópia dos registros aos quais sua conta tem acesso.</p>
+  </header>
+
+  <article class="my-data__card">
+    <h2>Baixar meus dados</h2>
+    <p>O arquivo JSON inclui informações do seu perfil, notificações, registros antigos ainda
+      associados à conta e registros de mamadas, sono e fraldas dos bebês vinculados.</p>
+    <p>A identificação pessoal de outros responsáveis não é incluída no arquivo. Para
+      evitar uma exportação desatualizada, é necessário estar conectado à internet.</p>
+    <button type="button" [disabled]="exporting()" (click)="downloadData()">
+      {{ exporting() ? 'Preparando arquivo…' : 'Baixar arquivo JSON' }}
+    </button>
+    @if (message()) {
+    <p class="my-data__success" role="status">{{ message() }}</p>
+    }
+    @if (error()) {
+    <p class="my-data__error" role="alert">{{ error() }}</p>
+    }
+    <small>O arquivo será salvo neste dispositivo e pode conter dados privados de crianças.
+      Não o compartilhe sem necessidade.</small>
+  </article>
+
+  <article class="my-data__card">
+    <h2>Quem pode acessar?</h2>
+    <p>As atividades de cada bebê ficam disponíveis apenas para contas que possuem vínculo
+      de acesso. O proprietário pode gerenciar os responsáveis na seção de Perfil.</p>
+    <a routerLink="/profile">Gerenciar responsáveis no Perfil</a>
+  </article>
+
+  <article class="my-data__card">
+    <h2>Correção, retirada de acesso e exclusão</h2>
+    <p>Você pode corrigir seus dados no Perfil. Não excluímos dados automaticamente por
+      inatividade; você pode solicitar a exclusão pelo canal de privacidade, sem prejuízo
+      das demais hipóteses de término do tratamento previstas na LGPD.</p>
+    <p>Se você compartilha registros de um bebê, precisaremos verificar seu vínculo e
+      combinar o destino desses registros antes de qualquer exclusão, para preservar os
+      direitos dos demais responsáveis.</p>
+    <button type="button" [disabled]="checkingDeletion()" (click)="checkDeletion()">
+      {{ checkingDeletion() ? 'Verificando vínculos…' : 'Verificar vínculos antes de solicitar' }}
+    </button>
+    @if (deletionPreview(); as preview) {
+    <div class="my-data__preview" aria-live="polite">
+      <h3>Prévia dos bebês vinculados</h3>
+      <p>Esta prévia usa dados atuais do servidor, mas não substitui a verificação
+        completa que deverá ser realizada pelo responsável antes da exclusão.</p>
+      <ul>
+        @for (baby of preview.babies; track baby.id) {
+        <li>
+          <strong>{{ baby.name }}</strong>
+          @if (baby.role === 'owner') {
+          <span>Você é proprietário.
+            @if (baby.otherCaregivers > 0) {
+            Há outros {{ baby.otherCaregivers }} responsável(is) vinculado(s).
+            Será necessário decidir sobre a transferência da propriedade ou o destino
+            dos registros antes de qualquer exclusão.
+            } @else {
+            Não há outros responsáveis vinculados no momento da consulta.
+            O destino dos registros ainda precisa ser confirmado.
+            }
+          </span>
+          } @else {
+          <span>Você é responsável vinculado. A saída da sua conta não deve apagar
+            o histórico do bebê compartilhado.</span>
+          }
+        </li>
+        } @empty {
+        <li>Nenhum bebê identificado nesta consulta. É necessária confirmação manual.</li>
+        }
+      </ul>
+      @if (preview.requiresOwnerDecision) {
+      <p>Há pelo menos um bebê sob sua propriedade. O pedido exigirá uma decisão específica
+        para cada um deles antes de ser executado.</p>
+      }
+    </div>
+    }
+    @if (deletionPreviewError()) {
+    <p class="my-data__error" role="alert">{{ deletionPreviewError() }}</p>
+    }
+    <a href="mailto:privacidade@nascemospais.com.br?subject=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados">
+      Solicitar exclusão por e-mail
+    </a>
+    <p>Ao escrever, informe apenas que deseja exercer seu direito de exclusão. Não envie
+      senhas, documentos ou dados da criança no primeiro contato.</p>
+    <p>Leia a <a routerLink="/privacidade">Política de Privacidade</a> para conhecer as
+      informações sobre tratamento dos dados e os direitos previstos na LGPD.</p>
+    <p class="my-data__disclaimer">Este link apenas abre seu aplicativo de e-mail.
+      O envio da mensagem não exclui seus dados: o pedido será avaliado após a
+      verificação de legitimidade. A exclusão automática de conta ainda está em
+      desenvolvimento.</p>
+  </article>
+</section>
