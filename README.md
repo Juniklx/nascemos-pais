@@ -178,9 +178,15 @@ As medidas implementadas fazem parte da proteção técnica do MVP e não substi
 ## Controle dos dados e privacidade
 
 A rota pública `/privacidade` reúne informações sobre os dados coletados, suas finalidades,
-a infraestrutura utilizada e os direitos dos titulares. Enquanto o controlador, o contato,
-as bases legais específicas, a retenção e os contratos não forem formalmente documentados,
-a política permanece identificada como **rascunho** e este PR não deve ser publicado.
+a infraestrutura utilizada e os direitos dos titulares. O controlador está identificado como
+Marcelo Soares Teixeira Junior (pessoa física) e o canal informado para exercício de direitos
+e dúvidas é `privacidade@nascemospais.com.br`. O endereço de e-mail deve ser testado
+antes da publicação.
+
+A política permanece identificada como **rascunho** enquanto não forem revisados
+as bases legais específicas, a retenção, as condições de fornecedores e as transferências
+internacionais, com validação jurídica. Não publicar esta versão como política definitiva
+até concluir essa revisão.
 
 No Perfil, o usuário autenticado pode abrir `/meus-dados` e gerar um arquivo JSON de seus dados
 e dos registros de bebês aos quais possui acesso. A exportação exige consulta online ao Firestore,
