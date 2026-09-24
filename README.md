@@ -204,8 +204,20 @@ e dos registros de bebês aos quais possui acesso. A exportação exige consulta
 omite identificadores pessoais dos demais responsáveis e inclui registros legados que ainda possam
 estar associados à conta. Não se trata de um backup transacional nem de exportação de credenciais.
 
-A exclusão permanente de conta exige backend confiável e tratamento especial para bebês
-compartilhados; está registrada separadamente para impedir perda acidental de dados.
+Decisão de retenção do produto: não há exclusão automática por inatividade. Os dados
+ficam disponíveis enquanto necessários às finalidades de organização e compartilhamento
+da rotina. O término do tratamento também se aplica se a finalidade deixar de existir,
+se os dados se tornarem desnecessários ou nas demais hipóteses previstas na LGPD,
+não apenas quando houver pedido expresso.
+
+Solicitações de exclusão podem ser encaminhadas para
+`privacidade@nascemospais.com.br` pela tela `/meus-dados`. O link abre o aplicativo de
+e-mail e **não exclui nada automaticamente**. A legitimidade e os efeitos sobre
+bebês compartilhados precisam ser avaliados antes da execução.
+
+A exclusão definitiva de conta exige backend confiável e tratamento especial para bebês
+compartilhados; está registrada na issue #49. Os prazos operacionais, a política de
+backups e eventuais hipóteses de conservação ainda exigem definição e revisão jurídica.
 
 ## Tecnologias
 
