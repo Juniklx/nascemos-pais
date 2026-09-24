@@ -74,6 +74,10 @@
           }
         </span>
       </div>
+
+      @if (lastActivityAttribution(); as attribution) {
+      <p>{{ attribution }}</p>
+      }
       } @else {
       <strong class="last-activity__time">
         {{ activeSleep() ? 'Sono em andamento' : 'Tudo pronto' }}
@@ -83,11 +87,17 @@
       }
 
       @if (activeFeeding()) {
+      @if (activeFeedingAttribution(); as attribution) {
+      <p>{{ attribution }}</p>
+      }
       <button type="button" class="history-link" (click)="openFeeding()">
         Acompanhar mamada
         <span aria-hidden="true">›</span>
       </button>
       } @else if (activeSleep()) {
+      @if (activeSleepAttribution(); as attribution) {
+      <p>{{ attribution }}</p>
+      }
       <button type="button" class="history-link" (click)="openSleep()">
         Acompanhar sono
         <span aria-hidden="true">›</span>
@@ -128,6 +138,9 @@
             </div>
 
             <p>{{ event.description }}</p>
+            @if (event.attribution) {
+            <p>{{ event.attribution }}</p>
+            }
           </div>
 
           <div class="timeline-item__icon" aria-hidden="true">
