@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.not-found {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: var(--color-canvas);
+}
+
+.not-found__card {
+  width: min(100%, 560px);
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: clamp(28px, 6vw, 56px);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.not-found__icon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: var(--color-sage-soft);
+  color: var(--color-ink);
+}
+
+.not-found__icon svg {
+  width: 40px;
+  height: 40px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.not-found__code {
+  margin: 8px 0 0;
+  color: var(--color-ink);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.not-found h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(28px, 6vw, 38px);
+  line-height: 1.2;
+}
+
+.not-found__description {
+  max-width: 420px;
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.not-found__link {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 24px;
+  border-radius: 14px;
+  background: var(--color-sage-soft);
+  color: var(--color-ink);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 160ms ease;
+}
+
+.not-found__link:hover {
+  background: var(--color-border);
+}
+
+.not-found__link:focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.not-found__link svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found__link {
+    transition: none;
+  }
+}
