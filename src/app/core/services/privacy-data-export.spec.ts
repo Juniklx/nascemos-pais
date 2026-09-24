@@ -161,6 +161,23 @@ describe('PrivacyDataExportService', () => {
     expect(listFromServer).not.toHaveBeenCalledWith('babies/baby-a/feedings');
   });
 
+  it('verifica novamente o vínculo antes de concluir o arquivo', async () => {
+    let membershipReads = 0;
+
+    getFromServer.and.callFake(async (path: string) => {
+      if (path === 'babies/baby-a/members/user-a' && ++membershipReads === 2) {
+        return null;
+      }
+
+      return serverReads[path] ?? null;
+    });
+
+    await expectAsync(exporter.collect()).toBeRejectedWithError(
+      'Seu acesso a um dos bebês mudou. Reinicie a exportação.',
+    );
+    expect(membershipReads).toBe(2);
+  });
+
   it('interrompe exportação se a conta muda durante a leitura', async () => {
     getFromServer.and.callFake(async (path: string) => {
       if (path === 'users/user-a') {
