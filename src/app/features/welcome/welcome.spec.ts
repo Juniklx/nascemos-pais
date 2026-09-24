@@ -89,7 +89,7 @@ describe('Welcome: carrossel', () => {
     const router = TestBed.inject(Router);
     const navigate = spyOn(router, 'navigate').and.resolveTo(true);
     createComponent();
-    await fixture.whenStable();
+    await component['redirectAuthenticatedVisitor']();
 
     expect(onboarding.ensureLoaded).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith(['/home']);
