@@ -1303,3 +1303,22 @@ test('permite encerrar sono em outro aparelho identificando quem finalizou', asy
   assert.equal(saved.data().createdByUid, userA);
   assert.equal(saved.data().finishedByUid, userB);
 });
+
+test('permite proprietário completar o próprio nome sem modificar o papel', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const path = `babies/${sharedBaby}/members/${userA}`;
+
+  await assertSucceeds(
+    setDoc(doc(db, path), { caregiverName: 'Marcelo' }, { merge: true }),
+  );
+
+  const member = await getDoc(doc(db, path));
+
+  assert.equal(member.data().role, 'owner');
+  assert.equal(member.data().caregiverName, 'Marcelo');
+
+  await assertFails(
+    setDoc(doc(db, path), { role: 'caregiver' }, { merge: true }),
+  );
+});
+
