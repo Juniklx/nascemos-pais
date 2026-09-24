@@ -71,19 +71,24 @@
       {{ contextError() }}
     </p>
     }
-        @if (realtimeStatus() !== 'idle') {
-        <div class="realtime-status" role="status">
-          <span class="realtime-status__dot" [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
-          @switch (realtimeStatus()) {
-          @case ('live') { Atualização em tempo real }
-          @case ('connecting') { Conectando aos registros… }
+    @if (realtimeStatus() !== 'idle') {
+      <div class="realtime-status" role="status">
+        <span class="realtime-status__dot"
+          [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
+        @switch (realtimeStatus()) {
+          @case ('live') {
+            <span>Atualização em tempo real</span>
+          }
+          @case ('connecting') {
+            <span>Conectando aos registros…</span>
+          }
           @case ('error') {
-          Sincronização interrompida
-          <button type="button" (click)="retryRealtime()">Tentar novamente</button>
+            <span>Sincronização interrompida</span>
+            <button type="button" (click)="retryRealtime()">Tentar novamente</button>
           }
-          }
-        </div>
         }
+      </div>
+    }
   </aside>
 
   <main class="home">
@@ -111,17 +116,22 @@
       </p>
       }
       @if (realtimeStatus() !== 'idle') {
-      <div class="realtime-status" role="status">
-        <span class="realtime-status__dot" [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
-        @switch (realtimeStatus()) {
-        @case ('live') { Atualização em tempo real }
-        @case ('connecting') { Conectando aos registros… }
-        @case ('error') {
-        Sincronização interrompida
-        <button type="button" (click)="retryRealtime()">Tentar novamente</button>
-        }
-        }
-      </div>
+        <div class="realtime-status" role="status">
+          <span class="realtime-status__dot"
+            [class.realtime-status__dot--live]="realtimeStatus() === 'live'"></span>
+          @switch (realtimeStatus()) {
+            @case ('live') {
+              <span>Atualização em tempo real</span>
+            }
+            @case ('connecting') {
+              <span>Conectando aos registros…</span>
+            }
+            @case ('error') {
+              <span>Sincronização interrompida</span>
+              <button type="button" (click)="retryRealtime()">Tentar novamente</button>
+            }
+          }
+        </div>
       }
     </div>
 
