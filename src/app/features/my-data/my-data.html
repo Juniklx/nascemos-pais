@@ -40,6 +40,47 @@
     <p>Se você compartilha registros de um bebê, precisaremos verificar seu vínculo e
       combinar o destino desses registros antes de qualquer exclusão, para preservar os
       direitos dos demais responsáveis.</p>
+    <button type="button" [disabled]="checkingDeletion()" (click)="checkDeletion()">
+      {{ checkingDeletion() ? 'Verificando vínculos…' : 'Verificar vínculos antes de solicitar' }}
+    </button>
+    @if (deletionPreview(); as preview) {
+    <div class="my-data__preview" aria-live="polite">
+      <h3>Prévia dos bebês vinculados</h3>
+      <p>Esta prévia usa dados atuais do servidor, mas não substitui a verificação
+        completa que deverá ser realizada pelo responsável antes da exclusão.</p>
+      <ul>
+        @for (baby of preview.babies; track baby.id) {
+        <li>
+          <strong>{{ baby.name }}</strong>
+          @if (baby.role === 'owner') {
+          <span>Você é proprietário.
+            @if (baby.otherCaregivers > 0) {
+            Há outros {{ baby.otherCaregivers }} responsável(is) vinculado(s).
+            Será necessário decidir sobre a transferência da propriedade ou o destino
+            dos registros antes de qualquer exclusão.
+            } @else {
+            Não há outros responsáveis vinculados no momento da consulta.
+            O destino dos registros ainda precisa ser confirmado.
+            }
+          </span>
+          } @else {
+          <span>Você é responsável vinculado. A saída da sua conta não deve apagar
+            o histórico do bebê compartilhado.</span>
+          }
+        </li>
+        } @empty {
+        <li>Nenhum bebê identificado nesta consulta. É necessária confirmação manual.</li>
+        }
+      </ul>
+      @if (preview.requiresOwnerDecision) {
+      <p>Há pelo menos um bebê sob sua propriedade. O pedido exigirá uma decisão específica
+        para cada um deles antes de ser executado.</p>
+      }
+    </div>
+    }
+    @if (deletionPreviewError()) {
+    <p class="my-data__error" role="alert">{{ deletionPreviewError() }}</p>
+    }
     <a href="mailto:privacidade@nascemospais.com.br?subject=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados">
       Solicitar exclusão por e-mail
     </a>
