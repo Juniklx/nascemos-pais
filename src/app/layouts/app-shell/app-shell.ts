@@ -18,8 +18,13 @@ export class AppShell {
   readonly activeBabyId = this.babyContext.activeBabyId;
   readonly babyName = computed(() => this.babyContext.baby()?.name ?? '');
   readonly contextError = this.babyContext.error;
+  readonly realtimeStatus = this.persistence.realtimeStatus;
   readonly switchingBabyId = signal<string | null>(null);
   readonly switchError = signal('');
+
+  retryRealtime(): void {
+    this.persistence.retryRealtime();
+  }
 
   async switchBaby(event: Event): Promise<void> {
     const target = event.target;
