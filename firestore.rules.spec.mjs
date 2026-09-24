@@ -1059,6 +1059,116 @@ test('nega responsável alterando o próprio papel', async () => {
   );
 });
 
+test('aceita mamadas válidas com períodos e registros legados sem divisão', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-periods`), {
+    id: 'feeding-periods',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: [
+      { startedAt: 1000, endedAt: 1250, side: 'left' },
+      { startedAt: 1250, endedAt: 1600, side: 'right' },
+    ],
+  }));
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-legacy`), {
+    id: 'feeding-legacy',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: null,
+  }));
+});
+
+test('valida todas as posições até o limite de 32 períodos', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const periods = Array.from({ length: 32 }, (_, index) => ({
+    startedAt: 1000 + index * 100,
+    endedAt: 1100 + index * 100,
+    side: index % 2 ? 'right' : 'left',
+  }));
+
+  await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-32`), {
+    id: 'feeding-32',
+    startedAt: 1000,
+    endedAt: 4200,
+    side: 'right',
+    periods,
+  }));
+
+  const invalid = periods.map((period) => ({ ...period }));
+  invalid[30].endedAt = 999;
+
+  await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-invalid-32`), {
+    id: 'feeding-invalid-32',
+    startedAt: 1000,
+    endedAt: 4200,
+    side: 'right',
+    periods: invalid,
+  }));
+});
+
+test('nega estrutura inválida de períodos em qualquer mamada', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+  const valid = [
+    { startedAt: 1000, endedAt: 1200, side: 'left' },
+    { startedAt: 1200, endedAt: 1600, side: 'right' },
+  ];
+  const invalidCases = [
+    [],
+    'não é uma lista',
+    [null],
+    [{ startedAt: '1000', endedAt: 1600, side: 'right' }],
+    [{ startedAt: -1, endedAt: 1600, side: 'right' }],
+    [{ startedAt: 1000, endedAt: 999, side: 'right' }],
+    [{ startedAt: 1000, endedAt: 1600, side: 'inválido' }],
+    [{ startedAt: 1000, endedAt: 1600 }],
+    [{ startedAt: 1000, endedAt: 1600, side: 'right', secret: true }],
+    [{ startedAt: 999, endedAt: 1600, side: 'right' }],
+    [
+      { startedAt: 1000, endedAt: null, side: 'left' },
+      { startedAt: 1200, endedAt: 1600, side: 'right' },
+    ],
+    [
+      { startedAt: 1000, endedAt: 1200, side: 'left' },
+      { startedAt: 1300, endedAt: 1600, side: 'right' },
+    ],
+    [valid[0], { ...valid[1], endedAt: 1550 }],
+    [valid[0], { ...valid[1], side: 'left' }],
+    Array.from({ length: 33 }, (_, index) => ({
+      startedAt: 1000 + index * 20,
+      endedAt: 1020 + index * 20,
+      side: 'right',
+    })),
+  ];
+
+  for (let index = 0; index < invalidCases.length; index++) {
+    const id = `feeding-invalid-${index}`;
+
+    await assertFails(setDoc(doc(db, `babies/${sharedBaby}/feedings/${id}`), {
+      id,
+      startedAt: 1000,
+      endedAt: 1600,
+      side: 'right',
+      periods: invalidCases[index],
+    }));
+  }
+});
+
+test('a validação também protege a coleção legada de cada usuário', async () => {
+  const db = testEnv.authenticatedContext(userA).firestore();
+
+  await assertFails(setDoc(doc(db, `users/${userA}/feedings/invalid-legacy`), {
+    id: 'invalid-legacy',
+    startedAt: 1000,
+    endedAt: 1600,
+    side: 'right',
+    periods: [],
+  }));
+});
+
 test('nega mamada aberta sem lock de atividade', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
 
