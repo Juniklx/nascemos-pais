@@ -17,6 +17,7 @@ import type {
   Sleep,
 } from '../../core/models/sleep';
 
+import { BabyContextService } from '../../core/services/baby-context';
 import { DiaperService } from '../../core/services/diaper';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
@@ -61,6 +62,9 @@ export class Home {
   private readonly router =
     inject(Router);
 
+  private readonly babyContext =
+    inject(BabyContextService);
+
   private readonly feedingService =
     inject(FeedingService);
 
@@ -89,10 +93,20 @@ export class Home {
     this.onboarding.caregiverName;
 
   readonly babyName =
-    this.onboarding.babyName;
+    computed(
+      () =>
+        this.babyContext
+          .baby()
+          ?.name ?? '',
+    );
 
   readonly babyBirthDate =
-    this.onboarding.babyBirthDate;
+    computed(
+      () =>
+        this.babyContext
+          .baby()
+          ?.birthDate ?? '',
+    );
 
   readonly activeFeeding =
     this.feedingService.activeFeeding;

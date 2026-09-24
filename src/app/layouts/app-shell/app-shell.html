@@ -48,11 +48,49 @@
         {{ babyName().charAt(0).toUpperCase() }}
       </div>
 
-      <span>{{ babyName() }}</span>
+      <label class="baby-switcher">
+        <span>Bebê ativo</span>
+
+        <select [value]="activeBabyId() ?? ''" [disabled]="switchingBabyId() !== null"
+          (change)="switchBaby($event)">
+          @for (linked of linkedBabies(); track linked.baby.id) {
+          <option [value]="linked.baby.id">
+            {{ linked.baby.name }}
+          </option>
+          }
+        </select>
+      </label>
     </div>
+
+    @if (switchError()) {
+    <p class="baby-switcher__error" role="alert">
+      {{ switchError() }}
+    </p>
+    }
   </aside>
 
   <main class="home">
+    <div class="mobile-baby-switcher">
+      <label class="baby-switcher">
+        <span>Bebê ativo</span>
+
+        <select [value]="activeBabyId() ?? ''" [disabled]="switchingBabyId() !== null"
+          (change)="switchBaby($event)">
+          @for (linked of linkedBabies(); track linked.baby.id) {
+          <option [value]="linked.baby.id">
+            {{ linked.baby.name }}
+          </option>
+          }
+        </select>
+      </label>
+
+      @if (switchError()) {
+      <p class="baby-switcher__error" role="alert">
+        {{ switchError() }}
+      </p>
+      }
+    </div>
+
     <router-outlet />
   </main>
 
