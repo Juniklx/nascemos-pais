@@ -38,6 +38,22 @@ describe('PrivacyPolicyPage', () => {
     expect(sharing?.textContent).toContain('transferências internacionais');
   });
 
+  it('informa exclusao por solicitacao e limites da retencao', () => {
+    const fixture = TestBed.createComponent(PrivacyPolicyPage);
+    fixture.detectChanges();
+
+    const retention = (fixture.nativeElement as HTMLElement).querySelector('#retencao');
+    const emailLink = retention?.querySelector<HTMLAnchorElement>(
+      'a[href^="mailto:privacidade@nascemospais.com.br"]',
+    );
+
+    expect(retention?.textContent).toContain('não prevê a exclusão automática');
+    expect(retention?.textContent).toContain('conservação indefinida');
+    expect(retention?.textContent).toContain('bebê compartilhado');
+    expect(retention?.textContent).toContain('ainda depende de definição e revisão jurídica');
+    expect(emailLink).not.toBeNull();
+  });
+
   it('mantém aviso de revisão mesmo com contato definido', () => {
     const fixture = TestBed.createComponent(PrivacyPolicyPage);
     fixture.detectChanges();
