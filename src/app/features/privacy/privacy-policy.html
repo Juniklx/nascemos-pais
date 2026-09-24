@@ -86,11 +86,19 @@
         permissões de proprietário e responsável. O proprietário pode convidar e remover
         outros responsáveis. A remoção impede novos acessos, mas não recupera cópias que já
         tenham sido exportadas por alguém anteriormente autorizado.</p>
-      <p>O projeto utiliza Firebase Authentication e Cloud Firestore, do Google, para
-        autenticação e armazenamento, além da Vercel para hospedagem da aplicação. Esses
-        prestadores podem envolver tratamento e infraestrutura fora do Brasil. Os detalhes
-        sobre regiões, transferências internacionais e salvaguardas aplicáveis precisam ser
-        verificados nas configurações e contratos efetivamente contratados.</p>
+      <p>O projeto utiliza serviços do Google (Firebase Authentication e Cloud Firestore) e
+        a Vercel para hospedagem da aplicação. A localização informada para o banco de dados
+        Cloud Firestore do Nascemos Pais é <strong>São Paulo, Brasil
+          (<code>southamerica-east1</code>)</strong>. Essa configuração se refere ao banco de
+        dados e não significa que todos os serviços utilizados processem dados apenas no Brasil.</p>
+      <p>Segundo a documentação do Firebase, o Firebase Authentication processa dados nos
+        <strong>Estados Unidos</strong>. A Vercel distribui os arquivos públicos do site por
+        uma rede global; a região de eventuais serviços adicionais e as condições de
+        tratamento dependem da configuração e dos contratos efetivamente utilizados.</p>
+      <p>Antes do lançamento, precisamos concluir a avaliação e a documentação das
+        transferências internacionais aplicáveis, incluindo finalidades, países de destino,
+        responsabilidades e mecanismos legais adequados. A localização do Firestore não
+        elimina essas obrigações.</p>
       <p>O uso opcional de reconhecimento de voz depende da implementação do navegador.</p>
     </section>
 
