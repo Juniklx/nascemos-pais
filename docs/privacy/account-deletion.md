@@ -3,6 +3,19 @@
 Estado: **em desenvolvimento**. Nenhuma ação desta branch apaga uma conta ou registros.
 Issue relacionada: #49. O PR #50 contém a política de privacidade e o canal de contato.
 
+## Infraestrutura: Firebase Spark
+
+O projeto permanece no plano Spark. O fluxo publicado nesta etapa é somente leitura,
+com pedidos de exclusão recebidos pelo canal de privacidade para tratamento individual.
+O envio da solicitação não apaga dados.
+
+É possível preparar e testar o processamento futuro com o Firebase Local Emulator Suite
+(Authentication, Firestore e Functions), usando dados sintéticos e sem alcançar o banco real.
+A implantação de Cloud Functions for Firebase requer o plano Blaze. Não habilitar a
+exclusão automática até concluir a revisão de permissões, cenários de falha, bases legais,
+retenção, backups, custos e mudança de infraestrutura. Evitar substituir a função
+confiável por operações destrutivas feitas no navegador.
+
 ## Fluxo atual
 
 1. O responsável solicita a exclusão por `privacidade@nascemospais.com.br`, disponível em
