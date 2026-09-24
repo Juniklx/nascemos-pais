@@ -1,9 +1,13 @@
 import {
   Component,
+  DestroyRef,
+  Injector,
   OnDestroy,
+  afterNextRender,
+  inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 interface WelcomeSlide {
   title: string;
@@ -18,6 +22,9 @@ interface WelcomeSlide {
   styleUrl: './welcome.css',
 })
 export class Welcome implements OnDestroy {
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   readonly slides: readonly WelcomeSlide[] = [
     {
       title: 'Registre com a voz',
@@ -46,24 +53,44 @@ export class Welcome implements OnDestroy {
   private readonly prefersReducedMotion =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
-    window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  private textTransitionTimer:
-    ReturnType<typeof setTimeout> | null = null;
+  private textTransitionTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly autoplayDelay = 6000;
 
-  private autoplayTimer:
-    ReturnType<typeof setInterval> | null = null;
+  private autoplayTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
+    afterNextRender(() => {
+      void this.redirectAuthenticatedVisitor();
+    });
+
     if (this.prefersReducedMotion) {
       this.isPaused.set(true);
       return;
     }
 
     this.startAutoplay();
+  }
+
+  private async redirectAuthenticatedVisitor(): Promise<void> {
+    const { AuthService } = await import('../../core/services/auth');
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute()) return;
+
+    const auth = this.injector.get(AuthService);
+    await auth.waitUntilReady();
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute() || !auth.isAuthenticated()) return;
+
+    const { OnboardingService } = await import('../../core/services/onboarding');
+    const onboarding = this.injector.get(OnboardingService);
+    await onboarding.ensureLoaded();
+    if (this.destroyRef.destroyed || !this.isWelcomeRoute()) return;
+
+    await this.router.navigate([onboarding.getIncompleteRoute()], { replaceUrl: true });
+  }
+
+  private isWelcomeRoute(): boolean {
+    return this.router.url.split(/[?#]/, 1)[0] === '/';
   }
 
   get activeSlide(): WelcomeSlide {
@@ -73,10 +100,7 @@ export class Welcome implements OnDestroy {
   previous(): void {
     const current = this.activeIndex();
 
-    const target =
-      current === 0
-        ? this.slides.length - 1
-        : current - 1;
+    const target = current === 0 ? this.slides.length - 1 : current - 1;
 
     this.changeSlide(target);
     this.restartAutoplay();
@@ -85,20 +109,14 @@ export class Welcome implements OnDestroy {
   next(): void {
     const current = this.activeIndex();
 
-    const target =
-      current === this.slides.length - 1
-        ? 0
-        : current + 1;
+    const target = current === this.slides.length - 1 ? 0 : current + 1;
 
     this.changeSlide(target);
     this.restartAutoplay();
   }
 
   goTo(index: number): void {
-    if (
-      index < 0 ||
-      index >= this.slides.length
-    ) {
+    if (index < 0 || index >= this.slides.length) {
       return;
     }
 
@@ -117,9 +135,7 @@ export class Welcome implements OnDestroy {
     this.stopAutoplay();
   }
 
-  onCarouselKeydown(
-    event: KeyboardEvent,
-  ): void {
+  onCarouselKeydown(event: KeyboardEvent): void {
     switch (event.key) {
       case 'ArrowLeft':
         event.preventDefault();
@@ -138,62 +154,49 @@ export class Welcome implements OnDestroy {
 
       case 'End':
         event.preventDefault();
-        this.goTo(
-          this.slides.length - 1,
-        );
+        this.goTo(this.slides.length - 1);
         break;
     }
   }
 
   ngOnDestroy(): void {
-  this.stopAutoplay();
+    this.stopAutoplay();
 
-  if (this.textTransitionTimer !== null) {
-    clearTimeout(this.textTransitionTimer);
-    this.textTransitionTimer = null;
+    if (this.textTransitionTimer !== null) {
+      clearTimeout(this.textTransitionTimer);
+      this.textTransitionTimer = null;
+    }
   }
-}
 
   private changeSlide(index: number): void {
-  if (
-    index === this.activeIndex() ||
-    this.isTextTransitioning()
-  ) {
-    return;
-  }
+    if (index === this.activeIndex() || this.isTextTransitioning()) {
+      return;
+    }
 
-  if (this.prefersReducedMotion) {
-    this.activeIndex.set(index);
-    return;
-  }
+    if (this.prefersReducedMotion) {
+      this.activeIndex.set(index);
+      return;
+    }
 
-  this.isTextTransitioning.set(true);
+    this.isTextTransitioning.set(true);
 
-  this.textTransitionTimer = setTimeout(
-    () => {
+    this.textTransitionTimer = setTimeout(() => {
       this.activeIndex.set(index);
 
       this.isTextTransitioning.set(false);
 
       this.textTransitionTimer = null;
-    },
-    180,
-  );
-}
+    }, 180);
+  }
 
   private startAutoplay(): void {
     this.stopAutoplay();
 
-    this.autoplayTimer = setInterval(
-      () => {
-        const nextIndex =
-          (this.activeIndex() + 1) %
-          this.slides.length;
+    this.autoplayTimer = setInterval(() => {
+      const nextIndex = (this.activeIndex() + 1) % this.slides.length;
 
-        this.changeSlide(nextIndex);
-      },
-      this.autoplayDelay,
-    );
+      this.changeSlide(nextIndex);
+    }, this.autoplayDelay);
   }
 
   private stopAutoplay(): void {
