@@ -507,6 +507,11 @@ export class ActivityPersistenceService {
 
               if (listeners.fromServer.size === 3) {
                 this.realtime.set({ uid, babyId, status: 'live' });
+
+                if (this.state().error ===
+                  'Não foi possível sincronizar os registros com a nuvem. Tente novamente.') {
+                  this.clearError(uid, babyId);
+                }
               }
             } catch {
               this.failListening(listeners);
