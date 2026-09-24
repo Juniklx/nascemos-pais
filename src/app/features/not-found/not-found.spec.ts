@@ -19,7 +19,10 @@ describe('NotFoundPage', () => {
 
     const page: HTMLElement = fixture.nativeElement;
     expect(page.querySelector('h1')?.textContent).toContain('Não encontramos esta página');
-    expect(page.querySelector('a')?.getAttribute('href')).toBe('/');
+    const backLink = page.querySelector('a') as HTMLAnchorElement;
+    expect(backLink.getAttribute('href')).toBe('/');
+    expect(backLink.textContent).toContain('Voltar ao início');
+    expect(backLink.tabIndex).toBe(0);
 
     fixture.destroy();
   });
