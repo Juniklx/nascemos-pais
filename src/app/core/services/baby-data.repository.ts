@@ -515,17 +515,21 @@ export class BabyDataRepository {
           return;
         }
 
-        onNext(
-          items.map((item) => {
-            const memberUid = item['id'];
+        try {
+          onNext(
+            items.map((item) => {
+              const memberUid = item['id'];
 
-            if (typeof memberUid !== 'string') {
-              throw new Error('Identificador de responsável inválido.');
-            }
+              if (typeof memberUid !== 'string') {
+                throw new Error('Identificador de responsável inválido.');
+              }
 
-            return this.parseMember(memberUid, item);
-          }),
-        );
+              return this.parseMember(memberUid, item);
+            }),
+          );
+        } catch (error) {
+          onError(error instanceof Error ? error : new Error('Responsável inválido.'));
+        }
       },
       (error) => {
         if (this.auth.user()?.uid === uid) {
