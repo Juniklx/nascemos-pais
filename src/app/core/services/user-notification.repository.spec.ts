@@ -156,6 +156,32 @@ describe('UserNotificationRepository', () => {
     expect(operations[1].data['babyMigratedAt']).toEqual(jasmine.anything());
   });
 
+  it('seleciona outro bebê quando o acesso removido era o ativo', async () => {
+    firestore.list.and.resolveTo([
+      {
+        id: 'baby-2',
+        role: 'owner',
+        joinedAt: '2026-02-01T00:00:00.000Z',
+      },
+    ]);
+
+    await repository.acknowledgeAccessRemoved(notification);
+
+    expect(firestore.list).toHaveBeenCalledOnceWith('users/user-b/babies');
+
+    const operations = firestore.batchWrite.calls.mostRecent().args[0];
+
+    expect(operations.length).toBe(2);
+    expect(operations[1]).toEqual({
+      type: 'set',
+      path: 'users/user-b',
+      data: {
+        activeBabyId: 'baby-2',
+      },
+      merge: true,
+    });
+  });
+
   it('não limpa outro bebê que tenha se tornado ativo', async () => {
     firestore.get.and.resolveTo({
       activeBabyId: 'baby-2',
