@@ -246,6 +246,25 @@ export class BabyDataRepository {
     );
 
     this.assertSameUser(uid);
+
+    if (!currentMembership.caregiverName) {
+      const profile = await this.firestore.get(this.userPath(uid));
+
+      this.assertSameUser(uid);
+
+      const caregiverName = profile?.['caregiverName'];
+
+      if (typeof caregiverName === 'string' && caregiverName.trim().length > 0 &&
+        caregiverName.trim().length <= 80) {
+        await this.firestore.set(
+          this.memberPath(babyId, uid),
+          { caregiverName: caregiverName.trim() },
+          true,
+        );
+
+        this.assertSameUser(uid);
+      }
+    }
   }
 
   async listLinkedBabies(): Promise<LinkedBaby[]> {
