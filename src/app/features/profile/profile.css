@@ -461,3 +461,21 @@
     width: 100%;
   }
 }
+
+.profile-privacy-links {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.profile-privacy-links a {
+  color: var(--color-sage);
+  font-weight: 600;
+  line-height: 1.5;
+  text-underline-offset: 3px;
+}
+
+.profile-privacy-links a:focus-visible {
+  outline: 3px solid var(--color-sage);
+  outline-offset: 4px;
+}

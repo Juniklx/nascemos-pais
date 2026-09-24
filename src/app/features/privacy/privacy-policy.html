@@ -1,0 +1,171 @@
+<main class="privacy">
+  <header class="privacy__header">
+    <a routerLink="/" class="privacy__back">← Voltar ao início</a>
+    <span class="privacy__brand">Nascemos Pais</span>
+    <h1>Política de Privacidade</h1>
+    <p>Entenda quais informações utilizamos e como protegemos os dados da sua família.</p>
+    <span class="privacy__date">Rascunho técnico · Atualizado em {{ updatedAt }}</span>
+  </header>
+
+  <div class="privacy__content">
+    <aside class="privacy__notice" role="note">
+      <strong>Documento em revisão</strong>
+      <p>O controlador e o canal de contato já estão identificados. Ainda precisamos
+        documentar e revisar as bases legais específicas, os prazos de retenção e as
+        configurações e condições dos prestadores antes do lançamento. Este texto não
+        constitui comprovação de conformidade integral com a LGPD.</p>
+    </aside>
+
+    <nav class="privacy__index" aria-label="Nesta página">
+      <strong>Nesta página</strong>
+      <a href="#responsavel">Responsável pelo tratamento</a>
+      <a href="#dados">Dados tratados</a>
+      <a href="#finalidades">Finalidades e bases legais</a>
+      <a href="#compartilhamento">Compartilhamento e prestadores</a>
+      <a href="#seguranca">Segurança e armazenamento</a>
+      <a href="#direitos">Seus direitos</a>
+      <a href="#retencao">Retenção e exclusão</a>
+      <a href="#contato">Contato e alterações</a>
+    </nav>
+
+    <section id="introducao" aria-labelledby="introducao-title">
+      <h2 id="introducao-title">1. Sobre o Nascemos Pais</h2>
+      <p>O Nascemos Pais é um site para registrar e compartilhar informações sobre a rotina de
+        bebês entre responsáveis autorizados. Esta política descreve os recursos atualmente
+        implementados e as medidas de privacidade planejadas para a evolução do projeto.</p>
+      <p>Os registros envolvem informações de crianças. Seu tratamento deve respeitar o melhor
+        interesse da criança, a necessidade e a transparência previstas na LGPD.</p>
+    </section>
+
+    <section id="responsavel" aria-labelledby="responsavel-title">
+      <h2 id="responsavel-title">2. Responsável pelo tratamento</h2>
+      @if (controller) {
+      <p>O Nascemos Pais é desenvolvido e administrado de forma independente por
+        <strong>{{ controller }}</strong>, pessoa física responsável pelas principais decisões
+        relativas às finalidades e aos meios de tratamento dos dados pessoais na plataforma.</p>
+      } @else {
+      <p><strong>Pendente para publicação:</strong> identificação formal do controlador e seus
+        dados de contato. O nome de autoria do projeto não substitui essa identificação.</p>
+      }
+    </section>
+
+    <section id="dados" aria-labelledby="dados-title">
+      <h2 id="dados-title">3. Quais dados tratamos</h2>
+      <ul>
+        <li><strong>Conta:</strong> e-mail e informações de autenticação gerenciadas pelo
+          Firebase Authentication, inclusive quando você escolhe entrar com Google.</li>
+        <li><strong>Responsável:</strong> nome informado, vínculos de acesso e registros de
+          convites ou notificações necessários ao compartilhamento.</li>
+        <li><strong>Bebê:</strong> nome, data de nascimento e registros de mamadas, sono e
+          trocas de fralda.</li>
+        <li><strong>Atividades compartilhadas:</strong> horários, detalhes e, em registros novos,
+          identificação de quem criou ou finalizou uma atividade.</li>
+        <li><strong>Preferências locais:</strong> tema visual e eventuais dados legados usados
+          exclusivamente para a migração de registros.</li>
+      </ul>
+      <p>O aplicativo não possui uma função própria de gravação permanente de áudio. Quando
+        comandos de voz são utilizados, o processamento pode envolver serviços do navegador
+        e suas próprias condições de privacidade.</p>
+    </section>
+
+    <section id="finalidades" aria-labelledby="finalidades-title">
+      <h2 id="finalidades-title">4. Para que usamos os dados</h2>
+      <p>Utilizamos as informações para autenticar responsáveis, organizar a rotina de cada
+        bebê, sincronizar os registros entre dispositivos autorizados, gerenciar convites e
+        permitir a consulta e correção de informações.</p>
+      <p>A hipótese legal adequada para cada operação, especialmente quando envolver dados
+        de crianças, será formalmente documentada antes do lançamento comercial. O registro
+        de consentimento no cadastro não dispensa essa avaliação.</p>
+      <p>Não utilizamos os registros da rotina para emitir diagnósticos médicos nem para
+        decisões automatizadas sobre o desenvolvimento da criança.</p>
+    </section>
+
+    <section id="compartilhamento" aria-labelledby="compartilhamento-title">
+      <h2 id="compartilhamento-title">5. Com quem os dados são compartilhados</h2>
+      <p>Os registros de um bebê ficam disponíveis às contas vinculadas a ele, conforme as
+        permissões de proprietário e responsável. O proprietário pode convidar e remover
+        outros responsáveis. A remoção impede novos acessos, mas não recupera cópias que já
+        tenham sido exportadas por alguém anteriormente autorizado.</p>
+      <p>O projeto utiliza serviços do Google (Firebase Authentication e Cloud Firestore) e
+        a Vercel para hospedagem da aplicação. A localização informada para o banco de dados
+        Cloud Firestore do Nascemos Pais é <strong>São Paulo, Brasil
+          (<code>southamerica-east1</code>)</strong>. Essa configuração se refere ao banco de
+        dados e não significa que todos os serviços utilizados processem dados apenas no Brasil.</p>
+      <p>Segundo a documentação do Firebase, o Firebase Authentication processa dados nos
+        <strong>Estados Unidos</strong>. A Vercel distribui os arquivos públicos do site por
+        uma rede global; a região de eventuais serviços adicionais e as condições de
+        tratamento dependem da configuração e dos contratos efetivamente utilizados.</p>
+      <p>Antes do lançamento, precisamos concluir a avaliação e a documentação das
+        transferências internacionais aplicáveis, incluindo finalidades, países de destino,
+        responsabilidades e mecanismos legais adequados. A localização do Firestore não
+        elimina essas obrigações.</p>
+      <p>O uso opcional de reconhecimento de voz depende da implementação do navegador.</p>
+    </section>
+
+    <section id="seguranca" aria-labelledby="seguranca-title">
+      <h2 id="seguranca-title">6. Segurança e armazenamento</h2>
+      <p>Utilizamos autenticação e regras de acesso do Firestore para restringir a consulta e
+        a alteração dos registros a contas autorizadas. Há testes automatizados dessas regras
+        e controle de vínculo por bebê. Nenhuma medida técnica elimina totalmente o risco
+        de incidentes; seguimos aprimorando esses controles.</p>
+      <p>Convites de compartilhamento devem ser tratados como informações privadas. Não
+        compartilhe links, capturas de tela ou arquivos exportados com pessoas não autorizadas.</p>
+    </section>
+
+    <section id="direitos" aria-labelledby="direitos-title">
+      <h2 id="direitos-title">7. Seus direitos</h2>
+      <p>A LGPD prevê, conforme a situação, confirmação e acesso aos dados, correção, informação
+        sobre compartilhamentos, portabilidade, oposição, revogação de consentimento e
+        solicitações de anonimização, bloqueio ou eliminação. Esses direitos são avaliados
+        segundo a base legal e as hipóteses de conservação aplicáveis.</p>
+      <p>No Perfil, você pode corrigir seu nome; o proprietário pode alterar os dados do bebê
+        e gerenciar os responsáveis. A página <a routerLink="/meus-dados">Meus dados</a>,
+        acessível após o login, oferece uma cópia local dos dados disponíveis à sua conta.
+        Essa cópia em JSON não substitui todos os procedimentos de atendimento aos titulares.</p>
+    </section>
+
+    <section id="retencao" aria-labelledby="retencao-title">
+      <h2 id="retencao-title">8. Retenção, retirada de acesso e exclusão</h2>
+      <p>O Nascemos Pais não prevê a exclusão automática dos registros por inatividade.
+        Os dados são mantidos enquanto forem necessários para oferecer a organização e o
+        compartilhamento da rotina da família. A ausência de um prazo de inatividade não
+        autoriza a conservação indefinida: o tratamento deve terminar quando sua finalidade
+        for alcançada, os dados deixarem de ser necessários ou houver outra hipótese
+        aplicável prevista na LGPD.</p>
+      <p>O titular ou responsável legal pode solicitar a exclusão pelo e-mail
+        <a [href]="'mailto:' + privacyContact + '?subject=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados'">{{ privacyContact }}</a>.
+        Cada solicitação exige verificação da legitimidade do pedido e avaliação das
+        hipóteses legais de conservação, quando aplicáveis. Não envie senhas, documentos
+        de identificação ou informações sensíveis no primeiro e-mail.</p>
+      <p>Os registros de um bebê compartilhado não pertencem exclusivamente a uma conta:
+        remover um responsável não apaga automaticamente o histórico dos demais. Se o
+        solicitante for proprietário, será necessário definir a transferência da
+        propriedade ou a exclusão dos dados do bebê, informando os efeitos sobre os
+        outros responsáveis antes de executar a operação.</p>
+      <p>O fluxo automatizado de exclusão definitiva está em desenvolvimento. Os pedidos
+        recebidos pelo canal de privacidade serão analisados individualmente; o envio do
+        e-mail não executa a exclusão por si só. A política operacional de retenção residual,
+        cópias de segurança, prazos de execução e eventuais obrigações de conservação
+        ainda depende de definição e revisão jurídica antes do lançamento.</p>
+    </section>
+
+    <section id="contato" aria-labelledby="contato-title">
+      <h2 id="contato-title">9. Contato e mudanças nesta política</h2>
+      @if (privacyContact) {
+      <p>Para solicitar informações ou exercer seus direitos, escreva para
+        <a [href]="'mailto:' + privacyContact">{{ privacyContact }}</a>.</p>
+      } @else {
+      <p><strong>Canal de privacidade em definição.</strong> Precisamos publicar um contato
+        funcional antes do lançamento da aplicação como serviço ao público.</p>
+      }
+      <p>Esta página será atualizada quando houver mudanças relevantes nos recursos, nos
+        fornecedores, nas finalidades ou nos procedimentos de tratamento. A data de revisão
+        aparecerá no início desta política.</p>
+      <p>Referências: <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"
+          target="_blank" rel="noopener noreferrer">Lei Geral de Proteção de Dados</a> e
+        <a href="https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados-1/direito-dos-titulares"
+          target="_blank" rel="noopener noreferrer">orientações da ANPD sobre direitos dos titulares</a>.
+      </p>
+    </section>
+  </div>
+</main>

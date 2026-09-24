@@ -175,6 +175,50 @@ Quando o reconhecimento de voz é utilizado, o processamento pode depender do se
 
 As medidas implementadas fazem parte da proteção técnica do MVP e não substituem uma análise jurídica completa de conformidade para uma operação comercial em produção.
 
+## Controle dos dados e privacidade
+
+A rota pública `/privacidade` reúne informações sobre os dados coletados, suas finalidades,
+a infraestrutura utilizada e os direitos dos titulares. O controlador está identificado como
+Marcelo Soares Teixeira Junior (pessoa física) e o canal informado para exercício de direitos
+e dúvidas é `privacidade@nascemospais.com.br`, cuja configuração e etapa de teste
+foram confirmadas pelo responsável pelo projeto.
+
+A localização informada pelo responsável para o Cloud Firestore é
+`southamerica-east1` (São Paulo, Brasil). Essa configuração se refere ao banco do Firestore;
+o Firebase Authentication processa dados nos Estados Unidos, e o site é distribuído pela
+infraestrutura global da Vercel. Ainda é necessário verificar os fluxos de dados, os
+contratos dos fornecedores e os mecanismos legais aplicáveis às transferências
+internacionais.
+
+Fontes técnicas: [localizações do Firestore](https://firebase.google.com/docs/firestore/locations),
+[privacidade e locais de processamento do Firebase](https://firebase.google.com/support/privacy)
+e [rede global da Vercel](https://vercel.com/docs/regions).
+
+A política permanece identificada como **rascunho** enquanto não forem revisados
+as bases legais específicas, a retenção, as condições de fornecedores e as transferências
+internacionais, com validação jurídica. Não publicar esta versão como política definitiva
+até concluir essa revisão.
+
+No Perfil, o usuário autenticado pode abrir `/meus-dados` e gerar um arquivo JSON de seus dados
+e dos registros de bebês aos quais possui acesso. A exportação exige consulta online ao Firestore,
+omite identificadores pessoais dos demais responsáveis e inclui registros legados que ainda possam
+estar associados à conta. Não se trata de um backup transacional nem de exportação de credenciais.
+
+Decisão de retenção do produto: não há exclusão automática por inatividade. Os dados
+ficam disponíveis enquanto necessários às finalidades de organização e compartilhamento
+da rotina. O término do tratamento também se aplica se a finalidade deixar de existir,
+se os dados se tornarem desnecessários ou nas demais hipóteses previstas na LGPD,
+não apenas quando houver pedido expresso.
+
+Solicitações de exclusão podem ser encaminhadas para
+`privacidade@nascemospais.com.br` pela tela `/meus-dados`. O link abre o aplicativo de
+e-mail e **não exclui nada automaticamente**. A legitimidade e os efeitos sobre
+bebês compartilhados precisam ser avaliados antes da execução.
+
+A exclusão definitiva de conta exige backend confiável e tratamento especial para bebês
+compartilhados; está registrada na issue #49. Os prazos operacionais, a política de
+backups e eventuais hipóteses de conservação ainda exigem definição e revisão jurídica.
+
 ## Tecnologias
 
 - Angular 20
@@ -278,7 +322,8 @@ Nesta versão ainda não estão incluídos:
 - upload de fotos e arquivos;
 - notificações push;
 - painel administrativo;
-- recuperação avançada ou exportação de dados;
+- recuperação avançada de dados;
+- exclusão definitiva autônoma de conta (fluxo seguro em desenvolvimento);
 - presença online dos responsáveis;
 - resolução colaborativa de edições simultâneas do mesmo registro (última gravação válida prevalece);
 - aplicação nativa para Android ou iOS.
