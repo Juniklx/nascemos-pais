@@ -153,7 +153,8 @@ export const routes: Routes = [
   },
   {
     path: '**',
-
-    redirectTo: '',
+    title: 'Página não encontrada | Nascemos Pais',
+    loadComponent: () =>
+      import('./features/not-found/not-found').then((m) => m.NotFoundPage),
   },
 ];
