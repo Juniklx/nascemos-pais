@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   runTransaction,
   setDoc,
   writeBatch,
@@ -64,6 +65,25 @@ export class FirestoreGateway {
       ...item.data(),
       id: item.id,
     }));
+  }
+
+  listen(
+    path: string,
+    onNext: (documents: DocumentData[], fromCache: boolean, hasPendingWrites: boolean) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      collection(this.firestore, path),
+      { includeMetadataChanges: true },
+      (snapshot) => {
+        onNext(
+          snapshot.docs.map((item) => ({ ...item.data(), id: item.id })),
+          snapshot.metadata.fromCache,
+          snapshot.metadata.hasPendingWrites,
+        );
+      },
+      onError,
+    );
   }
 
   set(path: string, data: DocumentData, merge = true): Promise<void> {
