@@ -17,6 +17,7 @@ export class AppShell {
   readonly linkedBabies = this.babyContext.linkedBabies;
   readonly activeBabyId = this.babyContext.activeBabyId;
   readonly babyName = computed(() => this.babyContext.baby()?.name ?? '');
+  readonly contextError = this.babyContext.error;
   readonly switchingBabyId = signal<string | null>(null);
   readonly switchError = signal('');
 
