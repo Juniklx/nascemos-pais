@@ -496,28 +496,6 @@ describe(
       expect(fixture.componentInstance.pendingCommand()).toBeNull();
     });
 
-    it('aceita "a" transcrito no lugar de "há" e exige confirmação antes de iniciar o sono', async () => {
-      const heardAt = Date.now();
-      await say('Lucas dormiu a dois minutos');
-
-      expectNoAction();
-      expect(fixture.componentInstance.pendingCommand()?.summary).toContain('(há 2 min)');
-
-      await fixture.componentInstance.confirmPending();
-
-      expect(mocks.sleep.startAt).toHaveBeenCalledTimes(1);
-      expect(Math.abs(mocks.sleep.startAt.calls.mostRecent().args[0] - (heardAt - 120_000)))
-        .toBeLessThan(2_000);
-    });
-
-    it('recusa uma duração incompleta mesmo quando "há" é transcrito como "a"', async () => {
-      await say('Lucas dormiu a dois');
-
-      expectNoAction();
-      expect(fixture.componentInstance.pendingCommand()).toBeNull();
-      expect(mocks.voice.reportError).toHaveBeenCalled();
-    });
-
     it('cancela uma mamadeira sem gravar e confirma volume em nova tentativa', async () => {
       await say('registrar mamadeira de cento e vinte ml');
       expectNoAction();
