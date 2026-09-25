@@ -50,13 +50,15 @@
           Seu nome
         </label>
 
-        <input id="name" type="text" autocomplete="name" placeholder="Digite seu nome" formControlName="name" />
+        <input id="name" type="text" autocomplete="name" placeholder="Digite seu nome" formControlName="name"
+          [attr.aria-invalid]="name.invalid && (name.dirty || name.touched)"
+          [attr.aria-describedby]="name.invalid && (name.dirty || name.touched) ? 'caregiver-name-error' : null" />
 
         @if (
         name.invalid &&
         (name.dirty || name.touched)
         ) {
-        <p class="field-error" role="alert">
+        <p id="caregiver-name-error" class="field-error" role="alert">
           Informe seu nome para continuar.
         </p>
         }
@@ -107,7 +109,9 @@
         </div>
 
         <label class="consent">
-          <input type="checkbox" formControlName="consent" aria-describedby="privacy-details" />
+          <input type="checkbox" formControlName="consent"
+            [attr.aria-invalid]="consent.invalid && (consent.dirty || consent.touched)"
+            [attr.aria-describedby]="consent.invalid && (consent.dirty || consent.touched) ? 'privacy-details consent-error' : 'privacy-details'" />
 
           <span class="consent__control">
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -129,7 +133,7 @@
         consent.invalid &&
         (consent.dirty || consent.touched)
         ) {
-        <p class="consent-error" role="alert">
+        <p id="consent-error" class="consent-error" role="alert">
           É necessário confirmar a leitura
           para continuar.
         </p>
