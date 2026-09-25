@@ -8,10 +8,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
-import type {
-  Feeding,
-  FeedingSide,
-} from '../../core/models/feeding';
+import type { Feeding } from '../../core/models/feeding';
 import { FeedingService } from '../../core/services/feeding';
 import { OnboardingService } from '../../core/services/onboarding';
 
@@ -32,7 +29,6 @@ export class FeedingPage {
   readonly activeFeeding = this.feedingService.activeFeeding;
   readonly storageError = this.feedingService.storageError;
   readonly isSaving = this.feedingService.isSaving;
-  readonly periodLimitReached = this.feedingService.periodLimitReached;
   readonly legacyOversized = this.feedingService.legacyOversized;
 
   readonly finishedFeeding = signal<Feeding | null>(null);
@@ -70,17 +66,6 @@ export class FeedingPage {
       await this.feedingService.start();
 
     if (feeding !== null) {
-      this.now.set(Date.now());
-    }
-  }
-
-  async setSide(
-    side: FeedingSide | null,
-  ): Promise<void> {
-    const saved =
-      await this.feedingService.setSide(side);
-
-    if (saved) {
       this.now.set(Date.now());
     }
   }

@@ -11,9 +11,6 @@ import type {
   DiaperType,
 } from '../../core/models/diaper';
 
-import type {
-  FeedingSide,
-} from '../../core/models/feeding';
 
 import {
   DiaperService,
@@ -409,39 +406,8 @@ export class VoicePage {
       return;
     }
 
-    if (
-      /^(registrar|iniciar|comecar) (?:amamentacao|mamada)(?: (?:no lado (?:esquerdo|direito)|lado (?:esquerdo|direito)|na mama (?:esquerda|direita)|no seio (?:esquerdo|direito)))?$/.test(
-        command,
-      )
-    ) {
-      await this.startFeeding(
-        command,
-      );
-
-      return;
-    }
-
-    if (
-      /^(lado esquerdo|mudar para esquerda|trocar para esquerda|mudar para o lado esquerdo|trocar para o lado esquerdo)$/.test(
-        command,
-      )
-    ) {
-      await this.changeFeedingSide(
-        'left',
-      );
-
-      return;
-    }
-
-    if (
-      /^(lado direito|mudar para direita|trocar para direita|mudar para o lado direito|trocar para o lado direito)$/.test(
-        command,
-      )
-    ) {
-      await this.changeFeedingSide(
-        'right',
-      );
-
+    if (/^(registrar|iniciar|comecar) (?:amamentacao|mamada)$/.test(command)) {
+      await this.startFeeding();
       return;
     }
 
@@ -655,62 +621,22 @@ export class VoicePage {
       ? words[compound[1]] + suffix : null;
   }
 
-  private async startFeeding(
-    command: string,
-  ): Promise<void> {
-    const alreadyActive =
-      this.feedingService
-        .activeFeeding() !==
-      null;
-
-    const feeding =
-      await this.feedingService
-        .start();
+  private async startFeeding(): Promise<void> {
+    const alreadyActive = this.feedingService.activeFeeding() !== null;
+    const feeding = await this.feedingService.start();
 
     if (feeding === null) {
       this.reportSyncFailure(
-        this.feedingService
-          .storageError(),
-
+        this.feedingService.storageError(),
         'Não foi possível iniciar a amamentação.',
       );
-
       return;
     }
 
-    const side =
-      this.feedingSideFromCommand(
-        command,
-      );
-
-    if (side !== null) {
-      const changed =
-        await this.feedingService
-          .setSide(side);
-
-      if (!changed) {
-        this.reportSyncFailure(
-          this.feedingService
-            .storageError(),
-
-          'Não foi possível registrar o lado da amamentação.',
-        );
-
-        return;
-      }
-    }
-
-    const sideDescription =
-      side === 'left'
-        ? ' no lado esquerdo'
-        : side === 'right'
-          ? ' no lado direito'
-          : '';
-
     this.completeCommand(
       alreadyActive
-        ? `A amamentação já estava em andamento${sideDescription}.`
-        : `Amamentação iniciada agora${sideDescription}.`,
+        ? 'A amamentação já estava em andamento.'
+        : 'Amamentação iniciada agora.',
     );
   }
 
@@ -750,48 +676,6 @@ export class VoicePage {
 
     this.completeCommand(
       'Amamentação finalizada com sucesso.',
-    );
-  }
-
-  private async changeFeedingSide(
-    side: FeedingSide,
-  ): Promise<void> {
-    if (
-      this.feedingService
-        .activeFeeding() ===
-      null
-    ) {
-      this.voiceService
-        .reportError(
-          'Não existe uma amamentação em andamento. Inicie a amamentação antes de informar o lado.',
-        );
-
-      this.feedback.set(
-        'Nenhuma atividade foi alterada.',
-      );
-
-      return;
-    }
-
-    const changed =
-      await this.feedingService
-        .setSide(side);
-
-    if (!changed) {
-      this.reportSyncFailure(
-        this.feedingService
-          .storageError(),
-
-        'Não foi possível alterar o lado da amamentação.',
-      );
-
-      return;
-    }
-
-    this.completeCommand(
-      side === 'left'
-        ? 'Amamentação alterada para o lado esquerdo.'
-        : 'Amamentação alterada para o lado direito.',
     );
   }
 
@@ -888,38 +772,6 @@ export class VoicePage {
           'pt-BR',
         )} registrada agora.`,
     );
-  }
-
-  private feedingSideFromCommand(
-    command: string,
-  ): FeedingSide | null {
-    if (
-      this.hasAny(
-        command,
-        [
-          'lado esquerdo',
-          'mama esquerda',
-          'seio esquerdo',
-        ],
-      )
-    ) {
-      return 'left';
-    }
-
-    if (
-      this.hasAny(
-        command,
-        [
-          'lado direito',
-          'mama direita',
-          'seio direito',
-        ],
-      )
-    ) {
-      return 'right';
-    }
-
-    return null;
   }
 
   private reportSyncFailure(

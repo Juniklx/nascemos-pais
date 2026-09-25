@@ -84,33 +84,6 @@
         </label>
       </div>
 
-      <label class="edit-field">
-        <span>Divisão por lado</span>
-
-        <select [value]="feedingSideInput()" (change)="onFeedingSideInput($event)">
-          <option value="keep">
-            Manter divisão atual
-          </option>
-
-          <option value="left">
-            Somente lado esquerdo
-          </option>
-
-          <option value="right">
-            Somente lado direito
-          </option>
-
-          <option value="none">
-            Não informar lado
-          </option>
-        </select>
-      </label>
-
-      <p class="edit-help">
-        Ao manter a divisão atual, os tempos de
-        cada lado serão ajustados
-        proporcionalmente à nova duração.
-      </p>
       }
       }
 
@@ -227,47 +200,6 @@
         </dd>
       </div>
 
-      <div>
-        <dt>Lado esquerdo</dt>
-
-        <dd>
-          {{
-          formatDuration(
-          feedingLeftDuration(
-          activity.record
-          )
-          )
-          }}
-        </dd>
-      </div>
-
-      <div>
-        <dt>Lado direito</dt>
-
-        <dd>
-          {{
-          formatDuration(
-          feedingRightDuration(
-          activity.record
-          )
-          )
-          }}
-        </dd>
-      </div>
-
-      <div>
-        <dt>Sem lado informado</dt>
-
-        <dd>
-          {{
-          formatDuration(
-          feedingUnspecifiedDuration(
-          activity.record
-          )
-          )
-          }}
-        </dd>
-      </div>
       }
     </dl>
     }

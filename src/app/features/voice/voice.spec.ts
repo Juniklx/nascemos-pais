@@ -602,6 +602,8 @@ describe(
         'nunca finalizar sono',
         'iniciar sono e registrar mamada',
         'registrar mamada no lado esquerdo e direito',
+        'registrar amamentação no lado esquerdo',
+        'lado direito',
         'qual é a previsão do tempo',
       ]
     ) {
@@ -657,35 +659,6 @@ describe(
         expect(fixture.componentInstance.feedback()).toContain('Amamentação finalizada');
       });
     }
-
-    it(
-      'inicia mamada no lado esquerdo',
-      async () => {
-        await say(
-          'Registrar mamada no lado esquerdo.',
-        );
-
-        expect(
-          mocks.feeding
-            .start,
-        ).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(
-          mocks.feeding
-            .setSide,
-        ).toHaveBeenCalledOnceWith(
-          'left',
-        );
-
-        expect(
-          fixture
-            .componentInstance
-            .commandExecuted(),
-        ).toBeTrue();
-      },
-    );
 
     it(
       'inicia sono com acento e pontuação',

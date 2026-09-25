@@ -52,97 +52,15 @@
       </span>
     </div>
 
-    @if (durations(); as times) {
-    <dl class="side-times" aria-label="Tempo por lado">
-      <div class="side-times__item">
-        <dt>Esquerdo</dt>
-        <dd>{{ formatDuration(times.left) }}</dd>
-      </div>
-
-      <div class="side-times__item">
-        <dt>Direito</dt>
-        <dd>{{ formatDuration(times.right) }}</dd>
-      </div>
-
-      <div class="side-times__item">
-        <dt>Sem lado informado</dt>
-        <dd>{{ formatDuration(times.unspecified) }}</dd>
-      </div>
-
-      @if (times.untracked > 0 || feeding.periods === null) {
-      <div class="side-times__item">
-        <dt>Sem divisão registrada</dt>
-        <dd>{{ formatDuration(times.untracked) }}</dd>
-      </div>
-      }
-    </dl>
-
-    <p class="hint">
-      Tempos exibidos em segundos inteiros.
-      A soma por lado pode diferir ligeiramente do total.
+    @if (feeding.endedAt === null && legacyOversized()) {
+    <p class="hint" role="alert">
+      Esta amamentação antiga tem mais de 6 períodos. Seus horários foram preservados,
+      mas ela não pode ser finalizada nesta versão. Aguarde a migração segura;
+      não exclua o registro para contornar essa restrição.
     </p>
-
-    @if (times.untracked > 0 || feeding.periods === null) {
-    <p class="hint">
-      Parte desta amamentação foi registrada antes do
-      acompanhamento por lado. Não sabemos como esse
-      tempo foi dividido.
-    </p>
-
-    @if (feeding.periods === null && feeding.side !== null) {
-    <p class="hint">
-      Lado informado no registro antigo:
-      {{ feeding.side === 'left' ? 'esquerdo' : 'direito' }}.
-    </p>
-    }
-    }
     }
 
     @if (feeding.endedAt === null) {
-    <fieldset class="side-selector">
-      <legend>Lado atual · opcional</legend>
-
-      <div class="side-options">
-        <button type="button" [class.is-selected]="feeding.side === null" [attr.aria-pressed]="feeding.side === null"
-          (click)="setSide(null)" [disabled]="isSaving() || periodLimitReached()">
-          Não informar
-        </button>
-
-        <button type="button" [class.is-selected]="feeding.side === 'left'"
-          [attr.aria-pressed]="feeding.side === 'left'" (click)="setSide('left')" [disabled]="isSaving() || periodLimitReached()">
-          Esquerdo
-        </button>
-
-        <button type="button" [class.is-selected]="feeding.side === 'right'"
-          [attr.aria-pressed]="feeding.side === 'right'" (click)="setSide('right')" [disabled]="isSaving() || periodLimitReached()">
-          Direito
-        </button>
-      </div>
-
-      @if (legacyOversized()) {
-      <p class="hint" role="alert">
-        Esta amamentação antiga tem mais de 6 períodos. Seus horários foram preservados,
-        mas ela não pode ser alterada nem finalizada nesta versão. Aguarde a
-        migração segura; não exclua o registro para contornar essa restrição.
-      </p>
-      } @else if (periodLimitReached()) {
-      <p class="hint" role="status">
-        Esta amamentação atingiu o limite de 6 períodos. Finalize-a para salvar
-        os horários registrados antes de iniciar um novo acompanhamento.
-      </p>
-      } @else {
-      <p class="hint">
-        @if (feeding.periods === null) {
-        Selecione um lado para começar a acompanhar
-        os próximos períodos.
-        } @else {
-        Quando o bebê trocar de lado, selecione o outro.
-        O tempo anterior será mantido.
-        }
-      </p>
-      }
-    </fieldset>
-
     <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized()" (click)="finish()">
       {{ isSaving() ? 'Salvando...' : 'Finalizar amamentação' }}
     </button>
@@ -160,8 +78,7 @@
     <h1 id="feeding-title">Registrar amamentação</h1>
 
     <p>
-      Comece quando quiser.
-      Você pode informar o lado depois.
+      Comece quando quiser. O tempo será registrado automaticamente.
     </p>
 
     <button type="button" class="primary-button" [disabled]="isSaving()" (click)="start()">

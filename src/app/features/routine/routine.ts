@@ -188,49 +188,7 @@ export class Routine {
         ? 'Em andamento'
         : this.formatDuration(times.total);
 
-    if (feeding.periods === null) {
-      const side =
-        feeding.side === 'left'
-          ? 'lado esquerdo'
-          : feeding.side === 'right'
-            ? 'lado direito'
-            : 'lado não informado';
-
-      return `${status} · ${side}`;
-    }
-
-    const details: string[] = [];
-
-    if (times.left > 0) {
-      details.push(
-        `Esq. ${this.formatDuration(times.left)}`,
-      );
-    }
-
-    if (times.right > 0) {
-      details.push(
-        `Dir. ${this.formatDuration(times.right)}`,
-      );
-    }
-
-    if (times.unspecified > 0) {
-      details.push(
-        `Sem lado ${this.formatDuration(times.unspecified)}`,
-      );
-    }
-
-    if (times.untracked > 0) {
-      details.push(
-        `Sem divisão ${this.formatDuration(times.untracked)}`,
-      );
-    }
-
-    return [
-      status,
-      ...(details.length > 0
-        ? [`Por lado: ${details.join(' · ')}`]
-        : []),
-    ].join(' · ');
+    return status;
   }
 
   private sleepDescription(

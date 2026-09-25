@@ -23,7 +23,6 @@ import type {
 import type {
   Feeding,
   FeedingPeriod,
-  FeedingSide,
 } from '../../../core/models/feeding';
 
 import type {
@@ -55,12 +54,6 @@ type HistoryActivity =
       kind: 'diaper';
       record: Diaper;
     };
-
-type FeedingSideSelection =
-  | 'keep'
-  | 'left'
-  | 'right'
-  | 'none';
 
 @Component({
   selector:
@@ -127,11 +120,6 @@ export class HistoryDetail {
 
   readonly endedAtInput =
     signal('');
-
-  readonly feedingSideInput =
-    signal<FeedingSideSelection>(
-      'keep',
-    );
 
   readonly bottleMlInput = signal('');
 
@@ -402,10 +390,6 @@ export class HistoryDetail {
           ),
         );
 
-        this.feedingSideInput.set(
-          'keep',
-        );
-
         this.bottleMlInput.set(activity.record.bottleMl?.toString() ?? '');
 
         break;
@@ -492,26 +476,6 @@ export class HistoryDetail {
         event,
       ),
     );
-  }
-
-  onFeedingSideInput(
-    event: Event,
-  ): void {
-    const value =
-      this.readControlValue(
-        event,
-      );
-
-    if (
-      value === 'keep' ||
-      value === 'left' ||
-      value === 'right' ||
-      value === 'none'
-    ) {
-      this.feedingSideInput.set(
-        value,
-      );
-    }
   }
 
   onBottleMlInput(event: Event): void {
@@ -614,45 +578,6 @@ export class HistoryDetail {
           record,
         )
         .total
-    );
-  }
-
-  feedingLeftDuration(
-    record: Feeding,
-  ): number {
-    return (
-      this.feedingService
-        .durations(
-          record,
-        )
-        .left
-    );
-  }
-
-  feedingRightDuration(
-    record: Feeding,
-  ): number {
-    return (
-      this.feedingService
-        .durations(
-          record,
-        )
-        .right
-    );
-  }
-
-  feedingUnspecifiedDuration(
-    record: Feeding,
-  ): number {
-    const durations =
-      this.feedingService
-        .durations(
-          record,
-        );
-
-    return (
-      durations.unspecified +
-      durations.untracked
     );
   }
 
@@ -792,54 +717,15 @@ export class HistoryDetail {
       return false;
     }
 
-    const selection =
-      this.feedingSideInput();
+    const periods = this.resizeFeedingPeriods(
+      record,
+      range.startedAt,
+      range.endedAt,
+    );
 
-    let periods:
-      readonly FeedingPeriod[] |
-      null;
-
-    let side:
-      FeedingSide | null;
-
-    if (
-      selection ===
-      'keep'
-    ) {
-      periods =
-        this.resizeFeedingPeriods(
-          record,
-          range.startedAt,
-          range.endedAt,
-        );
-
-      side =
-        periods &&
-        periods.length > 0
-          ? periods[
-              periods.length -
-                1
-            ].side
-          : record.side;
-    } else {
-      side =
-        selection ===
-        'none'
-          ? null
-          : selection;
-
-      periods = [
-        {
-          startedAt:
-            range.startedAt,
-
-          endedAt:
-            range.endedAt,
-
-          side,
-        },
-      ];
-    }
+    const side = periods && periods.length > 0
+      ? periods[periods.length - 1].side
+      : record.side;
 
     return (
       await this.feedingService
