@@ -1,5 +1,9 @@
 # Nascemos Pais
 
+**Calma no meio do caos.**
+
+[Acessar o site (Vercel)](https://nascemospais.vercel.app/) · [Acesso alternativo (Firebase Hosting)](https://nascemos-pais.web.app/)
+
 O **Nascemos Pais** é uma aplicação web responsiva criada para ajudar mães, pais e cuidadores a organizar a rotina dos primeiros meses de um bebê.
 
 O projeto nasceu da necessidade de reduzir o esforço de registrar atividades importantes do dia a dia, como mamadas, períodos de sono e trocas de fralda, especialmente em momentos em que os cuidadores estão cansados ou com pouco tempo disponível.
@@ -43,7 +47,7 @@ O primeiro acesso solicita:
 - acompanhar a duração em tempo real;
 - registrar lado esquerdo ou direito;
 - alternar os lados durante a mamada;
-- manter mamadas em andamento após recarregar a página.
+- manter mamadas em andamento após recarregar a página;
 - registrar mamadeira com volume em ml por comando de voz, após confirmação.
 
 ### Sono
@@ -114,7 +118,7 @@ Exemplos:
 - `finalizar mamada`;
 - `iniciar sono`;
 - `finalizar sono`;
-- `registrar fralda suja`.
+- `registrar fralda suja`;
 - `Lucas dormiu há 15 minutos` (o nome deve ser o do bebê ativo);
 - `registrar mamadeira de 120 ml`.
 
@@ -243,6 +247,7 @@ descritos em [docs/privacy/account-deletion.md](docs/privacy/account-deletion.md
 - Karma
 - GitHub Actions
 - Vercel
+- Firebase Hosting
 
 ## Como executar o projeto
 
@@ -311,17 +316,23 @@ Os testes Angular e os testes das regras do Firestore também são executados au
 
 ## Deploy
 
-A aplicação é publicada utilizando a **Vercel**.
+A aplicação está disponível em dois endereços:
 
-O projeto utiliza fallback de SPA para permitir acesso direto a rotas internas do Angular, como:
+- **Vercel:** [nascemospais.vercel.app](https://nascemospais.vercel.app/)
+- **Firebase Hosting:** [nascemos-pais.web.app](https://nascemos-pais.web.app/)
 
-```text
-/auth/login
-/home
-/history
+As configurações de reescrita em `vercel.json` e `firebase.json` direcionam rotas internas do Angular para `index.html`, permitindo abrir diretamente páginas como `/auth/login`, `/home` e `/history`.
+
+Para publicar a versão de produção no Firebase Hosting, após configurar o projeto no Firebase CLI e autenticar a conta:
+
+```bash
+npm run build
+npx firebase-tools@latest deploy --only hosting --project nascemos-pais
 ```
 
-sem retornar erro 404 do servidor.
+O diretório publicado está configurado em `firebase.json` como `dist/nascemos-pais/browser`. Esse comando publica somente o site; as regras do Firestore têm implantação separada.
+
+Os dois endereços usam o mesmo projeto Firebase para autenticação e dados. O endereço alternativo pode ser divulgado se o principal estiver indisponível; a troca entre eles não é automática.
 
 ## Limitações atuais do MVP
 
