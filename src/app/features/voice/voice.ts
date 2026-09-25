@@ -470,11 +470,11 @@ export class VoicePage {
   }
 
   private prepareNaturalCommand(command: string): boolean {
-    const sleepMatch = command.match(/^(?:(.+?) )?dormiu ha (.+?) (minuto|minutos|hora|horas)$/);
+    const sleepMatch = command.match(/^(?:(.+?) )?dormiu (?:ha|a) (.+?) (minuto|minutos|hora|horas)$/);
     const bottleMatch = command.match(/^(?:registrar )?mamadeira(?: de)? (.+?) (ml|mililitro|mililitros)$/);
 
     if (!sleepMatch && !bottleMatch) {
-      if (/\b(dormiu ha|mamadeira)\b/.test(command)) {
+      if (/\b(dormiu (?:ha|a)|mamadeira)\b/.test(command)) {
         this.voiceService.reportError('Informe um tempo ou volume claro. Exemplos: “Lucas dormiu há 15 minutos” ou “registrar mamadeira de 120 ml”.');
         this.feedback.set('Nenhum registro foi salvo.');
         return true;
