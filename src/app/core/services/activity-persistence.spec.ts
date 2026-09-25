@@ -309,7 +309,7 @@ describe('ActivityPersistenceService', () => {
     expect(service.error()).not.toBeNull();
   });
 
-  it('converte mamadas da versão antiga antes da migração para o bebê', async () => {
+  it('converte amamentações da versão antiga antes da migração para o bebê', async () => {
     repository.readProfile.and.resolveTo({});
 
     localStorage.setItem(
@@ -422,7 +422,7 @@ describe('ActivityPersistenceService', () => {
     expect(service.error()).toBeNull();
   });
 
-  it('salva mamada no bebê ativo e atualiza o estado', async () => {
+  it('salva amamentação no bebê ativo e atualiza o estado', async () => {
     await service.load();
 
     await service.saveFeeding(feeding);
@@ -438,7 +438,7 @@ describe('ActivityPersistenceService', () => {
     expect(cached.feedings).toEqual([{ ...feeding, createdByUid: 'user-a' }]);
   });
 
-  it('bloqueia gravações de mamadas antigas acima do limite sem alterar o histórico', async () => {
+  it('bloqueia gravações de amamentações antigas acima do limite sem alterar o histórico', async () => {
     const old = {
       ...feeding,
       endedAt: 1700,

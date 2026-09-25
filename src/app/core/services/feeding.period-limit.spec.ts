@@ -51,7 +51,7 @@ describe('FeedingService: limite de períodos', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  it('impede criar o período 7 sem modificar a mamada aberta', async () => {
+  it('impede criar o período 7 sem modificar a amamentação aberta', async () => {
     expect(service.periodLimitReached()).toBeTrue();
     expect(await service.setSide('right')).toBeFalse();
     expect(saveFeeding).not.toHaveBeenCalled();
@@ -66,7 +66,7 @@ describe('FeedingService: limite de períodos', () => {
     expect(saveFeeding).toHaveBeenCalledTimes(1);
   });
 
-  it('preserva uma mamada legada acima do limite sem tentar regravar ou finalizar', async () => {
+  it('preserva uma amamentação legada acima do limite sem tentar regravar ou finalizar', async () => {
     const original = ongoingFeeding(MAX_FEEDING_PERIODS + 1);
     feedings.set([original]);
 
@@ -78,7 +78,7 @@ describe('FeedingService: limite de períodos', () => {
     expect(service.activeFeeding()).toEqual(original);
   });
 
-  it('bloqueia edição de mamada legada concluída acima do limite', async () => {
+  it('bloqueia edição de amamentação legada concluída acima do limite', async () => {
     const completed: Feeding = {
       ...ongoingFeeding(MAX_FEEDING_PERIODS + 1),
       endedAt: 1800,

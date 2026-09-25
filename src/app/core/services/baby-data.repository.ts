@@ -571,7 +571,7 @@ export class BabyDataRepository {
         if (activeRecordId !== null && activeRecordId !== record.id) {
           throw new Error(
             collectionName === 'feedings'
-              ? 'Já existe uma mamada em andamento.'
+              ? 'Já existe uma amamentação em andamento.'
               : 'Já existe um sono em andamento.',
           );
         }

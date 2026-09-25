@@ -628,6 +628,36 @@ describe(
       );
     }
 
+    for (const command of ['registrar amamentação', 'registrar mamada']) {
+      it(`inicia amamentação com o comando "${command}"`, async () => {
+        await say(command);
+
+        expect(mocks.feeding.start).toHaveBeenCalledTimes(1);
+        expect(fixture.componentInstance.feedback()).toContain('Amamentação iniciada');
+      });
+    }
+
+    for (const command of ['abrir amamentação', 'abrir mamada']) {
+      it(`abre amamentação com o comando "${command}"`, async () => {
+        await say(command);
+
+        expect(mocks.router.navigate).toHaveBeenCalledOnceWith(['/feeding']);
+        expect(mocks.feeding.start).not.toHaveBeenCalled();
+      });
+    }
+
+    for (const command of ['finalizar amamentação', 'finalizar mamada']) {
+      it(`finaliza amamentação com o comando "${command}"`, async () => {
+        mocks.feeding.activeFeeding.set(feeding);
+        mocks.feeding.finish.and.resolveTo({ ...feeding, endedAt: 2000 });
+
+        await say(command);
+
+        expect(mocks.feeding.finish).toHaveBeenCalledTimes(1);
+        expect(fixture.componentInstance.feedback()).toContain('Amamentação finalizada');
+      });
+    }
+
     it(
       'inicia mamada no lado esquerdo',
       async () => {

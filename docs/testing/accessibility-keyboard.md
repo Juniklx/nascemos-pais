@@ -16,7 +16,7 @@ Issue: #64. Esta lista registra os testes **a executar em navegador real**; a ex
 - [ ] **Cadastro e login (`/auth/register`, `/auth/login`):** percorrer todos os campos; submeter com teclado; verificar foco e leitura de erros, sem prender o foco.
 - [ ] **Onboarding:** marcar o checkbox, ler a política de privacidade e avançar por ambas as etapas; verificar erros nos campos.
 - [ ] **Home e navegação:** acessar menu lateral e navegação inferior; não exigir gestos do mouse.
-- [ ] **Mamada, sono e fralda:** iniciar, finalizar e selecionar opções por teclado, inclusive mensagens de confirmação.
+- [ ] **Amamentação, sono e fralda:** iniciar, finalizar e selecionar opções por teclado, inclusive mensagens de confirmação.
 - [ ] **Histórico:** acessar filtros, links dos registros, edição e exclusão com confirmação.
 - [ ] **Comandos de voz:** acionar controles, verificar estados/erros e oferecer alternativa manual sem depender do microfone.
 - [ ] **Perfil e convites:** editar dados, alternar bebê/tema, gerar ou copiar convite e remover acesso com as confirmações necessárias.

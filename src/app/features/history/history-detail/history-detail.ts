@@ -382,7 +382,7 @@ export class HistoryDetail {
           null
         ) {
           this.editError.set(
-            'Somente mamadas concluídas podem ser editadas.',
+            'Somente amamentações concluídas podem ser editadas.',
           );
 
           return;

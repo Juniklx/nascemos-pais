@@ -215,7 +215,7 @@ export class FeedingService {
     }
 
     // As Firestore Rules validam cada posição até este limite.
-    // Preservamos a mamada em andamento e permitimos finalizá-la.
+    // Preservamos a amamentação em andamento e permitimos finalizá-la.
     if (periods.length >= MAX_FEEDING_PERIODS) {
       return false;
     }
@@ -636,7 +636,7 @@ export class FeedingService {
       )
     ) {
       throw new Error(
-        'Dados da mamada inválidos.',
+        'Dados da amamentação inválidos.',
       );
     }
 

@@ -70,7 +70,7 @@ não deve deixar bebês sem proprietário nem conceder acesso a usuários previa
 - Conta com vários bebês e diferentes decisões; convites pendentes, aceitos e expirados.
 - Dados legados não migrados, índices divergentes, vínculo removido e autoria histórica.
 - Falhas entre etapas, repetição da mesma solicitação, sessões alteradas e operações concorrentes.
-- Registros de mamada e sono em andamento e grandes volumes que exijam paginação.
+- Registros de amamentação e sono em andamento e grandes volumes que exijam paginação.
 - Verificar que nenhuma outra família perde acesso ou histórico indevidamente e que a conta
   autenticável deixa de existir somente quando a remoção for concluída.
 

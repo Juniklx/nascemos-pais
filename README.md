@@ -6,13 +6,13 @@
 
 O **Nascemos Pais** é uma aplicação web responsiva criada para ajudar mães, pais e cuidadores a organizar a rotina dos primeiros meses de um bebê.
 
-O projeto nasceu da necessidade de reduzir o esforço de registrar atividades importantes do dia a dia, como mamadas, períodos de sono e trocas de fralda, especialmente em momentos em que os cuidadores estão cansados ou com pouco tempo disponível.
+O projeto nasceu da necessidade de reduzir o esforço de registrar atividades importantes do dia a dia, como amamentações, períodos de sono e trocas de fralda, especialmente em momentos em que os cuidadores estão cansados ou com pouco tempo disponível.
 
 ## Problema
 
 Nos primeiros meses do bebê, é comum que os cuidadores precisem acompanhar diversos acontecimentos ao longo do dia:
 
-- horários e duração das mamadas;
+- horários e duração das amamentações;
 - períodos de sono;
 - trocas de fralda;
 - sequência das atividades;
@@ -41,13 +41,13 @@ O primeiro acesso solicita:
 - data de nascimento do bebê;
 - consentimento para armazenamento dos dados utilizados pelo MVP.
 
-### Mamada
+### Amamentação
 
-- iniciar e finalizar uma mamada;
+- iniciar e finalizar uma amamentação;
 - acompanhar a duração em tempo real;
 - registrar lado esquerdo ou direito;
-- alternar os lados durante a mamada;
-- manter mamadas em andamento após recarregar a página;
+- alternar os lados durante a amamentação;
+- manter amamentações em andamento após recarregar a página;
 - registrar mamadeira com volume em ml por comando de voz, após confirmação.
 
 ### Sono
@@ -78,7 +78,7 @@ A página inicial apresenta:
 ### Histórico
 
 - visualização dos registros anteriores;
-- detalhes de mamadas, sono e fraldas;
+- detalhes de amamentações, sono e fraldas;
 - edição dos registros;
 - exclusão com confirmação.
 
@@ -87,7 +87,7 @@ A página inicial apresenta:
 - adicionar mais de um bebê à mesma conta;
 - selecionar qual bebê está ativo;
 - alternar entre os bebês vinculados;
-- manter mamadas, sono, fraldas, Histórico e Home isolados por bebê;
+- manter amamentações, sono, fraldas, Histórico e Home isolados por bebê;
 - editar no Perfil apenas o bebê atualmente selecionado.
 
 ### Compartilhamento entre cuidadores
@@ -100,9 +100,9 @@ A página inicial apresenta:
 
 ### Rotina compartilhada em tempo real
 
-- mamadas, sono e fraldas são atualizados automaticamente nos aparelhos dos responsáveis vinculados ao bebê;
+- amamentações, sono e fraldas são atualizados automaticamente nos aparelhos dos responsáveis vinculados ao bebê;
 - a Home e o Histórico acompanham o bebê atualmente selecionado, incluindo atividades ainda em andamento;
-- a duração de mamadas e sonos é calculada localmente a partir dos horários registrados, sem gravações periódicas no Firestore;
+- a duração de amamentações e sonos é calculada localmente a partir dos horários registrados, sem gravações periódicas no Firestore;
 - registros novos identificam quem os criou e, quando aplicável, quem os finalizou;
 - registros antigos, sem autoria, continuam disponíveis;
 - o indicador de sincronização diferencia conexão com o servidor, conexão em andamento e erro;
@@ -114,13 +114,15 @@ A aplicação possui suporte a comandos de voz compatíveis com o recurso de rec
 
 Exemplos:
 
-- `registrar mamada`;
-- `finalizar mamada`;
+- `registrar amamentação`;
+- `finalizar amamentação`;
 - `iniciar sono`;
 - `finalizar sono`;
 - `registrar fralda suja`;
 - `Lucas dormiu há 15 minutos` (o nome deve ser o do bebê ativo);
 - `registrar mamadeira de 120 ml`.
+
+Os comandos antigos `registrar mamada` e `finalizar mamada` continuam funcionando para manter a compatibilidade.
 
 O objetivo é permitir registros rápidos em situações em que digitar ou navegar pela interface não seja conveniente.
 
