@@ -1,8 +1,12 @@
 import {
   Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 
 import {
@@ -73,6 +77,10 @@ type FeedingSideSelection =
     './history-detail.css',
 })
 export class HistoryDetail {
+  private readonly injector = inject(Injector);
+  private readonly deleteTrigger = viewChild<ElementRef<HTMLButtonElement>>('deleteTrigger');
+  private readonly cancelDeleteButton = viewChild<ElementRef<HTMLButtonElement>>('cancelDeleteButton');
+  private readonly confirmDeleteButton = viewChild<ElementRef<HTMLButtonElement>>('confirmDeleteButton');
   private readonly route =
     inject(
       ActivatedRoute,
@@ -241,6 +249,7 @@ export class HistoryDetail {
     this.confirmingDelete.set(
       true,
     );
+    afterNextRender(() => this.cancelDeleteButton()?.nativeElement.focus(), { injector: this.injector });
   }
 
   cancelDelete(): void {
@@ -251,6 +260,28 @@ export class HistoryDetail {
     this.confirmingDelete.set(
       false,
     );
+    afterNextRender(() => this.deleteTrigger()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  onDeleteDialogKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && !this.isSaving()) {
+      event.preventDefault();
+      this.cancelDelete();
+      return;
+    }
+
+    if (event.key !== 'Tab') return;
+    const first = this.cancelDeleteButton()?.nativeElement;
+    const last = this.confirmDeleteButton()?.nativeElement;
+    if (!first || !last) return;
+
+    if (event.shiftKey && event.target === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && event.target === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   async confirmDelete():
