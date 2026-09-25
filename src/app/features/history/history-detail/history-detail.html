@@ -348,7 +348,7 @@
         Editar registro
       </button>
 
-      <button type="button" class="delete-button" (click)="requestDelete()" [disabled]="isSaving()">
+      <button #deleteTrigger type="button" class="delete-button" (click)="requestDelete()" [disabled]="isSaving()">
         Excluir registro
       </button>
     </div>
@@ -357,7 +357,7 @@
 
   @if (confirmingDelete()) {
   <section class="delete-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"
-    aria-describedby="delete-description">
+    aria-describedby="delete-description" (keydown)="onDeleteDialogKeydown($event)">
     <div class="delete-confirmation__content">
       <h2 id="delete-title">
         Excluir este registro?
@@ -375,11 +375,11 @@
       }
 
       <div class="delete-confirmation__actions">
-        <button type="button" class="cancel-button" (click)="cancelDelete()" [disabled]="isSaving()">
+        <button #cancelDeleteButton type="button" class="cancel-button" (click)="cancelDelete()" [disabled]="isSaving()">
           Cancelar
         </button>
 
-        <button type="button" class="confirm-delete-button" (click)="confirmDelete()" [disabled]="isSaving()">
+        <button #confirmDeleteButton type="button" class="confirm-delete-button" (click)="confirmDelete()" [disabled]="isSaving()">
           {{ isSaving() ? 'Excluindo...' : 'Sim, excluir' }}
         </button>
       </div>
