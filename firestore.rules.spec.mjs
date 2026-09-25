@@ -1059,7 +1059,7 @@ test('nega responsável alterando o próprio papel', async () => {
   );
 });
 
-test('aceita mamadas válidas com períodos e registros legados sem divisão', async () => {
+test('aceita amamentações válidas com períodos e registros legados sem divisão', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
 
   await assertSucceeds(setDoc(doc(db, `babies/${sharedBaby}/feedings/feeding-periods`), {
@@ -1131,7 +1131,7 @@ test('valida todas as posições até o limite de 6 períodos', async () => {
   }));
 });
 
-test('nega estrutura inválida de períodos em qualquer mamada', async () => {
+test('nega estrutura inválida de períodos em qualquer amamentação', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
   const valid = [
     { startedAt: 1000, endedAt: 1200, side: 'left' },
@@ -1207,7 +1207,7 @@ test('a validação também protege a coleção legada de cada usuário', async 
   }));
 });
 
-test('nega mamada aberta sem lock de atividade', async () => {
+test('nega amamentação aberta sem lock de atividade', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
 
   await assertFails(
@@ -1221,7 +1221,7 @@ test('nega mamada aberta sem lock de atividade', async () => {
   );
 });
 
-test('permite iniciar mamada com lock no mesmo lote', async () => {
+test('permite iniciar amamentação com lock no mesmo lote', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
   const batch = writeBatch(db);
 
@@ -1240,7 +1240,7 @@ test('permite iniciar mamada com lock no mesmo lote', async () => {
   await assertSucceeds(batch.commit());
 });
 
-test('nega segunda mamada em andamento para o mesmo bebê', async () => {
+test('nega segunda amamentação em andamento para o mesmo bebê', async () => {
   const ownerDb = testEnv.authenticatedContext(userA).firestore();
 
   const firstBatch = writeBatch(ownerDb);
@@ -1277,7 +1277,7 @@ test('nega segunda mamada em andamento para o mesmo bebê', async () => {
   await assertFails(secondBatch.commit());
 });
 
-test('permite encerrar mamada e remover lock no mesmo lote', async () => {
+test('permite encerrar amamentação e remover lock no mesmo lote', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
 
   const startBatch = writeBatch(db);
@@ -1315,7 +1315,7 @@ test('permite encerrar mamada e remover lock no mesmo lote', async () => {
   await assertSucceeds(finishBatch.commit());
 });
 
-test('nega remover lock enquanto mamada continua aberta', async () => {
+test('nega remover lock enquanto amamentação continua aberta', async () => {
   const db = testEnv.authenticatedContext(userA).firestore();
 
   const batch = writeBatch(db);

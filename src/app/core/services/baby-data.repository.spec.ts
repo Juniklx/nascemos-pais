@@ -444,7 +444,7 @@ describe('BabyDataRepository', () => {
     expect(firestore.list).toHaveBeenCalledOnceWith('babies/baby-1/feedings');
   });
 
-  it('salva mamada finalizada em transação', async () => {
+  it('salva amamentação finalizada em transação', async () => {
     const record = {
       id: 'feeding-1',
       startedAt: 1000,
@@ -470,7 +470,7 @@ describe('BabyDataRepository', () => {
     expect(transactionContext.delete).not.toHaveBeenCalled();
   });
 
-  it('cria lock ao iniciar mamada', async () => {
+  it('cria lock ao iniciar amamentação', async () => {
     const record = {
       id: 'feeding-1',
       startedAt: 1000,
@@ -496,7 +496,7 @@ describe('BabyDataRepository', () => {
     );
   });
 
-  it('nega segunda mamada enquanto outra está em andamento', async () => {
+  it('nega segunda amamentação enquanto outra está em andamento', async () => {
     transactionContext.get.and.resolveTo({
       recordId: 'feeding-1',
     });
@@ -510,13 +510,13 @@ describe('BabyDataRepository', () => {
     };
 
     await expectAsync(repository.saveRecord('baby-1', 'feedings', record)).toBeRejectedWithError(
-      'Já existe uma mamada em andamento.',
+      'Já existe uma amamentação em andamento.',
     );
 
     expect(transactionContext.set).not.toHaveBeenCalled();
   });
 
-  it('remove lock ao encerrar a mamada ativa', async () => {
+  it('remove lock ao encerrar a amamentação ativa', async () => {
     transactionContext.get.and.resolveTo({
       recordId: 'feeding-1',
     });

@@ -29,19 +29,19 @@ export class Welcome implements OnDestroy {
     {
       title: 'Registre com a voz',
       description:
-        'Use comandos de voz para iniciar registros de mamada, sono e troca de fralda quando suas mãos estiverem ocupadas.',
+        'Use comandos de voz para iniciar registros de amamentação, sono e troca de fralda quando suas mãos estiverem ocupadas.',
       type: 'voice',
     },
     {
       title: 'Acompanhe a rotina',
       description:
-        'Veja mamadas, sono e trocas organizados em uma linha do tempo para consultar o que aconteceu ao longo do dia.',
+        'Veja amamentações, sono e trocas organizados em uma linha do tempo para consultar o que aconteceu ao longo do dia.',
       type: 'timeline',
     },
     {
       title: 'Registre em poucos passos',
       description:
-        'Acesse rapidamente mamada, sono e fralda e mantenha os registros do dia organizados.',
+        'Acesse rapidamente amamentação, sono e fralda e mantenha os registros do dia organizados.',
       type: 'quick',
     },
   ];

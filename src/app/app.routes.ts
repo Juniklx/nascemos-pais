@@ -170,7 +170,7 @@ export const routes: Routes = [
       {
         path: 'feeding',
 
-        title: 'Mamada | Nascemos Pais',
+        title: 'Amamentação | Nascemos Pais',
 
         loadComponent: () => import('./features/feeding/feeding').then((m) => m.FeedingPage),
       },

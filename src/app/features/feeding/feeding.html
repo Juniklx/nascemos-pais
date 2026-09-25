@@ -9,7 +9,7 @@
   </header>
 
   <section class="feeding-card" aria-labelledby="feeding-title">
-    <span class="eyebrow">REGISTRO DE MAMADA</span>
+    <span class="eyebrow">REGISTRO DE AMAMENTAÇÃO</span>
 
     @if (storageError(); as error) {
     <p class="storage-warning" role="alert">
@@ -21,8 +21,8 @@
     <h1 id="feeding-title">
       {{
       feeding.endedAt === null
-      ? 'Mamada em andamento'
-      : 'Mamada finalizada'
+      ? 'Amamentação em andamento'
+      : 'Amamentação finalizada'
       }}
     </h1>
 
@@ -43,7 +43,7 @@
         }}
       </span>
 
-      <strong class="timer" role="timer" aria-label="Duração da mamada" aria-live="off">
+      <strong class="timer" role="timer" aria-label="Duração da amamentação" aria-live="off">
         {{ elapsedTime() }}
       </strong>
 
@@ -84,7 +84,7 @@
 
     @if (times.untracked > 0 || feeding.periods === null) {
     <p class="hint">
-      Parte desta mamada foi registrada antes do
+      Parte desta amamentação foi registrada antes do
       acompanhamento por lado. Não sabemos como esse
       tempo foi dividido.
     </p>
@@ -121,13 +121,13 @@
 
       @if (legacyOversized()) {
       <p class="hint" role="alert">
-        Esta mamada antiga tem mais de 6 períodos. Seus horários foram preservados,
+        Esta amamentação antiga tem mais de 6 períodos. Seus horários foram preservados,
         mas ela não pode ser alterada nem finalizada nesta versão. Aguarde a
         migração segura; não exclua o registro para contornar essa restrição.
       </p>
       } @else if (periodLimitReached()) {
       <p class="hint" role="status">
-        Esta mamada atingiu o limite de 6 períodos. Finalize-a para salvar
+        Esta amamentação atingiu o limite de 6 períodos. Finalize-a para salvar
         os horários registrados antes de iniciar um novo acompanhamento.
       </p>
       } @else {
@@ -144,12 +144,12 @@
     </fieldset>
 
     <button type="button" class="primary-button" [disabled]="isSaving() || legacyOversized()" (click)="finish()">
-      {{ isSaving() ? 'Salvando...' : 'Finalizar mamada' }}
+      {{ isSaving() ? 'Salvando...' : 'Finalizar amamentação' }}
     </button>
 
     <p class="hint">
       Você pode voltar ao início.
-      A mamada continuará em andamento.
+      A amamentação continuará em andamento.
     </p>
     } @else {
     <a routerLink="/home" class="primary-button">
@@ -157,7 +157,7 @@
     </a>
     }
     } @else {
-    <h1 id="feeding-title">Registrar mamada</h1>
+    <h1 id="feeding-title">Registrar amamentação</h1>
 
     <p>
       Comece quando quiser.
@@ -165,7 +165,7 @@
     </p>
 
     <button type="button" class="primary-button" [disabled]="isSaving()" (click)="start()">
-      {{ isSaving() ? 'Salvando...' : 'Iniciar mamada' }}
+      {{ isSaving() ? 'Salvando...' : 'Iniciar amamentação' }}
     </button>
     }
   </section>

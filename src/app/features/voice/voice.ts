@@ -265,13 +265,13 @@ export class VoicePage {
       },
       {
         pattern:
-          /^(abrir mamada|acompanhar mamada|mamada)$/,
+          /^(?:abrir |acompanhar )?(?:amamentacao|mamada)$/,
 
         destination:
           '/feeding',
 
         message:
-          'Abrindo o registro de mamada.',
+          'Abrindo o registro de amamentação.',
       },
       {
         pattern:
@@ -401,7 +401,7 @@ export class VoicePage {
     }
 
     if (
-      /^(finalizar|encerrar|terminar|parar) mamada$/.test(
+      /^(finalizar|encerrar|terminar|parar) (?:amamentacao|mamada)$/.test(
         command,
       )
     ) {
@@ -410,7 +410,7 @@ export class VoicePage {
     }
 
     if (
-      /^(registrar|iniciar|comecar) mamada(?: (?:no lado (?:esquerdo|direito)|lado (?:esquerdo|direito)|na mama (?:esquerda|direita)|no seio (?:esquerdo|direito)))?$/.test(
+      /^(registrar|iniciar|comecar) (?:amamentacao|mamada)(?: (?:no lado (?:esquerdo|direito)|lado (?:esquerdo|direito)|na mama (?:esquerda|direita)|no seio (?:esquerdo|direito)))?$/.test(
         command,
       )
     ) {
@@ -465,7 +465,7 @@ export class VoicePage {
 
     this.voiceService
       .reportError(
-        'Não reconheci um comando único e completo. Tente dizer “registrar mamada”, “iniciar sono” ou “registrar fralda suja”.',
+        'Não reconheci um comando único e completo. Tente dizer “registrar amamentação”, “iniciar sono” ou “registrar fralda suja”.',
       );
 
     this.feedback.set(
@@ -672,7 +672,7 @@ export class VoicePage {
         this.feedingService
           .storageError(),
 
-        'Não foi possível iniciar a mamada.',
+        'Não foi possível iniciar a amamentação.',
       );
 
       return;
@@ -693,7 +693,7 @@ export class VoicePage {
           this.feedingService
             .storageError(),
 
-          'Não foi possível registrar o lado da mamada.',
+          'Não foi possível registrar o lado da amamentação.',
         );
 
         return;
@@ -709,8 +709,8 @@ export class VoicePage {
 
     this.completeCommand(
       alreadyActive
-        ? `A mamada já estava em andamento${sideDescription}.`
-        : `Mamada iniciada agora${sideDescription}.`,
+        ? `A amamentação já estava em andamento${sideDescription}.`
+        : `Amamentação iniciada agora${sideDescription}.`,
     );
   }
 
@@ -723,7 +723,7 @@ export class VoicePage {
     ) {
       this.voiceService
         .reportError(
-          'Não existe uma mamada em andamento para finalizar.',
+          'Não existe uma amamentação em andamento para finalizar.',
         );
 
       this.feedback.set(
@@ -742,14 +742,14 @@ export class VoicePage {
         this.feedingService
           .storageError(),
 
-        'Não foi possível finalizar a mamada.',
+        'Não foi possível finalizar a amamentação.',
       );
 
       return;
     }
 
     this.completeCommand(
-      'Mamada finalizada com sucesso.',
+      'Amamentação finalizada com sucesso.',
     );
   }
 
@@ -763,7 +763,7 @@ export class VoicePage {
     ) {
       this.voiceService
         .reportError(
-          'Não existe uma mamada em andamento. Inicie a mamada antes de informar o lado.',
+          'Não existe uma amamentação em andamento. Inicie a amamentação antes de informar o lado.',
         );
 
       this.feedback.set(
@@ -782,7 +782,7 @@ export class VoicePage {
         this.feedingService
           .storageError(),
 
-        'Não foi possível alterar o lado da mamada.',
+        'Não foi possível alterar o lado da amamentação.',
       );
 
       return;
@@ -790,8 +790,8 @@ export class VoicePage {
 
     this.completeCommand(
       side === 'left'
-        ? 'Mamada alterada para o lado esquerdo.'
-        : 'Mamada alterada para o lado direito.',
+        ? 'Amamentação alterada para o lado esquerdo.'
+        : 'Amamentação alterada para o lado direito.',
     );
   }
 

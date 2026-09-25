@@ -31,7 +31,7 @@
         <h1>
           @switch (activity.kind) {
           @case ('feeding') {
-          {{ activity.record.bottleMl !== undefined ? 'Mamadeira' : 'Mamada' }}
+          {{ activity.record.bottleMl !== undefined ? 'Mamadeira' : 'Amamentação' }}
           }
 
           @case ('sleep') {
@@ -72,13 +72,13 @@
       } @else {
       <div class="edit-grid">
         <label class="edit-field">
-          <span>Início da mamada</span>
+          <span>Início da amamentação</span>
 
           <input type="datetime-local" required [value]="startedAtInput()" (input)="onStartedAtInput($event)" />
         </label>
 
         <label class="edit-field">
-          <span>Fim da mamada</span>
+          <span>Fim da amamentação</span>
 
           <input type="datetime-local" required [value]="endedAtInput()" (input)="onEndedAtInput($event)" />
         </label>

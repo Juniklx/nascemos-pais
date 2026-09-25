@@ -336,8 +336,8 @@ export class Home {
                       ? 'Mamadeira'
                       : feeding.endedAt ===
                     null
-                      ? 'Mamada em andamento'
-                      : 'Mamada',
+                      ? 'Amamentação em andamento'
+                      : 'Amamentação',
 
                   time:
                     this.timeFormatter

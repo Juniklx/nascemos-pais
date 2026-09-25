@@ -934,7 +934,7 @@ export class ActivityPersistenceService {
 
   private parseFeeding(value: unknown, legacy: boolean): Feeding {
     if (!this.isObject(value)) {
-      throw new Error('Registro de mamada inválido.');
+      throw new Error('Registro de amamentação inválido.');
     }
 
     const id = value['id'];
@@ -950,7 +950,7 @@ export class ActivityPersistenceService {
       !(endedAt === null || (this.isTimestamp(endedAt) && endedAt >= startedAt)) ||
       !this.isSide(side)
     ) {
-      throw new Error('Registro de mamada inválido.');
+      throw new Error('Registro de amamentação inválido.');
     }
 
     const base = {
@@ -990,7 +990,7 @@ export class ActivityPersistenceService {
     }
 
     if (!Array.isArray(rawPeriods) || rawPeriods.length === 0) {
-      throw new Error('Períodos de mamada inválidos.');
+      throw new Error('Períodos de amamentação inválidos.');
     }
 
     const periods: FeedingPeriod[] = [];
@@ -1000,7 +1000,7 @@ export class ActivityPersistenceService {
       const raw = rawPeriods[index];
 
       if (!this.isObject(raw)) {
-        throw new Error('Período de mamada inválido.');
+        throw new Error('Período de amamentação inválido.');
       }
 
       const periodStart = raw['startedAt'];
@@ -1014,19 +1014,19 @@ export class ActivityPersistenceService {
         !this.isSide(periodSide) ||
         !(periodEnd === null || (this.isTimestamp(periodEnd) && periodEnd >= periodStart))
       ) {
-        throw new Error('Período de mamada inválido.');
+        throw new Error('Período de amamentação inválido.');
       }
 
       if (index > 0 && periodStart !== previousEnd) {
-        throw new Error('Períodos de mamada descontínuos.');
+        throw new Error('Períodos de amamentação descontínuos.');
       }
 
       if (!isLast && periodEnd === null) {
-        throw new Error('Período de mamada aberto em posição inválida.');
+        throw new Error('Período de amamentação aberto em posição inválida.');
       }
 
       if (isLast && (periodEnd !== endedAt || periodSide !== side)) {
-        throw new Error('Último período de mamada inconsistente.');
+        throw new Error('Último período de amamentação inconsistente.');
       }
 
       periods.push({

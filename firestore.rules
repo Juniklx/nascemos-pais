@@ -1135,7 +1135,7 @@ service cloud.firestore {
 
       /*
        * Documento exclusivo que representa
-       * uma mamada ou sono ainda em andamento.
+       * uma amamentação ou sono ainda em andamento.
        *
        * Há no máximo um documento de cada tipo.
        */
@@ -1243,7 +1243,7 @@ service cloud.firestore {
           );
 
         /*
-         * Uma mamada aberta só pode ser criada
+         * Uma amamentação aberta só pode ser criada
          * quando o lock do bebê aponta para ela.
          */
         allow create:
@@ -1266,7 +1266,7 @@ service cloud.firestore {
           );
 
         /*
-         * Ao manter ou reabrir uma mamada,
+         * Ao manter ou reabrir uma amamentação,
          * o lock precisa continuar apontando
          * para o mesmo registro.
          *

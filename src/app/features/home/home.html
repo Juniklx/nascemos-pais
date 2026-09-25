@@ -91,7 +91,7 @@
       <p>{{ attribution }}</p>
       }
       <button type="button" class="history-link" (click)="openFeeding()">
-        Acompanhar mamada
+        Acompanhar amamentação
         <span aria-hidden="true">›</span>
       </button>
       } @else if (activeSleep()) {
@@ -184,15 +184,15 @@
             activeFeeding() !== null
           " [attr.aria-label]="
             activeFeeding()
-              ? 'Mamada em andamento. Acompanhar mamada'
-              : 'Registrar mamada'
+              ? 'Amamentação em andamento. Acompanhar amamentação'
+              : 'Registrar amamentação'
           " (click)="openFeeding()">
           <span class="quick-action__icon" aria-hidden="true">
             ♢
           </span>
 
           <strong>
-            {{ activeFeeding() ? 'Acompanhar mamada' : 'Mamada' }}
+            {{ activeFeeding() ? 'Acompanhar amamentação' : 'Amamentação' }}
           </strong>
 
           <span class="quick-action__plus" aria-hidden="true">
@@ -245,7 +245,7 @@
 
           <p>
             Diga:
-            <b>"Registrar mamada"</b>
+            <b>"Registrar amamentação"</b>
           </p>
         </div>
       </div>

@@ -86,8 +86,8 @@ export class Routine {
             feeding.bottleMl !== undefined
               ? 'Mamadeira'
               : feeding.endedAt === null
-              ? 'Mamada em andamento'
-              : 'Mamada',
+              ? 'Amamentação em andamento'
+              : 'Amamentação',
           time: this.timeFormatter.format(
             feeding.startedAt,
           ),
