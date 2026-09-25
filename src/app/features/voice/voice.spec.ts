@@ -518,6 +518,50 @@ describe(
       expect(mocks.voice.reportError).toHaveBeenCalled();
     });
 
+    it('confirma "Lucas acordou" antes de finalizar o sono ativo', async () => {
+      mocks.sleep.activeSleep.set(sleep);
+      mocks.sleep.finish.and.resolveTo({ ...sleep, endedAt: Date.now() });
+
+      await say('Lucas acordou');
+
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()?.summary).toContain('Finalizar o sono de Lucas');
+
+      await fixture.componentInstance.confirmPending();
+
+      expect(mocks.sleep.finish).toHaveBeenCalledTimes(1);
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+    });
+
+    it('não finaliza sono com nome diferente, sem sono ativo ou após cancelar', async () => {
+      mocks.sleep.activeSleep.set(sleep);
+      await say('Sara acordou');
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+
+      mocks.sleep.activeSleep.set(null);
+      await say('Lucas acordou');
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+
+      mocks.sleep.activeSleep.set(sleep);
+      await say('Lucas acordou');
+      fixture.componentInstance.cancelPending();
+      expectNoAction();
+    });
+
+    it('não finaliza outro sono se o sono ativo mudar antes da confirmação', async () => {
+      mocks.sleep.activeSleep.set(sleep);
+      await say('Lucas acordou');
+
+      mocks.sleep.activeSleep.set({ ...sleep, id: 'sleep-2' });
+      await fixture.componentInstance.confirmPending();
+
+      expectNoAction();
+      expect(fixture.componentInstance.pendingCommand()).toBeNull();
+      expect(mocks.voice.reportError).toHaveBeenCalled();
+    });
+
     it('cancela uma mamadeira sem gravar e confirma volume em nova tentativa', async () => {
       await say('registrar mamadeira de cento e vinte ml');
       expectNoAction();
