@@ -39,7 +39,11 @@ type PendingVoiceCommand = {
   readonly recordedAt: number;
   readonly issuedAt: number;
   readonly summary: string;
-} & ({ readonly kind: 'sleep' } | { readonly kind: 'bottle'; readonly volumeMl: number });
+} & (
+  | { readonly kind: 'sleep' }
+  | { readonly kind: 'wake'; readonly sleepId: string }
+  | { readonly kind: 'bottle'; readonly volumeMl: number }
+);
 
 @Component({
   selector: 'app-voice',
@@ -470,11 +474,12 @@ export class VoicePage {
   }
 
   private prepareNaturalCommand(command: string): boolean {
-    const sleepMatch = command.match(/^(?:(.+?) )?dormiu ha (.+?) (minuto|minutos|hora|horas)$/);
+    const sleepMatch = command.match(/^(?:(.+?) )?dormiu (?:ha|a) (.+?) (minuto|minutos|hora|horas)$/);
+    const wakeMatch = command.match(/^(?:(?:o|a) )?(.+?) acordou$/);
     const bottleMatch = command.match(/^(?:registrar )?mamadeira(?: de)? (.+?) (ml|mililitro|mililitros)$/);
 
-    if (!sleepMatch && !bottleMatch) {
-      if (/\b(dormiu ha|mamadeira)\b/.test(command)) {
+    if (!sleepMatch && !wakeMatch && !bottleMatch) {
+      if (/\b(dormiu (?:ha|a)|mamadeira)\b/.test(command)) {
         this.voiceService.reportError('Informe um tempo ou volume claro. Exemplos: “Lucas dormiu há 15 minutos” ou “registrar mamadeira de 120 ml”.');
         this.feedback.set('Nenhum registro foi salvo.');
         return true;
@@ -513,6 +518,23 @@ export class VoicePage {
       this.pendingCommand.set({
         kind: 'sleep', babyId: baby.id, uid, recordedAt: startedAt, issuedAt,
         summary: `Iniciar sono de ${baby.name} em ${when} (há ${minutes} min).`,
+      });
+    } else if (wakeMatch) {
+      if (wakeMatch[1] !== this.normalize(baby.name)) {
+        this.voiceService.reportError(`O nome informado não corresponde ao bebê ativo (${baby.name}). Nenhum sono foi finalizado.`);
+        return true;
+      }
+
+      const activeSleep = this.sleepService.activeSleep();
+
+      if (!activeSleep) {
+        this.voiceService.reportError('Não existe um sono em andamento para finalizar.');
+        return true;
+      }
+
+      this.pendingCommand.set({
+        kind: 'wake', babyId: baby.id, uid, recordedAt: issuedAt, issuedAt, sleepId: activeSleep.id,
+        summary: `Finalizar o sono de ${baby.name} ao confirmar.`,
       });
     } else if (bottleMatch) {
       const volumeMl = this.parseAmount(bottleMatch[1]);
@@ -568,6 +590,23 @@ export class VoicePage {
 
         this.pendingCommand.set(null);
         this.completeCommand('Sono registrado no horário confirmado.');
+      } else if (pending.kind === 'wake') {
+        if (this.sleepService.activeSleep()?.id !== pending.sleepId) {
+          this.pendingCommand.set(null);
+          this.voiceService.reportError('O sono em andamento mudou. Diga o comando novamente.');
+          return;
+        }
+
+        const finished = await this.sleepService.finish();
+
+        if (!finished) {
+          this.pendingCommand.set(null);
+          this.reportSyncFailure(this.sleepService.storageError(), 'Não foi possível finalizar o sono.');
+          return;
+        }
+
+        this.pendingCommand.set(null);
+        this.completeCommand('Sono finalizado com sucesso.');
       } else {
         const bottle = await this.feedingService.registerBottle(pending.volumeMl, pending.recordedAt);
 
